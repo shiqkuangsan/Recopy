@@ -8,7 +8,7 @@ use db::models::ContentType;
 use tauri::{
     Emitter, Listener, Manager,
     menu::{MenuBuilder, MenuItemBuilder},
-    tray::TrayIconBuilder,
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -127,10 +127,30 @@ fn hide_main_window(app: &tauri::AppHandle) {
     platform::platform_hide_window(app);
 }
 
+fn detect_language(app: &tauri::App) -> String {
+    let pool = app.state::<db::DbPool>();
+    // Read language setting from DB
+    if let Ok(Some(lang)) = tauri::async_runtime::block_on(db::queries::get_setting(&pool.0, "language")) {
+        if lang == "zh" || lang == "en" {
+            return lang;
+        }
+    }
+    // Fallback: detect system language
+    let locale = sys_locale::get_locale().unwrap_or_else(|| "en".to_string());
+    if locale.starts_with("zh") { "zh".to_string() } else { "en".to_string() }
+}
+
 fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let show = MenuItemBuilder::with_id("show", "Show Recopy").build(app)?;
-    let settings = MenuItemBuilder::with_id("settings", "Settings...").build(app)?;
-    let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+    let lang = detect_language(app);
+    let (show_label, settings_label, quit_label) = if lang == "zh" {
+        ("显示 Recopy", "设置...", "退出")
+    } else {
+        ("Show Recopy", "Settings...", "Quit")
+    };
+
+    let show = MenuItemBuilder::with_id("show", show_label).build(app)?;
+    let settings = MenuItemBuilder::with_id("settings", settings_label).build(app)?;
+    let quit = MenuItemBuilder::with_id("quit", quit_label).build(app)?;
 
     let menu = MenuBuilder::new(app)
         .item(&show)
@@ -140,8 +160,14 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .item(&quit)
         .build()?;
 
+    let icon_bytes = include_bytes!("../icons/tray-icon-v3.png");
+    let icon = tauri::image::Image::from_bytes(icon_bytes)?;
+
     let _tray = TrayIconBuilder::new()
+        .icon(icon)
+        .icon_as_template(true)
         .menu(&menu)
+        .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "show" => {
                 show_main_window(app);
@@ -155,8 +181,9 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if let tauri::tray::TrayIconEvent::Click {
-                button: tauri::tray::MouseButton::Left,
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
                 ..
             } = event
             {
