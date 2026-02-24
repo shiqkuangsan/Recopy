@@ -43,6 +43,13 @@ export function useKeyboardNav() {
         return;
       }
 
+      // Cmd+, to open settings
+      if (e.key === "," && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        invoke("open_settings_window");
+        return;
+      }
+
       // --- Input focused: only intercept keys that exit input ---
       if (isInInput) {
         if (e.key === "ArrowDown" || e.key === "Escape") {
