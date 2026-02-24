@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { ClipboardItem } from "../lib/types";
 import { relativeTime } from "../lib/time";
+import { createPressActionHandlers } from "../lib/press-action";
 import { Star, Type } from "lucide-react";
 
 interface TextCardProps {
@@ -15,13 +16,15 @@ const MAX_CHARS = 300;
 export function TextCard({ item, selected, onClick }: TextCardProps) {
   const { t } = useTranslation();
   const preview = truncateText(item.plain_text, MAX_CHARS, MAX_LINES);
+  const pressHandlers = createPressActionHandlers<HTMLDivElement>(onClick, {
+    enableKeyboardHandler: true,
+  });
 
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      {...pressHandlers}
       className={`relative flex flex-col gap-1.5 rounded-lg border p-2.5 cursor-pointer transition-colors h-full overflow-hidden
         ${selected ? "border-accent bg-accent/10" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >

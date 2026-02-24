@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useClipboardStore } from "../stores/clipboard-store";
 import type { ViewMode } from "../lib/types";
+import { createPressActionHandlers } from "../lib/press-action";
 import { Clock, Star } from "lucide-react";
 
 const TABS: { i18nKey: string; value: ViewMode; icon: typeof Clock }[] = [
@@ -17,11 +18,14 @@ export function ViewTabs() {
     <div className="flex gap-0.5">
       {TABS.map((tab) => {
         const Icon = tab.icon;
+        const pressHandlers = createPressActionHandlers<HTMLButtonElement>(() =>
+          setViewMode(tab.value)
+        );
         return (
           <button
             key={tab.value}
-            onClick={() => setViewMode(tab.value)}
-            className={`flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md transition-colors cursor-pointer
+            {...pressHandlers}
+            className={`flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md transition-colors cursor-pointer focus:outline-none
               ${
                 viewMode === tab.value
                   ? "text-foreground bg-white/10"

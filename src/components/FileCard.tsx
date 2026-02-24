@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { ClipboardItem } from "../lib/types";
 import { relativeTime, formatSize } from "../lib/time";
+import { createPressActionHandlers } from "../lib/press-action";
 import { Star, File, FileArchive, FileImage, FileCode, FileText } from "lucide-react";
 
 interface FileCardProps {
@@ -11,6 +12,9 @@ interface FileCardProps {
 
 export function FileCard({ item, selected, onClick }: FileCardProps) {
   const { t } = useTranslation();
+  const pressHandlers = createPressActionHandlers<HTMLDivElement>(onClick, {
+    enableKeyboardHandler: true,
+  });
   const fileName = item.file_name || item.file_path || t("card.unknownFile");
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
   const IconComponent = getFileIcon(ext);
@@ -19,8 +23,7 @@ export function FileCard({ item, selected, onClick }: FileCardProps) {
     <div
       role="button"
       tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      {...pressHandlers}
       className={`relative flex flex-col gap-1.5 rounded-lg border p-2.5 cursor-pointer transition-colors h-full overflow-hidden
         ${selected ? "border-accent bg-accent/10" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >

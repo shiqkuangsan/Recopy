@@ -19,6 +19,14 @@ const mockItem = (overrides: Partial<ClipboardItem> = {}): ClipboardItem => ({
   ...overrides,
 });
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 describe("useClipboardStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -111,5 +119,53 @@ describe("useClipboardStore", () => {
     useClipboardStore.getState().setViewMode("pins");
     expect(useClipboardStore.getState().viewMode).toBe("pins");
     expect(useClipboardStore.getState().selectedIndex).toBe(0);
+  });
+
+  it("should reset to history and fetch items on panel show", async () => {
+    const historyItems = [mockItem({ id: "history-1" })];
+    mockedInvoke.mockResolvedValueOnce(historyItems);
+    useClipboardStore.setState({ viewMode: "pins", selectedIndex: 5 });
+
+    await useClipboardStore.getState().onPanelShow();
+
+    expect(useClipboardStore.getState().viewMode).toBe("history");
+    expect(useClipboardStore.getState().selectedIndex).toBe(0);
+    expect(useClipboardStore.getState().items).toEqual(historyItems);
+    expect(mockedInvoke).toHaveBeenCalledWith("get_clipboard_items", {
+      contentType: undefined,
+      limit: 200,
+      offset: 0,
+    });
+  });
+
+  it("should ignore stale results from older requests", async () => {
+    const historyDeferred = deferred<ClipboardItem[]>();
+    const pinsDeferred = deferred<ClipboardItem[]>();
+
+    mockedInvoke.mockImplementation((cmd) => {
+      if (cmd === "get_clipboard_items") {
+        return historyDeferred.promise;
+      }
+      if (cmd === "get_favorited_items") {
+        return pinsDeferred.promise;
+      }
+      return Promise.resolve([]);
+    });
+
+    const historyPromise = useClipboardStore.getState().fetchItems();
+    const pinsPromise = useClipboardStore.getState().fetchFavorites();
+
+    const pinItems = [mockItem({ id: "pin-1", is_favorited: true })];
+    pinsDeferred.resolve(pinItems);
+    await pinsPromise;
+
+    expect(useClipboardStore.getState().items).toEqual(pinItems);
+    expect(useClipboardStore.getState().loading).toBe(false);
+
+    const historyItems = [mockItem({ id: "history-late" })];
+    historyDeferred.resolve(historyItems);
+    await historyPromise;
+
+    expect(useClipboardStore.getState().items).toEqual(pinItems);
   });
 });

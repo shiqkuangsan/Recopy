@@ -19,6 +19,12 @@ export function useKeyboardNav() {
         }
       }
 
+      // Prevent Tab from cycling focus between UI elements
+      if (e.key === "Tab") {
+        e.preventDefault();
+        return;
+      }
+
       switch (e.key) {
         case "ArrowDown":
         case "ArrowRight": {

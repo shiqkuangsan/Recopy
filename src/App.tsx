@@ -19,6 +19,7 @@ const isHudPage = pageParam === "hud";
 function MainApp() {
   const fetchItems = useClipboardStore((s) => s.fetchItems);
   const refreshOnChange = useClipboardStore((s) => s.refreshOnChange);
+  const onPanelShow = useClipboardStore((s) => s.onPanelShow);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -45,15 +46,10 @@ function MainApp() {
     };
   }, [refreshOnChange]);
 
-  // Listen for show event to replay slide-up animation and reset to history tab
+  // Listen for show event to replay slide-up animation and reset panel state.
   useEffect(() => {
     const unlisten = listen("recopy-show", () => {
-      // Reset to history tab only if not already there, to avoid
-      // unnecessary fetchItems() racing with subsequent user clicks
-      const { viewMode, setViewMode } = useClipboardStore.getState();
-      if (viewMode !== "history") {
-        setViewMode("history");
-      }
+      void onPanelShow();
 
       const el = panelRef.current;
       if (el) {
@@ -68,7 +64,7 @@ function MainApp() {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, []);
+  }, [onPanelShow]);
 
   return (
     <div className="h-screen w-screen flex flex-col">

@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useClipboardStore } from "../stores/clipboard-store";
 import type { FilterType } from "../lib/types";
+import { createPressActionHandlers } from "../lib/press-action";
 
 const FILTERS: { i18nKey: string; value: FilterType }[] = [
   { i18nKey: "filter.all", value: "all" },
@@ -20,8 +21,8 @@ export function TypeFilter() {
       {FILTERS.map((f) => (
         <button
           key={f.value}
-          onClick={() => setFilterType(f.value)}
-          className={`px-2 py-1 text-xs rounded-md transition-colors cursor-pointer
+          {...createPressActionHandlers<HTMLButtonElement>(() => setFilterType(f.value))}
+          className={`px-2 py-1 text-xs rounded-md transition-colors cursor-pointer focus:outline-none
             ${
               filterType === f.value
                 ? "bg-accent text-accent-foreground"

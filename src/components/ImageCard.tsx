@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ClipboardItem } from "../lib/types";
 import { relativeTime, formatSize } from "../lib/time";
+import { createPressActionHandlers } from "../lib/press-action";
 import { Star, ImageIcon } from "lucide-react";
 
 interface ImageCardProps {
@@ -12,6 +13,9 @@ interface ImageCardProps {
 
 export function ImageCard({ item, selected, onClick }: ImageCardProps) {
   const { t } = useTranslation();
+  const pressHandlers = createPressActionHandlers<HTMLDivElement>(onClick, {
+    enableKeyboardHandler: true,
+  });
   const thumbnailUrl = useMemo(() => {
     if (!item.thumbnail || item.thumbnail.length === 0) return null;
     const bytes = new Uint8Array(item.thumbnail);
@@ -23,8 +27,7 @@ export function ImageCard({ item, selected, onClick }: ImageCardProps) {
     <div
       role="button"
       tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      {...pressHandlers}
       className={`relative flex flex-col gap-1.5 rounded-lg border p-2.5 cursor-pointer transition-colors h-full overflow-hidden
         ${selected ? "border-accent bg-accent/10" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >
