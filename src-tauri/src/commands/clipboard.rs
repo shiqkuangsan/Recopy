@@ -142,9 +142,13 @@ async fn write_to_clipboard(
     match content_type {
         "image" => {
             if let Some(path) = image_path {
+                let file_size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+                log::info!("Pasting image from path: {} ({}B)", path, file_size);
                 tauri_plugin_clipboard_x::write_image(path.clone())
                     .await
                     .map_err(|e| format!("Failed to write image: {}", e))?;
+            } else {
+                log::warn!("Paste image: image_path is None!");
             }
         }
         "file" => {
@@ -278,6 +282,12 @@ pub async fn run_retention_cleanup(
     queries::cleanup_by_retention(&db.0, &policy, days, count)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Hide the main window (works with NSPanel on macOS).
+#[tauri::command]
+pub fn hide_window(app: AppHandle) {
+    crate::platform::platform_hide_window(&app);
 }
 
 /// Open the settings window.

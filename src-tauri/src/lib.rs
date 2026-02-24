@@ -47,6 +47,7 @@ pub fn run() {
             clip_cmd::clear_history,
             clip_cmd::run_retention_cleanup,
             clip_cmd::open_settings_window,
+            clip_cmd::hide_window,
         ])
         .setup(|app| {
             // Initialize database
