@@ -159,8 +159,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
     },
 
     onPanelShow: async () => {
-      // Preserve viewMode, filterType, and searchQuery — only reset selection.
-      set({ selectedIndex: 0 });
+      // Preserve all UI state: viewMode, filterType, searchQuery, selectedIndex, scroll position.
       const { searchQuery, viewMode } = get();
       if (viewMode === "pins") {
         await get().fetchFavorites();
