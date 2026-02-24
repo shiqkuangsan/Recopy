@@ -355,8 +355,9 @@ pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {
     let url = tauri::WebviewUrl::App("index.html?page=settings".into());
     tauri::WebviewWindowBuilder::new(&app, "settings", url)
         .title("Recopy Settings")
-        .inner_size(560.0, 480.0)
-        .resizable(false)
+        .inner_size(640.0, 520.0)
+        .min_inner_size(540.0, 400.0)
+        .resizable(true)
         .center()
         .build()
         .map_err(|e| format!("Failed to open settings window: {}", e))?;
