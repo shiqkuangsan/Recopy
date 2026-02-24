@@ -261,6 +261,37 @@ pub async fn set_setting(
         .map_err(|e| e.to_string())
 }
 
+/// Unregister the current global shortcut (used during shortcut recording).
+#[tauri::command]
+pub async fn unregister_shortcut(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    app.global_shortcut().unregister_all().map_err(|e| e.to_string())
+}
+
+/// Re-register the global shortcut from DB settings.
+#[tauri::command]
+pub async fn register_shortcut(app: AppHandle, db: State<'_, DbPool>) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+
+    let shortcut = queries::get_setting(&db.0, "shortcut")
+        .await
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| "CommandOrControl+Shift+V".to_string());
+
+    let app_handle = app.clone();
+    app.global_shortcut()
+        .on_shortcut(shortcut.as_str(), move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                if crate::platform::platform_is_visible(&app_handle) {
+                    crate::hide_main_window(&app_handle);
+                } else {
+                    crate::show_main_window(&app_handle);
+                }
+            }
+        })
+        .map_err(|e| e.to_string())
+}
+
 /// Clear all clipboard history (preserve favorites).
 #[tauri::command]
 pub async fn clear_history(
@@ -345,23 +376,7 @@ pub fn show_copy_hud(app: AppHandle) {
 /// Open the settings window.
 #[tauri::command]
 pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {
-    // If settings window already exists, just show it
-    if let Some(window) = app.get_webview_window("settings") {
-        let _ = window.show();
-        let _ = window.set_focus();
-        return Ok(());
-    }
-
-    let url = tauri::WebviewUrl::App("index.html?page=settings".into());
-    tauri::WebviewWindowBuilder::new(&app, "settings", url)
-        .title("Recopy Settings")
-        .inner_size(640.0, 520.0)
-        .min_inner_size(540.0, 400.0)
-        .resizable(true)
-        .center()
-        .build()
-        .map_err(|e| format!("Failed to open settings window: {}", e))?;
-
+    crate::open_settings_window_impl(&app);
     Ok(())
 }
 

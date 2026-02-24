@@ -47,6 +47,8 @@ pub fn run() {
             clip_cmd::set_setting,
             clip_cmd::clear_history,
             clip_cmd::run_retention_cleanup,
+            clip_cmd::unregister_shortcut,
+            clip_cmd::register_shortcut,
             clip_cmd::open_settings_window,
             clip_cmd::hide_window,
             clip_cmd::show_copy_hud,
@@ -88,7 +90,7 @@ pub fn run() {
 }
 
 /// Show the main window: full-width at bottom of screen, animate in.
-fn show_main_window(app: &tauri::AppHandle) {
+pub fn show_main_window(app: &tauri::AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
@@ -123,7 +125,7 @@ fn show_main_window(app: &tauri::AppHandle) {
 }
 
 /// Hide the main window.
-fn hide_main_window(app: &tauri::AppHandle) {
+pub fn hide_main_window(app: &tauri::AppHandle) {
     platform::platform_hide_window(app);
 }
 
@@ -196,6 +198,14 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn open_settings_window(app: &tauri::AppHandle) {
+    // Delegate to the shared helper used by both tray menu and Tauri command
+    crate::open_settings_window_impl(app);
+}
+
+/// Shared settings window creation logic.
+/// Re-registers global shortcut on window close to guard against
+/// the shortcut recorder leaving it unregistered.
+pub fn open_settings_window_impl(app: &tauri::AppHandle) {
     // If settings window already exists, just show it
     if let Some(window) = app.get_webview_window("settings") {
         let _ = window.show();
@@ -203,9 +213,8 @@ fn open_settings_window(app: &tauri::AppHandle) {
         return;
     }
 
-    // Create new settings window
     let url = tauri::WebviewUrl::App("index.html?page=settings".into());
-    match tauri::WebviewWindowBuilder::new(app, "settings", url)
+    let window = match tauri::WebviewWindowBuilder::new(app, "settings", url)
         .title("Recopy Settings")
         .inner_size(640.0, 520.0)
         .min_inner_size(540.0, 400.0)
@@ -213,9 +222,46 @@ fn open_settings_window(app: &tauri::AppHandle) {
         .center()
         .build()
     {
-        Ok(_) => log::info!("Settings window opened"),
-        Err(e) => log::error!("Failed to open settings window: {}", e),
-    }
+        Ok(w) => w,
+        Err(e) => {
+            log::error!("Failed to open settings window: {}", e);
+            return;
+        }
+    };
+
+    let app_clone = app.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::Destroyed = event {
+            use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+
+            let shortcut = tauri::async_runtime::block_on(async {
+                if let Some(pool) = app_clone.try_state::<db::DbPool>() {
+                    db::queries::get_setting(&pool.0, "shortcut")
+                        .await
+                        .unwrap_or(None)
+                        .unwrap_or_else(|| "CommandOrControl+Shift+V".to_string())
+                } else {
+                    "CommandOrControl+Shift+V".to_string()
+                }
+            });
+
+            let _ = app_clone.global_shortcut().unregister_all();
+            let app_inner = app_clone.clone();
+            let _ = app_clone.global_shortcut().on_shortcut(
+                shortcut.as_str(),
+                move |_app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        if platform::platform_is_visible(&app_inner) {
+                            hide_main_window(&app_inner);
+                        } else {
+                            show_main_window(&app_inner);
+                        }
+                    }
+                },
+            );
+            log::info!("Global shortcut re-registered after settings window closed");
+        }
+    });
 }
 
 fn setup_global_shortcut(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
@@ -247,6 +293,11 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
     {
         let app_handle = app.clone();
         app.listen("tauri://blur", move |_event| {
+            // Skip if the panel is not currently visible (blur from settings window etc.)
+            if !platform::platform_is_visible(&app_handle) {
+                return;
+            }
+
             let app_handle = app_handle.clone();
             let should_hide = tauri::async_runtime::block_on(async {
                 if let Some(pool) = app_handle.try_state::<db::DbPool>() {
