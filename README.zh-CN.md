@@ -6,6 +6,8 @@
 
 [English](README.md) | 中文
 
+![Recopy 预览](assets/preview.png)
+
 ## 功能特性
 
 - **全类型支持** — 纯文本、富文本、图片、文件

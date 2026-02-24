@@ -6,6 +6,8 @@ A free, open-source clipboard history manager for macOS and Windows.
 
 English | [中文](README.zh-CN.md)
 
+![Recopy Preview](assets/preview.png)
+
 ## Features
 
 - **Full-type support** — Plain text, rich text, images, and files
