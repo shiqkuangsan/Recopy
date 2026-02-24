@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
-import { Check } from "lucide-react";
+import { Check, Settings } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { SearchBar } from "./components/SearchBar";
 import { TypeFilter } from "./components/TypeFilter";
 import { ViewTabs } from "./components/ViewTabs";
@@ -46,17 +47,28 @@ function MainApp() {
     };
   }, [refreshOnChange]);
 
-  // Listen for show event to replay slide-up animation and reset panel state.
+  // Reset panel visual state when hidden (blur) so next show starts clean.
+  useEffect(() => {
+    const unlisten = listen("tauri://blur", () => {
+      const el = panelRef.current;
+      if (el) {
+        el.classList.remove("panel-enter");
+        el.classList.add("panel-idle");
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  // Listen for show event to replay slide-up animation and refresh data.
   useEffect(() => {
     const unlisten = listen("recopy-show", () => {
       void onPanelShow();
 
       const el = panelRef.current;
       if (el) {
-        el.classList.remove("panel-enter");
-        el.classList.add("panel-idle");
-        // Force reflow to restart animation
-        void el.offsetWidth;
+        // Content is already in panel-idle state (set on blur), just start animation
         el.classList.remove("panel-idle");
         el.classList.add("panel-enter");
       }
@@ -73,10 +85,16 @@ function MainApp() {
         className="panel-idle w-full h-full text-foreground flex flex-col font-sans overflow-hidden"
       >
         {/* Header — single row, centered */}
-        <div className="flex items-center justify-center gap-3 px-4 pt-3 pb-2 shrink-0" data-tauri-drag-region>
+        <div className="relative flex items-center justify-center gap-3 px-4 pt-3 pb-2 shrink-0" data-tauri-drag-region>
           <ViewTabs />
           <SearchBar />
           <TypeFilter />
+          <button
+            onClick={() => invoke("open_settings_window")}
+            className="absolute right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
+          >
+            <Settings size={16} />
+          </button>
         </div>
 
         {/* Content */}
