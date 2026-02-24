@@ -25,6 +25,14 @@ export function useKeyboardNav() {
         return;
       }
 
+      // Cmd+F / Ctrl+F to focus search input
+      if (e.key === "f" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        const input = document.querySelector<HTMLInputElement>('input[type="text"]');
+        input?.focus();
+        return;
+      }
+
       switch (e.key) {
         case "ArrowDown":
         case "ArrowRight": {
@@ -44,6 +52,15 @@ export function useKeyboardNav() {
           e.preventDefault();
           if (items[selectedIndex]) {
             pasteItem(items[selectedIndex]);
+          }
+          break;
+        }
+        case "Escape": {
+          // Blur search input to return keyboard control to card navigation
+          const active = document.activeElement as HTMLElement;
+          if (active?.tagName === "INPUT") {
+            e.preventDefault();
+            active.blur();
           }
           break;
         }
