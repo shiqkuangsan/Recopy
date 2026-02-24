@@ -45,9 +45,16 @@ function MainApp() {
     };
   }, [refreshOnChange]);
 
-  // Listen for show event to replay slide-up animation
+  // Listen for show event to replay slide-up animation and reset to history tab
   useEffect(() => {
     const unlisten = listen("recopy-show", () => {
+      // Reset to history tab only if not already there, to avoid
+      // unnecessary fetchItems() racing with subsequent user clicks
+      const { viewMode, setViewMode } = useClipboardStore.getState();
+      if (viewMode !== "history") {
+        setViewMode("history");
+      }
+
       const el = panelRef.current;
       if (el) {
         el.classList.remove("panel-enter");

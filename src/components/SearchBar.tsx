@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { listen } from "@tauri-apps/api/event";
 import { Search, X } from "lucide-react";
 import { useClipboardStore } from "../stores/clipboard-store";
 
@@ -12,9 +13,15 @@ export function SearchBar() {
   const fetchItems = useClipboardStore((s) => s.fetchItems);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Auto-focus on mount
+  // Auto-focus on mount and on panel show
   useEffect(() => {
     inputRef.current?.focus();
+    const unlisten = listen("recopy-show", () => {
+      inputRef.current?.focus();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, []);
 
   const handleChange = (value: string) => {
