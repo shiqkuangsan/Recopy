@@ -4,6 +4,7 @@ import { Clipboard, ClipboardPaste, FileText, Star, Trash2 } from "lucide-react"
 import type { ClipboardItem } from "../lib/types";
 import { pasteItem, copyToClipboard, pasteAsPlainText } from "../lib/paste";
 import { useClipboardStore } from "../stores/clipboard-store";
+import { useCopyHud } from "./CopyHud";
 import { invoke } from "@tauri-apps/api/core";
 
 interface ItemContextMenuProps {
@@ -16,9 +17,11 @@ export function ItemContextMenu({ item, children }: ItemContextMenuProps) {
   const deleteItem = useClipboardStore((s) => s.deleteItem);
   const refreshOnChange = useClipboardStore((s) => s.refreshOnChange);
 
+  const showHud = useCopyHud((s) => s.show);
+
   const handlePaste = () => pasteItem(item);
   const handlePastePlain = () => pasteAsPlainText(item);
-  const handleCopy = () => copyToClipboard(item);
+  const handleCopy = () => copyToClipboard(item).then(() => showHud());
 
   const handleToggleFavorite = async () => {
     try {

@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from "react";
 import { useClipboardStore } from "../stores/clipboard-store";
+import { useCopyHud } from "../components/CopyHud";
 import { pasteItem, copyToClipboard } from "../lib/paste";
 
 export function useKeyboardNav() {
@@ -45,8 +46,9 @@ export function useKeyboardNav() {
           if (e.metaKey || e.ctrlKey) {
             e.preventDefault();
             if (items[selectedIndex]) {
-              copyToClipboard(items[selectedIndex]);
-              useClipboardStore.getState().showCopied(items[selectedIndex].id);
+              copyToClipboard(items[selectedIndex]).then(() => {
+                useCopyHud.getState().show();
+              });
             }
           }
           break;

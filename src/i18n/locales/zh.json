@@ -27,6 +27,7 @@
     "paste": "粘贴",
     "pasteAsPlainText": "粘贴为纯文本",
     "copyToClipboard": "复制到剪贴板",
+    "copied": "已复制",
     "favorite": "收藏",
     "unfavorite": "取消收藏",
     "delete": "删除"

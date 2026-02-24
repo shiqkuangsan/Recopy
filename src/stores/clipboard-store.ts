@@ -9,7 +9,6 @@ interface ClipboardState {
   filterType: FilterType;
   viewMode: ViewMode;
   selectedIndex: number;
-  copiedId: string | null;
 
   // Actions
   setSearchQuery: (query: string) => void;
@@ -21,7 +20,6 @@ interface ClipboardState {
   deleteItem: (id: string) => Promise<void>;
   refreshOnChange: () => Promise<void>;
   fetchFavorites: () => Promise<void>;
-  showCopied: (id: string) => void;
 }
 
 export const useClipboardStore = create<ClipboardState>((set, get) => ({
@@ -31,7 +29,6 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
   filterType: "all",
   viewMode: "history",
   selectedIndex: 0,
-  copiedId: null,
 
   setSearchQuery: (query: string) => set({ searchQuery: query, selectedIndex: 0 }),
 
@@ -116,11 +113,6 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
     } else {
       await get().fetchItems();
     }
-  },
-
-  showCopied: (id: string) => {
-    set({ copiedId: id });
-    setTimeout(() => set({ copiedId: null }), 800);
   },
 
   fetchFavorites: async () => {

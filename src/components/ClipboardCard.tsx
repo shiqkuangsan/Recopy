@@ -1,8 +1,6 @@
-import { useTranslation } from "react-i18next";
-import { Check } from "lucide-react";
 import type { ClipboardItem } from "../lib/types";
-import { useClipboardStore } from "../stores/clipboard-store";
 import { copyToClipboard } from "../lib/paste";
+import { useCopyHud } from "./CopyHud";
 import { TextCard } from "./TextCard";
 import { RichTextCard } from "./RichTextCard";
 import { ImageCard } from "./ImageCard";
@@ -16,13 +14,10 @@ interface ClipboardCardProps {
 }
 
 export function ClipboardCard({ item, selected, onClick }: ClipboardCardProps) {
-  const copiedId = useClipboardStore((s) => s.copiedId);
-  const showCopied = useClipboardStore((s) => s.showCopied);
-  const isCopied = copiedId === item.id;
+  const showHud = useCopyHud((s) => s.show);
 
   const handleDoubleClick = () => {
-    copyToClipboard(item);
-    showCopied(item.id);
+    copyToClipboard(item).then(() => showHud());
   };
 
   const card = (() => {
@@ -44,18 +39,7 @@ export function ClipboardCard({ item, selected, onClick }: ClipboardCardProps) {
     <ItemContextMenu item={item}>
       <div className="relative h-full" onDoubleClick={handleDoubleClick}>
         {card}
-        {isCopied && <CopiedOverlay />}
       </div>
     </ItemContextMenu>
-  );
-}
-
-function CopiedOverlay() {
-  const { t } = useTranslation();
-  return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 rounded-lg animate-in fade-in duration-150 pointer-events-none">
-      <Check className="text-green-400" size={28} strokeWidth={2.5} />
-      <span className="text-white text-xs font-medium mt-1">{t("context.copyToClipboard")}</span>
-    </div>
   );
 }

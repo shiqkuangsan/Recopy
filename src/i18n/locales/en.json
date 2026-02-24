@@ -27,6 +27,7 @@
     "paste": "Paste",
     "pasteAsPlainText": "Paste as Plain Text",
     "copyToClipboard": "Copy to Clipboard",
+    "copied": "Copied",
     "favorite": "Favorite",
     "unfavorite": "Unfavorite",
     "delete": "Delete"

@@ -8,6 +8,7 @@ import { SettingsPage } from "./components/SettingsPage";
 import { useClipboardStore } from "./stores/clipboard-store";
 import { useSettingsStore } from "./stores/settings-store";
 import { useKeyboardNav } from "./hooks/useKeyboardNav";
+import { CopyHud } from "./components/CopyHud";
 
 // Detect if this window is the settings page
 const isSettingsPage = new URLSearchParams(window.location.search).get("page") === "settings";
@@ -77,6 +78,7 @@ function MainApp() {
           <ClipboardList />
         </div>
       </div>
+      <CopyHud />
     </div>
   );
 }
