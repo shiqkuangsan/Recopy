@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { invoke } from "@tauri-apps/api/core";
 import { useSettingsStore, type Settings as AppSettings } from "../stores/settings-store";
 import {
   Settings,
@@ -404,9 +405,18 @@ function ShortcutRecorder({
   useEffect(() => {
     if (!recording) return;
 
+    // Unregister global shortcut so it doesn't intercept key events
+    invoke("unregister_shortcut");
+
     const handler = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
+
+      // Escape to cancel recording
+      if (e.key === "Escape") {
+        setRecording(false);
+        return;
+      }
 
       const parts: string[] = [];
       if (e.metaKey || e.ctrlKey) parts.push("CommandOrControl");
@@ -424,7 +434,11 @@ function ShortcutRecorder({
     };
 
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      // Re-register global shortcut from DB settings
+      invoke("register_shortcut");
+    };
   }, [recording, onChange]);
 
   const formatShortcut = (s: string) =>
