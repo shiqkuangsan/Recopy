@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Check, Settings } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { SearchBar } from "./components/SearchBar";
@@ -48,8 +49,10 @@ function MainApp() {
   }, [refreshOnChange]);
 
   // Reset panel visual state when hidden (blur) so next show starts clean.
+  // Use window-scoped listener so other windows (settings) don't trigger this.
   useEffect(() => {
-    const unlisten = listen("tauri://blur", () => {
+    const currentWindow = getCurrentWebviewWindow();
+    const unlisten = currentWindow.listen("tauri://blur", () => {
       const el = panelRef.current;
       if (el) {
         el.classList.remove("panel-enter");
