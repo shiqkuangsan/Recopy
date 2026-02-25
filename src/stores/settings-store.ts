@@ -162,4 +162,5 @@ if (typeof window !== "undefined") {
       applyLanguage("system");
     }
   });
+
 }

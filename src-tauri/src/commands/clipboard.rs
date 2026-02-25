@@ -252,13 +252,21 @@ pub async fn get_setting(
 /// Set a setting value.
 #[tauri::command]
 pub async fn set_setting(
+    app: AppHandle,
     db: State<'_, DbPool>,
     key: String,
     value: String,
 ) -> Result<(), String> {
     queries::set_setting(&db.0, &key, &value)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    // Dynamically switch main window effects when theme changes
+    if key == "theme" {
+        update_window_effects_for_theme(&app, &value);
+    }
+
+    Ok(())
 }
 
 /// Unregister the current global shortcut (used during shortcut recording).
@@ -523,4 +531,54 @@ pub async fn process_clipboard_change(
     }
 
     Ok(Some(id))
+}
+
+/// Update main window visual effects to match the given theme.
+#[allow(deprecated)]
+pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
+    use tauri::window::{Effect, EffectState};
+    use tauri::utils::config::WindowEffectsConfig;
+
+    let is_light = match theme {
+        "light" => true,
+        "dark" => false,
+        // "system": read system preference via macOS defaults
+        _ => {
+            #[cfg(target_os = "macos")]
+            {
+                std::process::Command::new("defaults")
+                    .args(["read", "-g", "AppleInterfaceStyle"])
+                    .output()
+                    .map(|o| !String::from_utf8_lossy(&o.stdout).contains("Dark"))
+                    .unwrap_or(false)
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                false
+            }
+        }
+    };
+
+    if let Some(main_window) = app.get_webview_window("main") {
+        let effect = if is_light {
+            Effect::Sidebar
+        } else {
+            Effect::HudWindow
+        };
+        let effects = WindowEffectsConfig {
+            effects: vec![effect],
+            state: Some(EffectState::Active),
+            radius: Some(12.0),
+            color: None,
+        };
+        let _ = main_window.set_effects(effects);
+
+        // Set window NSAppearance so visual effect material renders in correct mode
+        let window_theme = if is_light {
+            Some(tauri::Theme::Light)
+        } else {
+            Some(tauri::Theme::Dark)
+        };
+        let _ = main_window.set_theme(window_theme);
+    }
 }

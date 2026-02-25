@@ -68,6 +68,7 @@ function MainApp() {
   useEffect(() => {
     const unlisten = listen("recopy-show", () => {
       void onPanelShow();
+      loadSettings(); // Re-read settings (theme, language) in case changed from settings window
 
       const el = panelRef.current;
       if (el) {
@@ -94,7 +95,7 @@ function MainApp() {
           <TypeFilter />
           <button
             onClick={() => invoke("open_settings_window")}
-            className="absolute right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
+            className="absolute right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-overlay transition-colors"
           >
             <Settings size={16} />
           </button>

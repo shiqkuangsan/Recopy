@@ -53,8 +53,8 @@ export function SettingsPage() {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer ${
               activeTab === tab.id
-                ? "bg-white/10 text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                ? "bg-overlay text-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-overlay-hover"
             }`}
           >
             {tab.icon}
@@ -234,8 +234,8 @@ function HistorySettings({
             confirmClear
               ? "bg-destructive text-white"
               : cleared !== null
-                ? "bg-white/10 text-foreground"
-                : "bg-white/5 text-destructive hover:bg-destructive/10"
+                ? "bg-overlay text-foreground"
+                : "bg-overlay-hover text-destructive hover:bg-destructive/10"
           }`}
         >
           <Trash2 size={13} />
@@ -273,7 +273,7 @@ function PrivacySettings() {
 
       {/* Hidden until FR-003 is implemented */}
       {/* <SettingRow label={t("settings.privacy.exclusionList")} description={t("settings.privacy.exclusionListDesc")}>
-        <span className="text-xs text-muted-foreground/60 px-2 py-1 rounded-md bg-white/5">{t("settings.privacy.comingSoon")}</span>
+        <span className="text-xs text-muted-foreground/60 px-2 py-1 rounded-md bg-overlay-hover">{t("settings.privacy.comingSoon")}</span>
       </SettingRow> */}
     </div>
   );
@@ -357,14 +357,14 @@ function SegmentedControl({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="flex gap-1 p-0.5 rounded-lg bg-white/5">
+    <div className="flex gap-1 p-0.5 rounded-lg bg-overlay-hover">
       {options.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
             value === opt.value
-              ? "bg-white/10 text-foreground"
+              ? "bg-overlay text-foreground"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >

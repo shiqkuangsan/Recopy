@@ -26,7 +26,7 @@ export function TextCard({ item, selected, onClick }: TextCardProps) {
       tabIndex={0}
       {...pressHandlers}
       className={`relative flex flex-col gap-1.5 rounded-lg border p-2.5 cursor-pointer transition-colors h-full overflow-hidden
-        ${selected ? "border-accent bg-accent/10" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
+        ${selected ? "border-accent bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >
       {item.is_favorited && (
         <Star

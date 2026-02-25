@@ -120,6 +120,13 @@ pub fn show_main_window(app: &tauri::AppHandle) {
         )));
     }
 
+    // Sync window effects with current theme before showing
+    let pool = app.state::<db::DbPool>();
+    let theme = tauri::async_runtime::block_on(async {
+        db::queries::get_setting(&pool.0, "theme").await.ok().flatten()
+    }).unwrap_or_else(|| "dark".to_string());
+    commands::clipboard::update_window_effects_for_theme(app, &theme);
+
     platform::platform_show_window(app);
     let _ = app.emit("recopy-show", ());
 }
