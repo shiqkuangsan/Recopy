@@ -25,7 +25,7 @@ export function TypeFilter() {
           className={`px-2 py-1 text-sm rounded-md transition-colors cursor-pointer focus:outline-none
             ${
               filterType === f.value
-                ? "bg-accent text-accent-foreground"
+                ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             }`}
         >

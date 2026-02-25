@@ -15,6 +15,9 @@ import {
   ChevronRight,
   Globe,
 } from "lucide-react";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Switch } from "./ui/switch";
 
 type SettingsTab = "general" | "history" | "privacy" | "about";
 
@@ -48,10 +51,11 @@ export function SettingsPage() {
       {/* Sidebar */}
       <div className="w-44 p-3 flex flex-col gap-0.5 shrink-0 border-r border-border/30">
         {tabs.map((tab) => (
-          <button
+          <Button
             key={tab.id}
+            variant="ghost"
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer ${
+            className={`w-full justify-start gap-2 ${
               activeTab === tab.id
                 ? "bg-overlay text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-overlay-hover"
@@ -59,7 +63,7 @@ export function SettingsPage() {
           >
             {tab.icon}
             {t(tab.i18nKey)}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -123,16 +127,16 @@ function GeneralSettings({
       </SettingRow>
 
       <SettingRow label={t("settings.general.autoStart")} description={t("settings.general.autoStartDesc")}>
-        <ToggleSwitch
+        <Switch
           checked={settings.auto_start === "true"}
-          onChange={(v) => updateSetting("auto_start", v ? "true" : "false")}
+          onCheckedChange={(v) => updateSetting("auto_start", v ? "true" : "false")}
         />
       </SettingRow>
 
       <SettingRow label={t("settings.general.closeOnBlur")} description={t("settings.general.closeOnBlurDesc")}>
-        <ToggleSwitch
+        <Switch
           checked={settings.close_on_blur === "true"}
-          onChange={(v) => updateSetting("close_on_blur", v ? "true" : "false")}
+          onCheckedChange={(v) => updateSetting("close_on_blur", v ? "true" : "false")}
         />
       </SettingRow>
     </div>
@@ -176,7 +180,7 @@ function HistorySettings({
           <select
             value={settings.retention_policy}
             onChange={(e) => updateSetting("retention_policy", e.target.value)}
-            className="appearance-none bg-input/60 text-foreground border border-border/50 rounded-lg pl-3 pr-7 py-1.5 text-sm cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent hover:border-muted-foreground/40 transition-colors"
+            className="appearance-none bg-input/60 text-foreground border border-border/50 rounded-lg pl-3 pr-7 py-1.5 text-sm cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring hover:border-muted-foreground/40 transition-colors"
           >
             <option value="unlimited">{t("settings.history.unlimited")}</option>
             <option value="days">{t("settings.history.keepDays")}</option>
@@ -194,7 +198,7 @@ function HistorySettings({
             max="365"
             value={settings.retention_days}
             onChange={(e) => updateSetting("retention_days", e.target.value)}
-            className="bg-input/60 text-foreground border border-border/50 rounded-lg px-3 py-1.5 text-sm w-20 focus:outline-none focus:ring-1 focus:ring-accent"
+            className="bg-input/60 text-foreground border border-border/50 rounded-lg px-3 py-1.5 text-sm w-20 focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </SettingRow>
       )}
@@ -207,7 +211,7 @@ function HistorySettings({
             max="100000"
             value={settings.retention_count}
             onChange={(e) => updateSetting("retention_count", e.target.value)}
-            className="bg-input/60 text-foreground border border-border/50 rounded-lg px-3 py-1.5 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-accent"
+            className="bg-input/60 text-foreground border border-border/50 rounded-lg px-3 py-1.5 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </SettingRow>
       )} */}
@@ -221,22 +225,24 @@ function HistorySettings({
             max="100"
             value={settings.max_item_size_mb}
             onChange={(e) => updateSetting("max_item_size_mb", e.target.value)}
-            className="bg-input/60 text-foreground border border-border/50 rounded-lg px-3 py-1.5 text-sm w-20 focus:outline-none focus:ring-1 focus:ring-accent"
+            className="bg-input/60 text-foreground border border-border/50 rounded-lg px-3 py-1.5 text-sm w-20 focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <span className="text-xs text-muted-foreground">MB</span>
         </div>
       </SettingRow> */}
 
       <SettingRow label={t("settings.history.clear")} description={t("settings.history.clearDesc")}>
-        <button
+        <Button
+          variant={confirmClear ? "destructive" : "ghost"}
+          size="sm"
           onClick={handleClear}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+          className={
             confirmClear
-              ? "bg-destructive text-white"
+              ? ""
               : cleared !== null
                 ? "bg-overlay text-foreground"
-                : "bg-overlay-hover text-destructive hover:bg-destructive/10"
-          }`}
+                : "text-destructive hover:bg-destructive/10"
+          }
         >
           <Trash2 size={13} />
           {confirmClear
@@ -244,7 +250,7 @@ function HistorySettings({
             : cleared !== null
               ? t("settings.history.cleared", { count: cleared })
               : t("settings.history.clearAll")}
-        </button>
+        </Button>
       </SettingRow>
     </div>
   );
@@ -257,19 +263,21 @@ function PrivacySettings() {
     <div className="space-y-1">
       <SectionTitle>{t("settings.privacy.title")}</SectionTitle>
 
-      <div className="rounded-lg border border-border/50 bg-card/60 p-4 space-y-3">
-        <h3 className="text-sm font-medium flex items-center gap-2">
-          <Shield size={15} className="text-accent" />
-          {t("settings.privacy.accessibility")}
-        </h3>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          {t("settings.privacy.accessibilityDesc")}
-        </p>
-        <p className="flex items-center gap-1.5 text-xs text-accent">
-          <ChevronRight size={12} />
-          {t("settings.privacy.accessibilityPath")}
-        </p>
-      </div>
+      <Card className="border-border/50 bg-card/60 py-0">
+        <CardContent className="p-4 space-y-3">
+          <h3 className="text-sm font-medium flex items-center gap-2">
+            <Shield size={15} className="text-primary" />
+            {t("settings.privacy.accessibility")}
+          </h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {t("settings.privacy.accessibilityDesc")}
+          </p>
+          <p className="flex items-center gap-1.5 text-xs text-primary">
+            <ChevronRight size={12} />
+            {t("settings.privacy.accessibilityPath")}
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Hidden until FR-003 is implemented */}
       {/* <SettingRow label={t("settings.privacy.exclusionList")} description={t("settings.privacy.exclusionListDesc")}>
@@ -293,13 +301,15 @@ function AboutSettings() {
     <div className="space-y-5">
       <SectionTitle>{t("settings.about.title")}</SectionTitle>
 
-      <div className="rounded-lg border border-border/50 bg-card/60 p-5 text-center space-y-2">
-        <h3 className="text-xl font-bold">{t("app.name")}</h3>
-        <p className="text-sm text-muted-foreground">{t("app.version", { version: version || "..." })}</p>
-        <p className="text-xs text-muted-foreground/80">{t("app.description")}</p>
-      </div>
+      <Card className="border-border/50 bg-card/60 py-0">
+        <CardContent className="p-5 text-center space-y-2">
+          <h3 className="text-xl font-bold">{t("app.name")}</h3>
+          <p className="text-sm text-muted-foreground">{t("app.version", { version: version || "..." })}</p>
+          <p className="text-xs text-muted-foreground/80">{t("app.description")}</p>
+        </CardContent>
+      </Card>
 
-      <div className="rounded-lg border border-border/50 bg-card/60 overflow-hidden">
+      <Card className="border-border/50 bg-card/60 py-0 overflow-hidden">
         {[
           { label: t("settings.about.license"), value: "MIT" },
           { label: t("settings.about.framework"), value: "Tauri v2" },
@@ -316,7 +326,7 @@ function AboutSettings() {
             <span className="text-foreground">{item.value}</span>
           </div>
         ))}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -359,10 +369,12 @@ function SegmentedControl({
   return (
     <div className="flex gap-1 p-0.5 rounded-lg bg-overlay-hover">
       {options.map((opt) => (
-        <button
+        <Button
           key={opt.value}
+          variant="ghost"
+          size="sm"
           onClick={() => onChange(opt.value)}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+          className={`gap-1.5 text-xs ${
             value === opt.value
               ? "bg-overlay text-foreground"
               : "text-muted-foreground hover:text-foreground"
@@ -370,34 +382,12 @@ function SegmentedControl({
         >
           {opt.icon}
           {opt.label}
-        </button>
+        </Button>
       ))}
     </div>
   );
 }
 
-function ToggleSwitch({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <button
-      onClick={() => onChange(!checked)}
-      className={`relative w-10 h-[22px] rounded-full transition-colors cursor-pointer ${
-        checked ? "bg-accent" : "bg-muted-foreground/20"
-      }`}
-    >
-      <span
-        className={`absolute top-[3px] left-[3px] w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${
-          checked ? "translate-x-[18px]" : ""
-        }`}
-      />
-    </button>
-  );
-}
 
 function ShortcutRecorder({
   value,
@@ -461,16 +451,18 @@ function ShortcutRecorder({
       .replace(/\+/g, " ");
 
   return (
-    <button
+    <Button
+      variant="outline"
+      size="sm"
       onClick={() => setRecording(!recording)}
-      className={`px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer min-w-28 text-center ${
+      className={`min-w-28 text-xs ${
         recording
-          ? "bg-accent/15 text-accent ring-1 ring-accent animate-pulse"
-          : "bg-input/60 text-foreground border border-border/50 hover:border-muted-foreground/40"
+          ? "bg-primary/15 text-primary ring-1 ring-primary animate-pulse border-primary/30"
+          : "bg-input/60 border-border/50 hover:border-muted-foreground/40"
       }`}
     >
-      <Keyboard size={12} className="inline mr-1.5" />
+      <Keyboard size={12} />
       {recording ? t("settings.general.pressKeys") : formatShortcut(display)}
-    </button>
+    </Button>
   );
 }

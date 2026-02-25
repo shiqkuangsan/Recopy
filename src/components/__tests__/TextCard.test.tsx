@@ -45,6 +45,6 @@ describe("TextCard", () => {
   it("applies selected styles", () => {
     render(<TextCard item={mockItem()} selected={true} onClick={vi.fn()} />);
     const card = screen.getByRole("button");
-    expect(card.className).toContain("border-accent");
+    expect(card.className).toContain("border-primary");
   });
 });

@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Check, Settings } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { Button } from "./components/ui/button";
 import { SearchBar } from "./components/SearchBar";
 import { TypeFilter } from "./components/TypeFilter";
 import { ViewTabs } from "./components/ViewTabs";
@@ -96,12 +97,14 @@ function MainApp() {
           <ViewTabs />
           <SearchBar />
           <TypeFilter />
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => invoke("open_settings_window")}
-            className="absolute right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-overlay transition-colors"
+            className="absolute right-4 text-muted-foreground hover:text-foreground hover:bg-overlay"
           >
             <Settings size={16} />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}

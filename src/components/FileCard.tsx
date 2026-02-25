@@ -32,7 +32,7 @@ export function FileCard({ item, selected, onClick }: FileCardProps) {
       tabIndex={0}
       {...pressHandlers}
       className={`relative flex flex-col gap-1.5 rounded-lg border p-2.5 cursor-pointer transition-colors h-full overflow-hidden
-        ${selected ? "border-accent bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
+        ${selected ? "border-primary bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >
       {item.is_favorited && (
         <Star
@@ -63,7 +63,7 @@ export function FileCard({ item, selected, onClick }: FileCardProps) {
         </>
       ) : (
         <div className="flex items-center gap-3 py-2">
-          <IconComponent size={28} className="text-accent shrink-0" />
+          <IconComponent size={28} className="text-primary shrink-0" />
           <div className="min-w-0">
             <p className="text-sm text-foreground truncate" title={fileName}>
               {fileName}

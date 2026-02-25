@@ -2,6 +2,8 @@ import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Search, X } from "lucide-react";
 import { useClipboardStore } from "../stores/clipboard-store";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
 
 export function SearchBar() {
   const { t } = useTranslation();
@@ -43,7 +45,7 @@ export function SearchBar() {
         size={14}
         className="absolute left-2.5 text-muted-foreground pointer-events-none"
       />
-      <input
+      <Input
         ref={inputRef}
         type="text"
         value={searchQuery}
@@ -54,15 +56,17 @@ export function SearchBar() {
           triggerSearch(e.currentTarget.value);
         }}
         placeholder={t("search.placeholder")}
-        className="w-full bg-input/60 border border-border/50 rounded-lg py-1.5 pl-8 pr-7 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+        className="bg-input/60 border-border/50 rounded-lg py-1.5 pl-8 pr-7 h-auto text-sm"
       />
       {searchQuery && (
-        <button
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={handleClear}
-          className="absolute right-2 p-0.5 rounded text-muted-foreground hover:text-foreground cursor-pointer"
+          className="absolute right-2 text-muted-foreground hover:text-foreground"
         >
           <X size={12} />
-        </button>
+        </Button>
       )}
     </div>
   );
