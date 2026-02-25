@@ -35,7 +35,6 @@ describe("ImageCard", () => {
     render(<ImageCard item={mockItem()} selected={false} onClick={vi.fn()} />);
     expect(screen.getByText("Image")).toBeInTheDocument();
     expect(screen.getByText("100.0 KB")).toBeInTheDocument();
-    expect(screen.getByText("Preview")).toBeInTheDocument();
   });
 
   it("renders placeholder when no thumbnail", () => {

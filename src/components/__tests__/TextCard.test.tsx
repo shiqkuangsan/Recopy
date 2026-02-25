@@ -22,7 +22,6 @@ describe("TextCard", () => {
     render(<TextCard item={mockItem()} selected={false} onClick={vi.fn()} />);
     expect(screen.getByText("Hello World")).toBeInTheDocument();
     expect(screen.getByText("Text")).toBeInTheDocument();
-    expect(screen.getByText("TestApp")).toBeInTheDocument();
   });
 
   it("truncates long text", () => {

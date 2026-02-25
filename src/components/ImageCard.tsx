@@ -49,8 +49,7 @@ export function ImageCard({ item, selected, onClick }: ImageCardProps) {
           <ImageIcon size={32} className="text-muted-foreground/40" />
         )}
       </div>
-      <div className="flex items-center justify-between text-sm text-muted-foreground mt-auto pt-1.5">
-        <span>{item.source_app_name || t("card.unknown")}</span>
+      <div className="flex items-center justify-end text-sm text-muted-foreground mt-auto pt-1.5">
         <span>{relativeTime(item.updated_at)}</span>
       </div>
     </div>

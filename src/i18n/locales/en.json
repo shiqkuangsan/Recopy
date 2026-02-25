@@ -38,7 +38,6 @@
     "image": "Image",
     "file": "File",
     "unknownFile": "Unknown file",
-    "unknown": "Unknown",
     "clipboardImage": "Clipboard image"
   },
   "settings": {

@@ -75,8 +75,7 @@ export function FileCard({ item, selected, onClick }: FileCardProps) {
           </div>
         </div>
       )}
-      <div className="flex items-center justify-between text-sm text-muted-foreground mt-auto pt-1.5">
-        <span>{item.source_app_name || t("card.unknown")}</span>
+      <div className="flex items-center justify-end text-sm text-muted-foreground mt-auto pt-1.5">
         <span>{relativeTime(item.updated_at)}</span>
       </div>
     </div>

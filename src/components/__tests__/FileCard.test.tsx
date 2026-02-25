@@ -24,7 +24,6 @@ describe("FileCard", () => {
     render(<FileCard item={mockItem()} selected={false} onClick={vi.fn()} />);
     expect(screen.getByText("document.pdf")).toBeInTheDocument();
     expect(screen.getByText("File")).toBeInTheDocument();
-    expect(screen.getByText("Finder")).toBeInTheDocument();
   });
 
   it("renders file extension info", () => {

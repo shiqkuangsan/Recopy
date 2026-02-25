@@ -42,8 +42,7 @@ export function RichTextCard({ item, selected, onClick }: RichTextCardProps) {
       <div className="text-sm text-foreground leading-relaxed line-clamp-5 flex-1 min-h-0">
         {preview}
       </div>
-      <div className="flex items-center justify-between text-sm text-muted-foreground mt-auto pt-1.5">
-        <span>{item.source_app_name || t("card.unknown")}</span>
+      <div className="flex items-center justify-end text-sm text-muted-foreground mt-auto pt-1.5">
         <span>{relativeTime(item.updated_at)}</span>
       </div>
     </div>

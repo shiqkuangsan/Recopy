@@ -13,7 +13,6 @@ import {
   Moon,
   Monitor,
   ChevronRight,
-  ChevronDown,
   Globe,
 } from "lucide-react";
 
@@ -141,14 +140,17 @@ function GeneralSettings({
 }
 
 function HistorySettings({
-  settings,
-  updateSetting,
+  settings: _settings,
+  updateSetting: _updateSetting,
   clearHistory,
 }: {
   settings: AppSettings;
   updateSetting: (key: keyof AppSettings, value: string) => Promise<void>;
   clearHistory: () => Promise<number>;
 }) {
+  // Aliased as _settings/_updateSetting: used by commented-out retention/maxSize UI (FR-018, FR-008)
+  void _settings;
+  void _updateSetting;
   const { t } = useTranslation();
   const [confirmClear, setConfirmClear] = useState(false);
   const [cleared, setCleared] = useState<number | null>(null);
@@ -168,7 +170,8 @@ function HistorySettings({
     <div className="space-y-1">
       <SectionTitle>{t("settings.history.title")}</SectionTitle>
 
-      <SettingRow label={t("settings.history.retention")} description={t("settings.history.retentionDesc")}>
+      {/* Hidden until FR-018 is implemented: retention policy cleanup is never triggered */}
+      {/* <SettingRow label={t("settings.history.retention")} description={t("settings.history.retentionDesc")}>
         <div className="relative">
           <select
             value={settings.retention_policy}
@@ -207,9 +210,10 @@ function HistorySettings({
             className="bg-input/60 text-foreground border border-border/50 rounded-lg px-3 py-1.5 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-accent"
           />
         </SettingRow>
-      )}
+      )} */}
 
-      <SettingRow label={t("settings.history.maxSize")} description={t("settings.history.maxSizeDesc")}>
+      {/* Hidden until FR-008 is implemented */}
+      {/* <SettingRow label={t("settings.history.maxSize")} description={t("settings.history.maxSizeDesc")}>
         <div className="flex items-center gap-2">
           <input
             type="number"
@@ -221,7 +225,7 @@ function HistorySettings({
           />
           <span className="text-xs text-muted-foreground">MB</span>
         </div>
-      </SettingRow>
+      </SettingRow> */}
 
       <SettingRow label={t("settings.history.clear")} description={t("settings.history.clearDesc")}>
         <button
@@ -267,9 +271,10 @@ function PrivacySettings() {
         </p>
       </div>
 
-      <SettingRow label={t("settings.privacy.exclusionList")} description={t("settings.privacy.exclusionListDesc")}>
+      {/* Hidden until FR-003 is implemented */}
+      {/* <SettingRow label={t("settings.privacy.exclusionList")} description={t("settings.privacy.exclusionListDesc")}>
         <span className="text-xs text-muted-foreground/60 px-2 py-1 rounded-md bg-white/5">{t("settings.privacy.comingSoon")}</span>
-      </SettingRow>
+      </SettingRow> */}
     </div>
   );
 }
