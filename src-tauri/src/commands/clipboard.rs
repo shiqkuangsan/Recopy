@@ -278,6 +278,9 @@ pub async fn register_shortcut(app: AppHandle, db: State<'_, DbPool>) -> Result<
         .map_err(|e| e.to_string())?
         .unwrap_or_else(|| "CommandOrControl+Shift+V".to_string());
 
+    // Unregister all existing shortcuts before registering new one
+    app.global_shortcut().unregister_all().map_err(|e| e.to_string())?;
+
     let app_handle = app.clone();
     app.global_shortcut()
         .on_shortcut(shortcut.as_str(), move |_app, _shortcut, event| {

@@ -267,9 +267,20 @@ pub fn open_settings_window_impl(app: &tauri::AppHandle) {
 fn setup_global_shortcut(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
+    let shortcut = if let Some(pool) = app.try_state::<db::DbPool>() {
+        tauri::async_runtime::block_on(async {
+            db::queries::get_setting(&pool.0, "shortcut")
+                .await
+                .unwrap_or(None)
+                .unwrap_or_else(|| "CommandOrControl+Shift+V".to_string())
+        })
+    } else {
+        "CommandOrControl+Shift+V".to_string()
+    };
+
     let app_handle = app.clone();
     app.global_shortcut().on_shortcut(
-        "CommandOrControl+Shift+V",
+        shortcut.as_str(),
         move |_app, _shortcut, event| {
             if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
                 if platform::platform_is_visible(&app_handle) {
@@ -281,7 +292,7 @@ fn setup_global_shortcut(app: &tauri::AppHandle) -> Result<(), Box<dyn std::erro
         },
     )?;
 
-    log::info!("Global shortcut registered: CommandOrControl+Shift+V");
+    log::info!("Global shortcut registered: {}", shortcut);
     Ok(())
 }
 
