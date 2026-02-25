@@ -281,6 +281,13 @@ function PrivacySettings() {
 
 function AboutSettings() {
   const { t } = useTranslation();
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    import("@tauri-apps/api/app").then((mod) =>
+      mod.getVersion().then(setVersion)
+    ).catch(() => setVersion("dev"));
+  }, []);
 
   return (
     <div className="space-y-5">
@@ -288,7 +295,7 @@ function AboutSettings() {
 
       <div className="rounded-lg border border-border/50 bg-card/60 p-5 text-center space-y-2">
         <h3 className="text-xl font-bold">{t("app.name")}</h3>
-        <p className="text-sm text-muted-foreground">{t("app.version", { version: "0.1.0" })}</p>
+        <p className="text-sm text-muted-foreground">{t("app.version", { version: version || "..." })}</p>
         <p className="text-xs text-muted-foreground/80">{t("app.description")}</p>
       </div>
 
