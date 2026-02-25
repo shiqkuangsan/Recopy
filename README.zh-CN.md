@@ -1,6 +1,6 @@
 # Recopy
 
-免费开源的剪贴板历史管理工具。macOS 已测试，Windows 版本开发中。
+免费开源的剪贴板历史管理工具。目前仅在 macOS (Apple Silicon) 上测试通过，macOS Intel 和 Windows 版本可构建但尚未验证。
 
 > 你的每一次复制，都不会再丢失。
 
