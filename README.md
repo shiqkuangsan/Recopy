@@ -12,13 +12,39 @@ English | [中文](README.zh-CN.md)
 
 - **Full-type support** — Plain text, rich text, images, and files
 - **Instant recall** — `Cmd+Shift+V` to summon, arrow keys to navigate, Enter to paste
-- **Smart dedup** — SHA-256 hash prevents duplicate entries
+- **Smart dedup** — SHA-256 hash prevents duplicate entries, bumps latest to top
 - **Full-text search** — FTS5 with trigram tokenizer for Chinese/English fuzzy search
+- **IME friendly** — Search works correctly with Chinese input methods (composition-aware)
 - **Favorites** — Pin frequently used items for quick access
 - **Non-activating panel** — NSPanel on macOS, never steals focus from your active app
+- **Copy HUD** — Frosted glass feedback overlay when copying to clipboard
+- **Configurable settings** — Theme, language, shortcut, auto-start, retention policy, and more
 - **Themes** — Dark and light mode, follows system preference
-- **i18n** — Chinese and English, auto-detects system language
+- **i18n** — Chinese and English, auto-detects system language (including tray menu)
+- **Lazy thumbnails** — Async thumbnail generation, no blocking on panel open
 - **Privacy first** — All data stored locally in SQLite, nothing leaves your machine
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Cmd+Shift+V` | Toggle Recopy panel (customizable in settings) |
+| `←` `→` | Navigate between items |
+| `↑` `↓` | Jump between date groups |
+| `Enter` | Paste selected item |
+| `Cmd+C` | Copy to clipboard (with HUD feedback) |
+| `Cmd+F` | Focus search |
+| `Cmd+,` | Open settings |
+| `Escape` | Close panel / blur search |
+
+## Settings
+
+Open settings via the gear icon in the panel header, tray menu, or `Cmd+,`.
+
+- **General** — Theme (dark/light/system), language (en/zh/system), global shortcut, auto-start, close-on-blur
+- **History** — Retention policy (unlimited/days/count), max item size (1–100 MB), clear history
+- **Privacy** — Accessibility permission guide, app exclusion list (coming soon)
+- **About** — Version, license, tech stack
 
 ## Tech Stack
 
@@ -52,8 +78,8 @@ pnpm install
 pnpm tauri dev
 
 # Run tests
-npx vitest run          # Frontend (17 tests)
-cd src-tauri && cargo test  # Backend (19 tests)
+npx vitest run             # Frontend
+cd src-tauri && cargo test # Backend
 
 # Type check
 npx tsc --noEmit
@@ -74,18 +100,18 @@ pnpm tauri build
 ```
 Recopy
 ├── src/                  # React frontend
-│   ├── components/       # UI components (cards, search, filters)
+│   ├── components/       # UI components (cards, search, filters, settings)
 │   ├── stores/           # Zustand state management
-│   ├── hooks/            # Keyboard navigation, shortcuts
+│   ├── hooks/            # Keyboard navigation, thumbnail lazy-loading
 │   └── i18n/             # Locale files (zh, en)
 ├── src-tauri/
 │   └── src/
-│       ├── lib.rs        # App setup, tray, shortcuts, clipboard monitor
-│       ├── commands/     # Tauri IPC commands (CRUD, paste, settings)
+│       ├── lib.rs        # App setup, tray (i18n), shortcuts, clipboard monitor
+│       ├── commands/     # Tauri IPC commands (CRUD, paste, settings, shortcuts)
 │       ├── db/           # SQLite models, queries, migrations
-│       ├── clipboard/    # Hashing, thumbnails, image storage
-│       └── platform/     # macOS NSPanel / Windows fallback
-└── docs/                 # PRD, tech selection, wireframes
+│       ├── clipboard/    # Hashing, thumbnails (async), image storage
+│       └── platform/     # macOS NSPanel + HUD / Windows fallback
+└── website/              # Landing page
 ```
 
 ### Paste Flow
@@ -96,24 +122,11 @@ Recopy
 4. `osascript` simulates Cmd+V with 50ms delay
 5. Panel hides — user sees content pasted seamlessly
 
-## Keyboard Shortcuts
-
-| Key | Action |
-|-----|--------|
-| `Cmd+Shift+V` | Toggle Recopy panel |
-| `↑` `↓` | Navigate items |
-| `Enter` | Paste selected item |
-| `Cmd+C` | Copy to clipboard (without paste) |
-| `Escape` | Close panel |
-| `Cmd+F` | Focus search |
-
 ## Roadmap
 
 - [ ] Source app detection (show which app content was copied from)
 - [ ] App exclusion list (skip password managers, etc.)
-- [ ] Configurable size limits
-- [ ] Tray menu i18n
-- [ ] Auto-update
+- [ ] Auto-update (Sparkle / tauri-plugin-updater)
 
 ## License
 
