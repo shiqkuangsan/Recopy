@@ -420,6 +420,17 @@ async fn extract_clipboard_content(
     Option<String>,
     Option<String>,
 )> {
+    // Read max item size from DB settings
+    let max_size_mb = if let Some(pool) = app.try_state::<db::DbPool>() {
+        db::queries::get_setting(&pool.0, "max_item_size_mb")
+            .await
+            .unwrap_or(None)
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(clipboard::DEFAULT_MAX_ITEM_SIZE_MB)
+    } else {
+        clipboard::DEFAULT_MAX_ITEM_SIZE_MB
+    };
+
     // Try files first
     if let Ok(true) = tauri_plugin_clipboard_x::has_files().await {
         if let Ok(file_result) = tauri_plugin_clipboard_x::read_files().await {
@@ -434,7 +445,7 @@ async fn extract_clipboard_content(
 
                 // Skip files larger than size limit
                 if let Ok(meta) = path.metadata() {
-                    if clipboard::exceeds_size_limit(meta.len() as usize) {
+                    if clipboard::exceeds_size_limit(meta.len() as usize, max_size_mb) {
                         log::info!(
                             "Skipping large file: {} ({}B)",
                             first,

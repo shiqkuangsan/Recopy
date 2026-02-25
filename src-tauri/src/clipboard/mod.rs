@@ -1,8 +1,8 @@
 use sha2::{Digest, Sha256};
 use std::io::Cursor;
 
-/// Max item size: 10MB
-pub const MAX_ITEM_SIZE: usize = 10 * 1024 * 1024;
+/// Default max item size: 10MB
+pub const DEFAULT_MAX_ITEM_SIZE_MB: usize = 10;
 
 /// Thumbnail max width in pixels.
 const THUMBNAIL_WIDTH: u32 = 400;
@@ -15,8 +15,8 @@ pub fn compute_hash(data: &[u8]) -> String {
 }
 
 /// Check if content size exceeds the limit.
-pub fn exceeds_size_limit(size: usize) -> bool {
-    size > MAX_ITEM_SIZE
+pub fn exceeds_size_limit(size: usize, limit_mb: usize) -> bool {
+    size > limit_mb * 1024 * 1024
 }
 
 /// Generate a thumbnail from image bytes.
@@ -85,9 +85,14 @@ mod tests {
 
     #[test]
     fn test_exceeds_size_limit() {
-        assert!(!exceeds_size_limit(1024));
-        assert!(!exceeds_size_limit(MAX_ITEM_SIZE));
-        assert!(exceeds_size_limit(MAX_ITEM_SIZE + 1));
+        let limit_mb = DEFAULT_MAX_ITEM_SIZE_MB;
+        let max_bytes = limit_mb * 1024 * 1024;
+        assert!(!exceeds_size_limit(1024, limit_mb));
+        assert!(!exceeds_size_limit(max_bytes, limit_mb));
+        assert!(exceeds_size_limit(max_bytes + 1, limit_mb));
+        // Custom limit
+        assert!(!exceeds_size_limit(20 * 1024 * 1024, 20));
+        assert!(exceeds_size_limit(20 * 1024 * 1024 + 1, 20));
     }
 
     #[test]

@@ -410,16 +410,21 @@ pub async fn process_clipboard_change(
     source_app: String,
     source_app_name: String,
 ) -> Result<Option<String>, String> {
-    // Size check
-    if clip_util::exceeds_size_limit(content.len()) {
-        log::info!("Clipboard content exceeds size limit ({}B), skipping", content.len());
+    let db = app.state::<DbPool>();
+
+    // Size check with dynamic limit from settings
+    let max_size_mb = queries::get_setting(&db.0, "max_item_size_mb")
+        .await
+        .unwrap_or(None)
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(clip_util::DEFAULT_MAX_ITEM_SIZE_MB);
+    if clip_util::exceeds_size_limit(content.len(), max_size_mb) {
+        log::info!("Clipboard content exceeds size limit ({}B > {}MB), skipping", content.len(), max_size_mb);
         return Ok(None);
     }
 
     // Compute hash for dedup
     let hash = clip_util::compute_hash(&content);
-
-    let db = app.state::<DbPool>();
 
     // Dedup check
     if let Some(existing_id) = queries::find_and_bump_by_hash(&db.0, &hash)
