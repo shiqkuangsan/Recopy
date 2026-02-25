@@ -258,6 +258,21 @@ a {
   flex-wrap: wrap;
 }
 
+.hero-note {
+  margin-top: 16px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+.hero-note a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.hero-note a:hover {
+  color: var(--primary-hover);
+}
+
 /* ============================================================
    Demo
    ============================================================ */
