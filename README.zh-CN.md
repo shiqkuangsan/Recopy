@@ -95,6 +95,8 @@ pnpm tauri build
 | macOS | `.dmg` |
 | Windows | NSIS 安装包 |
 
+> **macOS 提示：** Recopy 尚未进行代码签名。首次启动需右键点击 → 打开。详见 [macOS 安装指南](docs/macos-unsigned-app.md)。
+
 ## 项目结构
 
 ```

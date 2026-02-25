@@ -95,6 +95,8 @@ pnpm tauri build
 | macOS | `.dmg` |
 | Windows | NSIS installer |
 
+> **macOS note:** Recopy is not yet code-signed. On first launch, you'll need to right-click → Open. See the [macOS installation guide](docs/macos-unsigned-app.md) for details.
+
 ## Architecture
 
 ```
