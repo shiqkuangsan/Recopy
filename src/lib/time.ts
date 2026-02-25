@@ -1,3 +1,5 @@
+import i18n from "../i18n";
+
 /** Format a UTC datetime string into a relative time label. */
 export function relativeTime(dateStr: string): string {
   const date = new Date(dateStr + "Z"); // Treat as UTC
@@ -8,12 +10,12 @@ export function relativeTime(dateStr: string): string {
   const diffHour = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHour / 24);
 
-  if (diffSec < 60) return "Just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHour < 24) return `${diffHour}h ago`;
-  if (diffDay === 1) return "Yesterday";
-  if (diffDay < 7) return `${diffDay}d ago`;
-  return date.toLocaleDateString();
+  const t = i18n.t.bind(i18n);
+  if (diffSec < 60) return t("time.justNow");
+  if (diffMin < 60) return t("time.minutesAgo", { count: diffMin });
+  if (diffHour < 24) return t("time.hoursAgo", { count: diffHour });
+  if (diffDay < 7) return t("time.daysAgo", { count: diffDay });
+  return date.toLocaleDateString(i18n.language === "zh" ? "zh-CN" : "en-US");
 }
 
 /** Group label for time-based sections. Returns an i18n key. */

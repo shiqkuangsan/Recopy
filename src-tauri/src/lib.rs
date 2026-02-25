@@ -122,13 +122,17 @@ pub fn show_main_window(app: &tauri::AppHandle) {
 
     // Read settings from DB and sync before showing
     let pool = app.state::<db::DbPool>();
-    let theme = tauri::async_runtime::block_on(async {
-        db::queries::get_setting(&pool.0, "theme").await.ok().flatten()
-    }).unwrap_or_else(|| "dark".to_string());
+    let (theme, language) = tauri::async_runtime::block_on(async {
+        let t = db::queries::get_setting(&pool.0, "theme").await.ok().flatten();
+        let l = db::queries::get_setting(&pool.0, "language").await.ok().flatten();
+        (t, l)
+    });
+    let theme = theme.unwrap_or_else(|| "dark".to_string());
+    let language = language.unwrap_or_else(|| "system".to_string());
     commands::clipboard::update_window_effects_for_theme(app, &theme);
 
     platform::platform_show_window(app);
-    let _ = app.emit("recopy-show", serde_json::json!({ "theme": theme }));
+    let _ = app.emit("recopy-show", serde_json::json!({ "theme": theme, "language": language }));
 }
 
 /// Hide the main window.
