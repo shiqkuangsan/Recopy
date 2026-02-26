@@ -8,6 +8,21 @@ English | [中文](README.zh-CN.md)
 
 ![Recopy Preview](assets/preview.png)
 
+## Installation
+
+Download the latest `.dmg` from the [Releases](https://github.com/shiqkuangsan/Recopy/releases) page.
+
+> [!IMPORTANT]
+> **macOS users:** Recopy is not code-signed yet. macOS will show **"app is damaged"** or **"cannot be opened"** on first launch. This is normal — just run this command in Terminal to fix it:
+>
+> ```bash
+> xattr -d com.apple.quarantine /Applications/Recopy.app
+> ```
+>
+> Or right-click the app → Open → click "Open" in the dialog. You only need to do this once.
+>
+> See the [full macOS installation guide](docs/macos-unsigned-app.md) for more details.
+
 ## Features
 
 - **Full-type support** — Plain text, rich text, images, and files
@@ -94,8 +109,6 @@ pnpm tauri build
 |----------|--------|
 | macOS | `.dmg` |
 | Windows | NSIS installer |
-
-> **macOS note:** Recopy is not yet code-signed. On first launch, you'll need to right-click → Open. See the [macOS installation guide](docs/macos-unsigned-app.md) for details.
 
 ## Architecture
 

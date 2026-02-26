@@ -8,6 +8,21 @@
 
 ![Recopy 预览](assets/preview.png)
 
+## 安装
+
+从 [Releases](https://github.com/shiqkuangsan/Recopy/releases) 页面下载最新的 `.dmg` 安装包。
+
+> [!IMPORTANT]
+> **macOS 用户注意：** Recopy 尚未进行代码签名。首次打开时 macOS 会提示 **"应用已损坏"** 或 **"无法打开"**，这是正常现象——在终端执行以下命令即可解决：
+>
+> ```bash
+> xattr -d com.apple.quarantine /Applications/Recopy.app
+> ```
+>
+> 或者右键点击应用 → 打开 → 在弹窗中点击"打开"。只需操作一次，之后即可正常使用。
+>
+> 详细说明请参阅 [macOS 安装指南](docs/macos-unsigned-app.md)。
+
 ## 功能特性
 
 - **全类型支持** — 纯文本、富文本、图片、文件
@@ -94,8 +109,6 @@ pnpm tauri build
 |------|------|
 | macOS | `.dmg` |
 | Windows | NSIS 安装包 |
-
-> **macOS 提示：** Recopy 尚未进行代码签名。首次启动需右键点击 → 打开。详见 [macOS 安装指南](docs/macos-unsigned-app.md)。
 
 ## 项目结构
 
