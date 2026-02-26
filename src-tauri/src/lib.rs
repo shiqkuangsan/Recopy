@@ -54,6 +54,10 @@ pub fn run() {
             clip_cmd::show_copy_hud,
         ])
         .setup(|app| {
+            // Hide dock icon (tao overrides LSUIElement at startup, so must set programmatically)
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
             // Initialize database
             let app_handle = app.handle().clone();
             tauri::async_runtime::block_on(async {
