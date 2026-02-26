@@ -132,4 +132,4 @@ Recopy
 
 ## 许可证
 
-[MIT](LICENSE)
+[PolyForm Noncommercial 1.0.0](LICENSE)

@@ -311,7 +311,7 @@ function AboutSettings() {
 
       <Card className="border-border/50 bg-card/60 py-0 overflow-hidden">
         {[
-          { label: t("settings.about.license"), value: "MIT" },
+          { label: t("settings.about.license"), value: "PolyForm Noncommercial 1.0.0" },
           { label: t("settings.about.framework"), value: "Tauri v2" },
           { label: t("settings.about.frontend"), value: "React + TypeScript" },
           { label: t("settings.about.database"), value: "SQLite (sqlx)" },
