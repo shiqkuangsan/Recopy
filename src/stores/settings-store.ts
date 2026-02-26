@@ -20,7 +20,7 @@ export interface Settings {
 const DEFAULT_SETTINGS: Settings = {
   shortcut: "CommandOrControl+Shift+V",
   auto_start: "false",
-  theme: "dark",
+  theme: "system",
   language: "system",
   retention_policy: "unlimited",
   retention_days: "0",
