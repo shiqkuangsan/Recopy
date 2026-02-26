@@ -96,6 +96,8 @@
     },
     "about": {
       "title": "About",
+      "author": "Author",
+      "repository": "Repository",
       "license": "License",
       "framework": "Framework",
       "frontend": "Frontend",

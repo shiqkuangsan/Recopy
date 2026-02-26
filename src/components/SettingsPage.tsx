@@ -14,6 +14,7 @@ import {
   Monitor,
   ChevronRight,
   Globe,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -311,6 +312,8 @@ function AboutSettings() {
 
       <Card className="border-border/50 bg-card/60 py-0 overflow-hidden">
         {[
+          { label: t("settings.about.author"), value: "shiqkuangsan", link: "https://github.com/shiqkuangsan" },
+          { label: t("settings.about.repository"), value: "GitHub", link: "https://github.com/shiqkuangsan/Recopy" },
           { label: t("settings.about.license"), value: "PolyForm Noncommercial 1.0.0" },
           { label: t("settings.about.framework"), value: "Tauri v2" },
           { label: t("settings.about.frontend"), value: "React + TypeScript" },
@@ -323,7 +326,17 @@ function AboutSettings() {
             }`}
           >
             <span className="text-muted-foreground">{item.label}</span>
-            <span className="text-foreground">{item.value}</span>
+            {"link" in item && item.link ? (
+              <button
+                onClick={() => invoke("open_url", { url: item.link })}
+                className="text-primary hover:text-primary/80 flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                {item.value}
+                <ExternalLink size={12} />
+              </button>
+            ) : (
+              <span className="text-foreground">{item.value}</span>
+            )}
           </div>
         ))}
       </Card>

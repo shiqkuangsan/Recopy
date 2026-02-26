@@ -96,6 +96,8 @@
     },
     "about": {
       "title": "关于",
+      "author": "作者",
+      "repository": "源码仓库",
       "license": "许可证",
       "framework": "框架",
       "frontend": "前端",

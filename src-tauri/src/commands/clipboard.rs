@@ -1,5 +1,5 @@
 use crate::db::{
-    models::{ClipboardItem, ContentType, NewClipboardItem},
+    models::{ClipboardItem, ContentType, ItemDetail, NewClipboardItem},
     queries, DbPool,
 };
 use crate::clipboard as clip_util;
@@ -51,6 +51,30 @@ pub async fn get_thumbnail(
     queries::get_thumbnail(&db.0, &id)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Get full item detail for preview (includes rich_content).
+#[tauri::command]
+pub async fn get_item_detail(
+    db: State<'_, DbPool>,
+    id: String,
+) -> Result<ItemDetail, String> {
+    let row = queries::get_item_detail(&db.0, &id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("Item not found")?;
+
+    let (content_type, plain_text, rich_content, image_path, file_path, file_name, content_size) = row;
+
+    Ok(ItemDetail {
+        content_type,
+        plain_text,
+        rich_content,
+        image_path,
+        file_path,
+        file_name,
+        content_size,
+    })
 }
 
 /// Delete a clipboard item and remove its original image file if present.
@@ -459,6 +483,19 @@ pub async fn cleanup_orphan_images(app: &AppHandle) {
     }
 }
 
+/// Show the preview window (create if needed).
+#[tauri::command]
+pub fn show_preview_window(app: AppHandle) -> Result<(), String> {
+    crate::show_preview_window_impl(&app);
+    Ok(())
+}
+
+/// Hide the preview window.
+#[tauri::command]
+pub fn hide_preview_window(app: AppHandle) {
+    crate::platform::platform_hide_preview(&app);
+}
+
 /// Hide the main window (works with NSPanel on macOS).
 #[tauri::command]
 pub fn hide_window(app: AppHandle) {
@@ -501,6 +538,33 @@ pub fn show_copy_hud(app: AppHandle) {
             crate::platform::platform_hide_hud(&app_clone);
         }
     });
+}
+
+/// Open an external URL in the system default browser.
+#[tauri::command]
+pub fn open_url(url: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd")
+            .args(["/C", "start", "", &url])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 /// Open the settings window.
