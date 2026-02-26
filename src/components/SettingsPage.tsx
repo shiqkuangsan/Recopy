@@ -394,7 +394,7 @@ function ShortcutRecorder({
   onChange,
 }: {
   value: string;
-  onChange: (v: string) => void;
+  onChange: (v: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const [recording, setRecording] = useState(false);
@@ -410,7 +410,7 @@ function ShortcutRecorder({
     // Unregister global shortcut so it doesn't intercept key events
     invoke("unregister_shortcut");
 
-    const handler = (e: KeyboardEvent) => {
+    const handler = async (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -430,7 +430,8 @@ function ShortcutRecorder({
         parts.push(key.length === 1 ? key.toUpperCase() : key);
         const shortcut = parts.join("+");
         setDisplay(shortcut);
-        onChange(shortcut);
+        // Persist to DB first, then stop recording — ensures register_shortcut reads the new value
+        await onChange(shortcut);
         setRecording(false);
       }
     };
