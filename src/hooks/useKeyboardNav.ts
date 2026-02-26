@@ -26,6 +26,9 @@ export function useKeyboardNav() {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      // Skip all keyboard shortcuts during IME composition (e.g. Chinese input)
+      if (e.isComposing || e.keyCode === 229) return;
+
       const target = e.target as HTMLElement;
       const isInInput = target.tagName === "INPUT";
 
