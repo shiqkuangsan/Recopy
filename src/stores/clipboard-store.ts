@@ -43,7 +43,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
     setSearchQuery: (query: string) => set({ searchQuery: query, selectedIndex: 0 }),
 
     setFilterType: (filter: FilterType) => {
-      set({ filterType: filter, selectedIndex: 0 });
+      set({ filterType: filter, selectedIndex: 0, items: [] });
       const { searchQuery, viewMode } = get();
       if (viewMode === "history") {
         const trimmedQuery = searchQuery.trim();
