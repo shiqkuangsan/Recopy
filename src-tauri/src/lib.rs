@@ -115,6 +115,13 @@ pub fn show_main_window(app: &tauri::AppHandle) {
         let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(
             win_width, win_height,
         )));
+        // Lock width by setting min/max to the same value; allow height 300–800.
+        let _ = window.set_min_size(Some(tauri::Size::Logical(tauri::LogicalSize::new(
+            win_width, 300.0,
+        ))));
+        let _ = window.set_max_size(Some(tauri::Size::Logical(tauri::LogicalSize::new(
+            win_width, 800.0,
+        ))));
         let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(
             x, y,
         )));

@@ -40,7 +40,8 @@ pub fn init_platform(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>>
     panel.set_level(PanelLevel::MainMenu.value());
 
     // NonactivatingPanel: clicking the panel does NOT activate the app
-    // Keep Resizable so Tauri's set_size still works
+    // Keep resizable so the top edge drag handle works for height adjustment.
+    // Width is locked via min/max size constraints set in show_main_window().
     panel.set_style_mask(
         StyleMask::empty()
             .nonactivating_panel()

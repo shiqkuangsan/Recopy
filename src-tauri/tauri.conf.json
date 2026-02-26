@@ -17,6 +17,7 @@
         "title": "Recopy",
         "width": 880,
         "height": 380,
+        "minHeight": 300,
         "resizable": false,
         "fullscreen": false,
         "decorations": false,
