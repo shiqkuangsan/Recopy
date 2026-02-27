@@ -5,6 +5,20 @@ mod platform;
 
 use commands::clipboard as clip_cmd;
 use db::models::ContentType;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Flag to skip the next clipboard change event (set before self-initiated writes).
+static SKIP_NEXT_CLIPBOARD_CHANGE: AtomicBool = AtomicBool::new(false);
+
+/// Set the skip flag before writing to clipboard (called from commands).
+pub fn set_skip_next_clipboard_change() {
+    SKIP_NEXT_CLIPBOARD_CHANGE.store(true, Ordering::SeqCst);
+}
+
+/// Clear the skip flag (called when clipboard write fails).
+pub fn clear_skip_next_clipboard_change() {
+    SKIP_NEXT_CLIPBOARD_CHANGE.store(false, Ordering::SeqCst);
+}
 use tauri::{
     Emitter, Listener, Manager,
     menu::{MenuBuilder, MenuItemBuilder},
@@ -418,6 +432,12 @@ fn start_clipboard_monitor(app: tauri::AppHandle) {
 }
 
 async fn handle_clipboard_event(app: &tauri::AppHandle) {
+    // Skip self-initiated clipboard writes to avoid redundant processing
+    if SKIP_NEXT_CLIPBOARD_CHANGE.swap(false, Ordering::SeqCst) {
+        log::info!("Skipping self-initiated clipboard change");
+        return;
+    }
+
     // Determine content type and read clipboard
     let (content_type, content, plain_text, rich_content, file_path, file_name) =
         match extract_clipboard_content(app).await {

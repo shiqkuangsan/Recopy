@@ -95,7 +95,12 @@ pub async fn paste_clipboard_item(
 
     let (content_type, plain_text, rich_content, image_path, file_path) = row;
 
-    write_to_clipboard(&app, &content_type, &plain_text, &rich_content, &image_path, &file_path).await?;
+    // Skip self-monitoring for this clipboard write (clear flag on failure)
+    crate::set_skip_next_clipboard_change();
+    if let Err(e) = write_to_clipboard(&app, &content_type, &plain_text, &rich_content, &image_path, &file_path).await {
+        crate::clear_skip_next_clipboard_change();
+        return Err(e);
+    }
 
     if auto_paste.unwrap_or(true) {
         // Resign keyboard focus so the previous app receives the Cmd+V
@@ -122,10 +127,12 @@ pub async fn paste_as_plain_text(
 
     let (_content_type, plain_text, _rich_content, _image_path, _file_path) = row;
 
-    // Write only plain text
-    tauri_plugin_clipboard_x::write_text(plain_text)
-        .await
-        .map_err(|e| format!("Failed to write text: {}", e))?;
+    // Skip self-monitoring for this clipboard write (clear flag on failure)
+    crate::set_skip_next_clipboard_change();
+    if let Err(e) = tauri_plugin_clipboard_x::write_text(plain_text).await {
+        crate::clear_skip_next_clipboard_change();
+        return Err(format!("Failed to write text: {}", e));
+    }
 
     // Resign keyboard focus so the previous app receives the Cmd+V
     crate::platform::platform_resign_before_paste(&app);
@@ -174,9 +181,16 @@ async fn write_to_clipboard(
             if let Some(path) = image_path {
                 let file_size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
                 log::info!("Pasting image from path: {} ({}B)", path, file_size);
-                tauri_plugin_clipboard_x::write_image(path.clone())
-                    .await
-                    .map_err(|e| format!("Failed to write image: {}", e))?;
+                #[cfg(target_os = "macos")]
+                {
+                    crate::platform::platform_write_image_to_pasteboard(path)?;
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
+                    tauri_plugin_clipboard_x::write_image(path.clone())
+                        .await
+                        .map_err(|e| format!("Failed to write image: {}", e))?;
+                }
             } else {
                 log::warn!("Paste image: image_path is None!");
             }

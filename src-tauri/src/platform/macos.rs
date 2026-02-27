@@ -177,6 +177,38 @@ pub fn platform_hide_hud(app: &tauri::AppHandle) {
     });
 }
 
+/// Write raw image bytes directly to NSPasteboard, bypassing decode→encode cycle.
+/// Reads the PNG file from disk and writes it directly as NSPasteboardTypePNG.
+pub fn platform_write_image_to_pasteboard(path: &str) -> Result<(), String> {
+    let bytes = std::fs::read(path)
+        .map_err(|e| format!("Failed to read image file: {}", e))?;
+
+    use objc2::runtime::ProtocolObject;
+    use objc2_app_kit::{NSPasteboard, NSPasteboardItem, NSPasteboardTypePNG, NSPasteboardWriting};
+    use objc2_foundation::{NSArray, NSData};
+
+    unsafe {
+        let pasteboard = NSPasteboard::generalPasteboard();
+        pasteboard.clearContents();
+
+        let ns_data = NSData::with_bytes(&bytes);
+        let item = NSPasteboardItem::new();
+        let set_ok = item.setData_forType(&ns_data, NSPasteboardTypePNG);
+        if !set_ok {
+            return Err("Failed to set pasteboard item data".to_string());
+        }
+
+        let proto_item: objc2::rc::Retained<ProtocolObject<dyn NSPasteboardWriting>> =
+            ProtocolObject::from_retained(item);
+        let items = NSArray::from_retained_slice(&[proto_item]);
+        if !pasteboard.writeObjects(&items) {
+            return Err("NSPasteboard writeObjects failed".to_string());
+        }
+    }
+
+    Ok(())
+}
+
 /// Resign key window status without hiding.
 /// This returns keyboard focus to the previously active app
 /// so that simulate_paste() sends Cmd+V to the correct target.
