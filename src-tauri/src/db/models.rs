@@ -75,6 +75,14 @@ pub struct ItemDetail {
 /// Shared state holding the current preview item detail.
 pub struct PreviewState(pub std::sync::Mutex<Option<ItemDetail>>);
 
+/// Data returned by read_file_preview command.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FilePreviewData {
+    pub content: String,
+    pub truncated: bool,
+    pub total_lines: usize,
+}
+
 /// Payload for inserting a new clipboard item.
 pub struct NewClipboardItem {
     pub content_type: ContentType,

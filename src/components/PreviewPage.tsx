@@ -4,7 +4,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import DOMPurify from "dompurify";
 import { useSettingsStore } from "../stores/settings-store";
 import { FileText, ImageIcon, Type, File } from "lucide-react";
-import type { ItemDetail } from "../lib/types";
+import type { ItemDetail, FilePreviewData } from "../lib/types";
 
 export function PreviewPage() {
   const [detail, setDetail] = useState<ItemDetail | null>(null);
@@ -185,6 +185,21 @@ function ImagePreview({ imagePath }: { imagePath?: string }) {
   );
 }
 
+const TEXT_EXTENSIONS = new Set([
+  "txt", "md", "json", "js", "ts", "jsx", "tsx", "py", "rs", "css", "html", "xml",
+  "yaml", "yml", "toml", "log", "csv", "sh", "bash", "zsh", "fish",
+  "c", "cpp", "h", "hpp", "java", "kt", "go", "rb", "php", "swift", "sql",
+  "env", "gitignore", "dockerfile", "makefile", "conf", "ini", "cfg",
+]);
+
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "svg"]);
+
+function getFileExtension(path?: string, name?: string): string {
+  const source = name || path || "";
+  const dot = source.lastIndexOf(".");
+  return dot >= 0 ? source.slice(dot + 1).toLowerCase() : "";
+}
+
 function FilePreview({
   filePath,
   fileName,
@@ -194,6 +209,17 @@ function FilePreview({
   fileName?: string;
   contentSize: number;
 }) {
+  const ext = getFileExtension(filePath, fileName);
+
+  if (IMAGE_EXTENSIONS.has(ext) && filePath) {
+    return <ImagePreview imagePath={filePath} />;
+  }
+
+  if (TEXT_EXTENSIONS.has(ext) && filePath) {
+    return <TextFilePreview filePath={filePath} />;
+  }
+
+  // Fallback: file metadata display
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4">
       <div className="w-20 h-20 rounded-2xl bg-overlay flex items-center justify-center">
@@ -210,6 +236,46 @@ function FilePreview({
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function TextFilePreview({ filePath }: { filePath: string }) {
+  const [data, setData] = useState<FilePreviewData | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    invoke<FilePreviewData>("read_file_preview", { path: filePath })
+      .then(setData)
+      .catch(() => setError(true));
+  }, [filePath]);
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+        File not available
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
+        Loading...
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <pre className="text-sm text-foreground whitespace-pre-wrap break-words font-mono leading-relaxed">
+        {data.content}
+      </pre>
+      {data.truncated && (
+        <p className="text-xs text-muted-foreground/60 mt-2 italic">
+          Truncated ({data.total_lines} lines total)
+        </p>
+      )}
     </div>
   );
 }
@@ -234,10 +300,15 @@ function ContentTypeIcon({ type }: { type: string }) {
 
 function getHeaderText(detail: ItemDetail): string {
   switch (detail.content_type) {
-    case "plain_text":
-      return detail.plain_text.slice(0, 80).replace(/\n/g, " ");
-    case "rich_text":
-      return detail.plain_text.slice(0, 80).replace(/\n/g, " ") || "Rich Text";
+    case "plain_text": {
+      const lineCount = detail.plain_text.split("\n").length;
+      return lineCount > 1 ? `Text · ${lineCount} lines` : "Text";
+    }
+    case "rich_text": {
+      if (!detail.plain_text) return "Rich Text";
+      const firstLine = detail.plain_text.split("\n")[0].trim();
+      return firstLine.length > 60 ? firstLine.slice(0, 57) + "..." : firstLine || "Rich Text";
+    }
     case "image":
       return detail.file_name || "Clipboard Image";
     case "file":

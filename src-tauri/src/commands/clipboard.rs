@@ -1,5 +1,5 @@
 use crate::db::{
-    models::{ClipboardItem, ContentType, ItemDetail, NewClipboardItem, PreviewState},
+    models::{ClipboardItem, ContentType, FilePreviewData, ItemDetail, NewClipboardItem, PreviewState},
     queries, DbPool,
 };
 use crate::clipboard as clip_util;
@@ -526,9 +526,14 @@ pub fn get_current_preview(
 }
 
 /// Calculate adaptive window size based on content type.
+/// Padding breakdown: header (48px) + content padding top/bottom (32px) + outer window padding (40px) = 120px
 fn calculate_preview_size(detail: &ItemDetail) -> (f64, f64) {
-    let padding_x = 32.0;
-    let padding_y = 72.0; // header (~48px) + content padding (~24px)
+    let content_width = 600.0;
+    let padding_x = 32.0; // left + right padding
+    let padding_y = 120.0; // header (48) + content padding (32) + outer padding (40)
+    let line_height = 22.0; // matches text-sm leading-relaxed
+    let min_h = 240.0;
+    let max_h = 800.0; // ~60% of typical screen height
 
     match detail.content_type.as_str() {
         "image" => {
@@ -536,8 +541,6 @@ fn calculate_preview_size(detail: &ItemDetail) -> (f64, f64) {
                 if let Ok((w, h)) = image::image_dimensions(path) {
                     let max_content_w = 800.0_f64;
                     let max_content_h = 600.0_f64;
-                    let min_w = 300.0;
-                    let min_h = 200.0;
 
                     // Scale to fit within max bounds, don't upscale
                     let scale = (max_content_w / w as f64)
@@ -547,7 +550,7 @@ fn calculate_preview_size(detail: &ItemDetail) -> (f64, f64) {
                     let content_w = w as f64 * scale;
                     let content_h = h as f64 * scale;
 
-                    let win_w = (content_w + padding_x).max(min_w);
+                    let win_w = (content_w + padding_x).max(300.0);
                     let win_h = (content_h + padding_y).max(min_h);
                     return (win_w, win_h);
                 }
@@ -555,14 +558,126 @@ fn calculate_preview_size(detail: &ItemDetail) -> (f64, f64) {
             (600.0, 480.0)
         }
         "plain_text" => {
-            let line_count = detail.plain_text.lines().count().max(1);
-            let height = ((line_count as f64 * 22.0) + padding_y).clamp(200.0, 600.0);
-            (600.0, height)
+            let effective_lines = estimate_display_lines(&detail.plain_text, content_width - padding_x);
+            let height = (effective_lines as f64 * line_height + padding_y).clamp(min_h, max_h);
+            (content_width, height)
         }
-        "rich_text" => (600.0, 480.0),
-        "file" => (400.0, 300.0),
-        _ => (600.0, 480.0),
+        "rich_text" => {
+            // Use plain_text fallback for height estimation (HTML rendering height is unpredictable)
+            let text = &detail.plain_text;
+            let effective_lines = if text.is_empty() { 10 } else {
+                estimate_display_lines(text, content_width - padding_x)
+            };
+            let height = (effective_lines as f64 * line_height + padding_y).clamp(min_h, max_h);
+            (content_width, height)
+        }
+        "file" => {
+            // Check if it's a text-based file that we can preview with content
+            if let Some(ref path) = detail.file_path {
+                let ext = std::path::Path::new(path)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+                if TEXT_EXTENSIONS.contains(&ext.as_str()) {
+                    // Text file: use line-based height like plain_text
+                    let effective_lines = estimate_display_lines(&detail.plain_text, content_width - padding_x).max(10);
+                    let height = (effective_lines as f64 * line_height + padding_y).clamp(min_h, max_h);
+                    return (content_width, height);
+                }
+                if IMAGE_EXTENSIONS.contains(&ext.as_str()) {
+                    // Image file: use image sizing
+                    if let Ok((w, h)) = image::image_dimensions(path) {
+                        let scale = (800.0_f64 / w as f64).min(600.0 / h as f64).min(1.0);
+                        let win_w = (w as f64 * scale + padding_x).max(300.0);
+                        let win_h = (h as f64 * scale + padding_y).max(min_h);
+                        return (win_w, win_h);
+                    }
+                }
+            }
+            (400.0, 300.0)
+        }
+        _ => (content_width, 480.0),
     }
+}
+
+/// Estimate total display lines accounting for word-wrap.
+/// Uses average char width of ~7.2px for monospace font at text-sm size.
+fn estimate_display_lines(text: &str, available_width: f64) -> usize {
+    let char_width = 7.2; // approximate width of monospace char at 14px
+    let chars_per_line = (available_width / char_width).floor() as usize;
+    if chars_per_line == 0 {
+        return text.lines().count().max(1);
+    }
+
+    let mut total_lines = 0;
+    for line in text.lines() {
+        let char_count = line.chars().count();
+        if char_count == 0 {
+            total_lines += 1; // empty line still takes 1 row
+        } else {
+            // How many visual lines does this line wrap into?
+            total_lines += (char_count + chars_per_line - 1) / chars_per_line;
+        }
+    }
+    total_lines.max(1)
+}
+
+/// Text file extensions that should be rendered as code/text in preview.
+const TEXT_EXTENSIONS: &[&str] = &[
+    "txt", "md", "json", "js", "ts", "jsx", "tsx", "py", "rs", "css", "html", "xml",
+    "yaml", "yml", "toml", "log", "csv", "sh", "bash", "zsh", "fish",
+    "c", "cpp", "h", "hpp", "java", "kt", "go", "rb", "php", "swift", "sql",
+    "env", "gitignore", "dockerfile", "makefile", "conf", "ini", "cfg",
+];
+
+/// Image file extensions that should be rendered as images in preview.
+const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "svg"];
+
+/// Read file content for preview (first N bytes, up to 200 lines).
+#[tauri::command]
+pub async fn read_file_preview(path: String, max_bytes: Option<usize>) -> Result<FilePreviewData, String> {
+    let max = max_bytes.unwrap_or(50 * 1024); // default 50KB
+    let path_ref = std::path::Path::new(&path);
+
+    if !path_ref.exists() {
+        return Err("File not found".to_string());
+    }
+
+    let metadata = tokio::fs::metadata(path_ref).await.map_err(|e| e.to_string())?;
+    let file_size = metadata.len() as usize;
+
+    // Read up to max bytes
+    let bytes = if file_size <= max {
+        tokio::fs::read(path_ref).await.map_err(|e| e.to_string())?
+    } else {
+        let mut buf = vec![0u8; max];
+        use tokio::io::AsyncReadExt;
+        let mut f = tokio::fs::File::open(path_ref).await.map_err(|e| e.to_string())?;
+        let n = f.read(&mut buf).await.map_err(|e| e.to_string())?;
+        buf.truncate(n);
+        buf
+    };
+
+    // Try to interpret as UTF-8 text
+    let content = String::from_utf8_lossy(&bytes);
+
+    // Limit to 200 lines
+    let mut lines: Vec<&str> = content.lines().collect();
+    let total_lines = lines.len();
+    let truncated_by_lines = total_lines > 200;
+    if truncated_by_lines {
+        lines.truncate(200);
+    }
+
+    let text = lines.join("\n");
+    let truncated = file_size > max || truncated_by_lines;
+
+    Ok(FilePreviewData {
+        content: text,
+        truncated,
+        total_lines,
+    })
 }
 
 /// Hide the main window (works with NSPanel on macOS).

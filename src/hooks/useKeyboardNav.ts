@@ -126,20 +126,12 @@ export function useKeyboardNav() {
       switch (e.key) {
         case "ArrowRight": {
           e.preventDefault();
-          const newIdx = Math.min(selectedIndex + 1, items.length - 1);
-          setSelectedIndex(newIdx);
-          if (previewOpenRef.current && items[newIdx]) {
-            updatePreview(items[newIdx].id);
-          }
+          setSelectedIndex(Math.min(selectedIndex + 1, items.length - 1));
           break;
         }
         case "ArrowLeft": {
           e.preventDefault();
-          const newIdx = Math.max(selectedIndex - 1, 0);
-          setSelectedIndex(newIdx);
-          if (previewOpenRef.current && items[newIdx]) {
-            updatePreview(items[newIdx].id);
-          }
+          setSelectedIndex(Math.max(selectedIndex - 1, 0));
           break;
         }
         case "ArrowDown": {
@@ -150,11 +142,7 @@ export function useKeyboardNav() {
             return selectedIndex >= start && selectedIndex < nextStart;
           });
           if (curGroup >= 0 && curGroup < groupStartIndices.length - 1) {
-            const newIdx = groupStartIndices[curGroup + 1];
-            setSelectedIndex(newIdx);
-            if (previewOpenRef.current && items[newIdx]) {
-              updatePreview(items[newIdx].id);
-            }
+            setSelectedIndex(groupStartIndices[curGroup + 1]);
           }
           break;
         }
@@ -166,11 +154,7 @@ export function useKeyboardNav() {
             return selectedIndex >= start && selectedIndex < nextStart;
           });
           if (curGrp > 0) {
-            const newIdx = groupStartIndices[curGrp - 1];
-            setSelectedIndex(newIdx);
-            if (previewOpenRef.current && items[newIdx]) {
-              updatePreview(items[newIdx].id);
-            }
+            setSelectedIndex(groupStartIndices[curGrp - 1]);
           } else if (curGrp === 0) {
             // Already at first group — focus search input
             document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
@@ -190,13 +174,20 @@ export function useKeyboardNav() {
         }
       }
     },
-    [items, selectedIndex, setSelectedIndex, groupStartIndices, openPreview, closePreview, updatePreview]
+    [items, selectedIndex, setSelectedIndex, groupStartIndices, openPreview, closePreview]
   );
 
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
+
+  // Auto-update preview when selectedIndex changes (covers both keyboard and mouse clicks)
+  useEffect(() => {
+    if (previewOpenRef.current && itemsRef.current[selectedIndex]) {
+      updatePreview(itemsRef.current[selectedIndex].id);
+    }
+  }, [selectedIndex, updatePreview]);
 
   // Reset preview state when panel hides (blur)
   useEffect(() => {

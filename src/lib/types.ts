@@ -28,5 +28,11 @@ export interface ItemDetail {
   content_size: number;
 }
 
+export interface FilePreviewData {
+  content: string;
+  truncated: boolean;
+  total_lines: number;
+}
+
 export type ViewMode = "history" | "pins";
 export type FilterType = "all" | "plain_text" | "rich_text" | "image" | "file";

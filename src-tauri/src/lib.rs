@@ -55,6 +55,7 @@ pub fn run() {
             clip_cmd::show_preview_window,
             clip_cmd::hide_preview_window,
             clip_cmd::get_current_preview,
+            clip_cmd::read_file_preview,
             clip_cmd::hide_window,
             clip_cmd::show_copy_hud,
         ])
