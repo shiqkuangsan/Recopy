@@ -182,12 +182,13 @@ export function useKeyboardNav() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  // Auto-update preview when selectedIndex changes (covers both keyboard and mouse clicks)
+  // Auto-update preview when selection or underlying item changes
+  const selectedItemId = items[selectedIndex]?.id;
   useEffect(() => {
-    if (previewOpenRef.current && itemsRef.current[selectedIndex]) {
-      updatePreview(itemsRef.current[selectedIndex].id);
+    if (previewOpenRef.current && selectedItemId) {
+      updatePreview(selectedItemId);
     }
-  }, [selectedIndex, updatePreview]);
+  }, [selectedItemId, updatePreview]);
 
   // Reset preview state when panel hides (blur)
   useEffect(() => {

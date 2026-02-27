@@ -569,6 +569,11 @@ pub async fn animate_close_preview(
     // Wait for animation to complete (CSS animation is 200ms, add buffer)
     tokio::time::sleep(std::time::Duration::from_millis(220)).await;
 
+    // Guard: if show_preview reopened during the sleep, closing flag was cleared — abort
+    if !closing.0.load(std::sync::atomic::Ordering::SeqCst) {
+        return Ok(());
+    }
+
     // Hide the window
     crate::platform::platform_hide_preview(&app);
 
