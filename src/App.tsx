@@ -13,11 +13,13 @@ import { SettingsPage } from "./components/SettingsPage";
 import { useClipboardStore } from "./stores/clipboard-store";
 import { useSettingsStore, type ShowEventPayload } from "./stores/settings-store";
 import { useKeyboardNav } from "./hooks/useKeyboardNav";
+import { PreviewPage } from "./components/PreviewPage";
 
 // Detect page type from URL params
 const pageParam = new URLSearchParams(window.location.search).get("page");
 const isSettingsPage = pageParam === "settings";
 const isHudPage = pageParam === "hud";
+const isPreviewPage = pageParam === "preview";
 
 function MainApp() {
   const fetchItems = useClipboardStore((s) => s.fetchItems);
@@ -147,6 +149,7 @@ function HudApp() {
 }
 
 function App() {
+  if (isPreviewPage) return <PreviewPage />;
   if (isHudPage) return <HudApp />;
   if (isSettingsPage) return <SettingsApp />;
   return <MainApp />;

@@ -29,6 +29,22 @@ pub fn platform_is_visible(app: &tauri::AppHandle) -> bool {
         .unwrap_or(false)
 }
 
+pub fn init_preview_panel(_app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    Ok(())
+}
+
+pub fn platform_show_preview(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("preview") {
+        let _ = window.show();
+    }
+}
+
+pub fn platform_hide_preview(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("preview") {
+        let _ = window.hide();
+    }
+}
+
 pub fn platform_resign_before_paste(app: &tauri::AppHandle) {
     platform_hide_window(app);
 }

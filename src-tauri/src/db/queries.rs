@@ -116,6 +116,26 @@ pub async fn get_item_by_id(pool: &SqlitePool, id: &str) -> Result<Option<(Strin
     .await
 }
 
+/// Get full item detail for preview (includes rich_content as UTF-8 string).
+pub async fn get_item_detail(
+    pool: &SqlitePool,
+    id: &str,
+) -> Result<Option<(String, String, Option<String>, Option<String>, Option<String>, Option<String>, i64)>, sqlx::Error> {
+    // Query rich_content as raw bytes, then convert in the caller
+    let row: Option<(String, String, Option<Vec<u8>>, Option<String>, Option<String>, Option<String>, i64)> = sqlx::query_as(
+        "SELECT content_type, plain_text, rich_content, image_path, file_path, file_name, content_size
+         FROM clipboard_items WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(|(ct, pt, rc, ip, fp, fn_, cs)| {
+        let rich_str = rc.map(|bytes| String::from_utf8_lossy(&bytes).to_string());
+        (ct, pt, rich_str, ip, fp, fn_, cs)
+    }))
+}
+
 /// Return the image_path of a single item (None if not an image or not found).
 pub async fn get_image_path_by_id(pool: &SqlitePool, id: &str) -> Result<Option<String>, sqlx::Error> {
     let row: Option<(Option<String>,)> = sqlx::query_as(

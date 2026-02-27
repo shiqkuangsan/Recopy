@@ -1,5 +1,5 @@
 use crate::db::{
-    models::{ClipboardItem, ContentType, ItemDetail, NewClipboardItem},
+    models::{ClipboardItem, ContentType, ItemDetail, NewClipboardItem, PreviewState},
     queries, DbPool,
 };
 use crate::clipboard as clip_util;
@@ -53,13 +53,9 @@ pub async fn get_thumbnail(
         .map_err(|e| e.to_string())
 }
 
-/// Get full item detail for preview (includes rich_content).
-#[tauri::command]
-pub async fn get_item_detail(
-    db: State<'_, DbPool>,
-    id: String,
-) -> Result<ItemDetail, String> {
-    let row = queries::get_item_detail(&db.0, &id)
+/// Internal helper to load full item detail from DB.
+async fn load_item_detail(db: &DbPool, id: &str) -> Result<ItemDetail, String> {
+    let row = queries::get_item_detail(&db.0, id)
         .await
         .map_err(|e| e.to_string())?
         .ok_or("Item not found")?;
@@ -67,6 +63,7 @@ pub async fn get_item_detail(
     let (content_type, plain_text, rich_content, image_path, file_path, file_name, content_size) = row;
 
     Ok(ItemDetail {
+        id: id.to_string(),
         content_type,
         plain_text,
         rich_content,
@@ -75,6 +72,15 @@ pub async fn get_item_detail(
         file_name,
         content_size,
     })
+}
+
+/// Get full item detail for preview (includes rich_content).
+#[tauri::command]
+pub async fn get_item_detail(
+    db: State<'_, DbPool>,
+    id: String,
+) -> Result<ItemDetail, String> {
+    load_item_detail(&db, &id).await
 }
 
 /// Delete a clipboard item and remove its original image file if present.
@@ -483,10 +489,24 @@ pub async fn cleanup_orphan_images(app: &AppHandle) {
     }
 }
 
-/// Show the preview window (create if needed).
+/// Show the preview window with adaptive sizing based on content.
+/// Loads item detail from DB, calculates window size, stores in PreviewState.
 #[tauri::command]
-pub fn show_preview_window(app: AppHandle) -> Result<(), String> {
-    crate::show_preview_window_impl(&app);
+pub async fn show_preview_window(
+    app: AppHandle,
+    db: State<'_, DbPool>,
+    preview_state: State<'_, PreviewState>,
+    id: String,
+) -> Result<(), String> {
+    let detail = load_item_detail(&db, &id).await?;
+    let (width, height) = calculate_preview_size(&detail);
+
+    // Store in state so PreviewPage can poll via get_current_preview
+    *preview_state.0.lock().unwrap() = Some(detail);
+
+    // Show window with adaptive size
+    crate::show_preview_window_impl(&app, width, height);
+
     Ok(())
 }
 
@@ -494,6 +514,55 @@ pub fn show_preview_window(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn hide_preview_window(app: AppHandle) {
     crate::platform::platform_hide_preview(&app);
+}
+
+/// Get the current preview item detail (stored by show_preview_window).
+/// Called by PreviewPage on mount to solve the race condition.
+#[tauri::command]
+pub fn get_current_preview(
+    preview_state: State<'_, PreviewState>,
+) -> Result<Option<ItemDetail>, String> {
+    Ok(preview_state.0.lock().unwrap().clone())
+}
+
+/// Calculate adaptive window size based on content type.
+fn calculate_preview_size(detail: &ItemDetail) -> (f64, f64) {
+    let padding_x = 32.0;
+    let padding_y = 72.0; // header (~48px) + content padding (~24px)
+
+    match detail.content_type.as_str() {
+        "image" => {
+            if let Some(ref path) = detail.image_path {
+                if let Ok((w, h)) = image::image_dimensions(path) {
+                    let max_content_w = 800.0_f64;
+                    let max_content_h = 600.0_f64;
+                    let min_w = 300.0;
+                    let min_h = 200.0;
+
+                    // Scale to fit within max bounds, don't upscale
+                    let scale = (max_content_w / w as f64)
+                        .min(max_content_h / h as f64)
+                        .min(1.0);
+
+                    let content_w = w as f64 * scale;
+                    let content_h = h as f64 * scale;
+
+                    let win_w = (content_w + padding_x).max(min_w);
+                    let win_h = (content_h + padding_y).max(min_h);
+                    return (win_w, win_h);
+                }
+            }
+            (600.0, 480.0)
+        }
+        "plain_text" => {
+            let line_count = detail.plain_text.lines().count().max(1);
+            let height = ((line_count as f64 * 22.0) + padding_y).clamp(200.0, 600.0);
+            (600.0, height)
+        }
+        "rich_text" => (600.0, 480.0),
+        "file" => (400.0, 300.0),
+        _ => (600.0, 480.0),
+    }
 }
 
 /// Hide the main window (works with NSPanel on macOS).

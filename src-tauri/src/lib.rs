@@ -54,6 +54,7 @@ pub fn run() {
             clip_cmd::open_settings_window,
             clip_cmd::show_preview_window,
             clip_cmd::hide_preview_window,
+            clip_cmd::get_current_preview,
             clip_cmd::hide_window,
             clip_cmd::show_copy_hud,
         ])
@@ -70,12 +71,20 @@ pub fn run() {
                     .expect("Failed to initialize database");
             });
 
+            // Initialize preview state for Quick Look feature
+            app.manage(db::models::PreviewState(std::sync::Mutex::new(None)));
+
             // Initialize platform (convert window to NSPanel on macOS)
             platform::init_platform(app)?;
 
             // Initialize HUD panel (non-activating copy feedback)
             if let Err(e) = platform::init_hud_panel(app) {
                 log::warn!("Failed to init HUD panel: {}", e);
+            }
+
+            // Initialize preview panel (non-activating Quick Look)
+            if let Err(e) = platform::init_preview_panel(app) {
+                log::warn!("Failed to init preview panel: {}", e);
             }
 
             // Setup system tray
@@ -162,84 +171,38 @@ pub fn hide_main_window(app: &tauri::AppHandle) {
     platform::platform_hide_preview(app);
 }
 
-/// Show the preview window (create if needed, center on screen).
-pub fn show_preview_window_impl(app: &tauri::AppHandle) {
-    // If already exists, just reposition and show
-    if app.get_webview_window("preview").is_some() {
-        center_preview_window(app);
-        platform::platform_show_preview(app);
+/// Show the preview window with adaptive sizing (pre-created at startup).
+pub fn show_preview_window_impl(app: &tauri::AppHandle, width: f64, height: f64) {
+    let Some(window) = app.get_webview_window("preview") else {
         return;
-    }
-
-    // Create the preview window dynamically
-    let url = tauri::WebviewUrl::App("index.html?page=preview".into());
-    let window = match tauri::WebviewWindowBuilder::new(app, "preview", url)
-        .title("")
-        .inner_size(600.0, 480.0)
-        .resizable(false)
-        .decorations(false)
-        .transparent(true)
-        .always_on_top(true)
-        .visible(false)
-        .skip_taskbar(true)
-        .center()
-        .build()
-    {
-        Ok(w) => w,
-        Err(e) => {
-            log::error!("Failed to create preview window: {}", e);
-            return;
-        }
     };
 
-    // Set window effects (glassmorphism)
-    #[allow(deprecated)]
-    {
-        use tauri::utils::config::WindowEffectsConfig;
-        use tauri::window::{Effect, EffectState};
-        let effects = WindowEffectsConfig {
-            effects: vec![Effect::HudWindow],
-            state: Some(EffectState::Active),
-            radius: Some(16.0),
-            color: None,
-        };
-        let _ = window.set_effects(effects);
-    }
+    // Resize to match content (Tauri handles thread dispatch internally)
+    let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(width, height)));
 
-    // Set window theme to match main window
+    // Match theme with main window
     if let Some(main_win) = app.get_webview_window("main") {
         if let Ok(theme) = main_win.theme() {
             let _ = window.set_theme(Some(theme));
         }
     }
 
-    // Convert to NSPanel on macOS
-    if let Err(e) = platform::init_preview_panel(app) {
-        log::warn!("Failed to init preview panel: {}", e);
-    }
-
-    center_preview_window(app);
-    platform::platform_show_preview(app);
-}
-
-fn center_preview_window(app: &tauri::AppHandle) {
-    let Some(window) = app.get_webview_window("preview") else {
-        return;
-    };
+    // Center on screen
     if let Ok(Some(monitor)) = window.current_monitor() {
         let size = monitor.size();
         let pos = monitor.position();
         let scale = monitor.scale_factor();
         let screen_w = size.width as f64 / scale;
         let screen_h = size.height as f64 / scale;
-        let win_w = 600.0;
-        let win_h = 480.0;
-        let x = pos.x as f64 / scale + (screen_w - win_w) / 2.0;
-        let y = pos.y as f64 / scale + (screen_h - win_h) / 2.0;
+        let x = pos.x as f64 / scale + (screen_w - width) / 2.0;
+        let y = pos.y as f64 / scale + (screen_h - height) / 2.0;
         let _ = window.set_position(tauri::Position::Logical(
             tauri::LogicalPosition::new(x, y),
         ));
     }
+
+    // Show panel — dispatched to main thread inside platform_show_preview
+    platform::platform_show_preview(app);
 }
 
 fn detect_language(app: &tauri::App) -> String {

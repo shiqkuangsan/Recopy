@@ -49,6 +49,25 @@
           "state": "active",
           "radius": 20
         }
+      },
+      {
+        "label": "preview",
+        "url": "index.html?page=preview",
+        "title": "",
+        "width": 600,
+        "height": 480,
+        "resizable": false,
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "windowEffects": {
+          "effects": ["hudWindow"],
+          "state": "active",
+          "radius": 16
+        }
       }
     ],
     "security": {

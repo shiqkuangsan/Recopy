@@ -29,6 +29,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      dompurify:
+        specifier: ^3.3.1
+        version: 3.3.1
       i18next:
         specifier: ^25.8.13
         version: 25.8.13(typescript@5.9.3)
@@ -1490,6 +1493,9 @@ packages:
   '@types/react@19.2.14':
     resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
 
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
+
   '@vitejs/plugin-react@5.1.4':
     resolution: {integrity: sha512-VIcFLdRi/VYRU8OL/puL7QXMYafHmqOnwTZY50U1JPlCNj30PxCMx65c494b1K9be9hX83KVt0+gTEwTWLqToA==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -1628,6 +1634,9 @@ packages:
 
   dom-accessibility-api@0.6.3:
     resolution: {integrity: sha512-7ZgogeTnjuHbo+ct10G9Ffp0mif17idi0IyWNVA/wcwcm7NPOD/WEHVP3n7n3MhXqxoIYm8d6MuZohYWIZ4T3w==}
+
+  dompurify@3.3.1:
+    resolution: {integrity: sha512-qkdCKzLNtrgPFP1Vo+98FRzJnBRGe4ffyCea9IwHB1fyxPOeNTHpLKYGd4Uk9xvNoH0ZoOjwZxNptyMwqrId1Q==}
 
   electron-to-chromium@1.5.302:
     resolution: {integrity: sha512-sM6HAN2LyK82IyPBpznDRqlTQAtuSaO+ShzFiWTvoMJLHyZ+Y39r8VMfHzwbU8MVBzQ4Wdn85+wlZl2TLGIlwg==}
@@ -3523,6 +3532,9 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
+  '@types/trusted-types@2.0.7':
+    optional: true
+
   '@vitejs/plugin-react@5.1.4(vite@7.3.1(jiti@2.6.1)(lightningcss@1.31.1))':
     dependencies:
       '@babel/core': 7.29.0
@@ -3656,6 +3668,10 @@ snapshots:
   dom-accessibility-api@0.5.16: {}
 
   dom-accessibility-api@0.6.3: {}
+
+  dompurify@3.3.1:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
 
   electron-to-chromium@1.5.302: {}
 

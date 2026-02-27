@@ -3,12 +3,22 @@ use tauri_nspanel::{
     tauri_panel, CollectionBehavior, ManagerExt, PanelLevel, StyleMask, WebviewWindowExt,
 };
 
-// Define custom NSPanel class: non-activating, can receive keyboard events
+// Define custom NSPanel classes.
+// RecopyPanel: non-activating, can receive keyboard events (main window + HUD).
+// PreviewPanel: non-activating, does NOT become key (won't steal focus from main panel).
 tauri_panel! {
     panel!(RecopyPanel {
         config: {
             is_floating_panel: true,
             can_become_key_window: true,
+            can_become_main_window: false,
+        }
+    })
+
+    panel!(PreviewPanel {
+        config: {
+            is_floating_panel: true,
+            can_become_key_window: false,
             can_become_main_window: false,
         }
     })
@@ -172,6 +182,57 @@ pub fn platform_hide_hud(app: &tauri::AppHandle) {
     let app_inner = app.clone();
     let _ = app.run_on_main_thread(move || {
         if let Ok(panel) = app_inner.get_webview_panel("hud") {
+            panel.hide();
+        }
+    });
+}
+
+/// Initialize the preview window as NSPanel (non-activating, no key window).
+pub fn init_preview_panel(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(window) = app.get_webview_window("preview") else {
+        log::warn!("Preview window not found, skipping panel init");
+        return Ok(());
+    };
+
+    let panel = window.to_panel::<PreviewPanel>()?;
+
+    // Float above the main panel
+    panel.set_level(PanelLevel::MainMenu.value() + 1);
+
+    // Non-activating: clicking the preview doesn't activate the app
+    panel.set_style_mask(StyleMask::empty().nonactivating_panel().into());
+
+    panel.set_collection_behavior(
+        CollectionBehavior::new()
+            .stationary()
+            .can_join_all_spaces()
+            .full_screen_auxiliary()
+            .ignores_cycle()
+            .into(),
+    );
+
+    panel.set_hides_on_deactivate(false);
+
+    log::info!("NSPanel initialized for preview window");
+    Ok(())
+}
+
+/// Show the preview panel without making it key (non-focus-stealing).
+/// Fire-and-forget: dispatches to main thread without blocking.
+pub fn platform_show_preview(app: &tauri::AppHandle) {
+    let app_inner = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Ok(panel) = app_inner.get_webview_panel("preview") {
+            panel.show();
+        }
+    });
+}
+
+/// Hide the preview panel.
+pub fn platform_hide_preview(app: &tauri::AppHandle) {
+    let app_inner = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Ok(panel) = app_inner.get_webview_panel("preview") {
             panel.hide();
         }
     });
