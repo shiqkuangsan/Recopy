@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import DOMPurify from "dompurify";
 import { useSettingsStore } from "../stores/settings-store";
-import { FileText, ImageIcon, Type, File } from "lucide-react";
+import { ImageIcon, File } from "lucide-react";
 import type { ItemDetail, PreviewResponse, FilePreviewData } from "../lib/types";
 
 export function PreviewPage() {
@@ -55,31 +55,15 @@ export function PreviewPage() {
 
   if (loading || !detail) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center text-white/50 text-xs">
+      <div className="h-screen w-screen flex items-center justify-center text-muted-foreground text-xs">
         {loading ? "Loading..." : "Waiting for preview data..."}
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center p-4">
-      <div className={`preview-content ${closing ? "preview-exit" : "preview-enter"} w-full h-full flex flex-col rounded-2xl border border-border/50 bg-card/80 backdrop-blur-xl overflow-hidden`}>
-        {/* Header */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30 shrink-0">
-          <ContentTypeIcon type={detail.content_type} />
-          <span className="text-sm font-medium text-foreground/80 truncate">
-            {getHeaderText(detail)}
-          </span>
-          <span className="text-xs text-muted-foreground ml-auto shrink-0">
-            {formatSize(detail.content_size)}
-          </span>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4">
-          <PreviewContent detail={detail} />
-        </div>
-      </div>
+    <div className={`preview-content ${closing ? "preview-exit" : "preview-enter"} h-screen w-screen`}>
+      <PreviewContent detail={detail} />
     </div>
   );
 }
@@ -87,27 +71,71 @@ export function PreviewPage() {
 function PreviewContent({ detail }: { detail: ItemDetail }) {
   switch (detail.content_type) {
     case "plain_text":
-      return <PlainTextPreview text={detail.plain_text} />;
+      return <ReadableCard><PlainTextPreview text={detail.plain_text} /></ReadableCard>;
     case "rich_text":
       return (
-        <RichTextPreview
-          html={detail.rich_content}
-          fallback={detail.plain_text}
-        />
+        <ReadableCard>
+          <RichTextPreview html={detail.rich_content} fallback={detail.plain_text} />
+        </ReadableCard>
       );
     case "image":
-      return <ImagePreview imagePath={detail.image_path} />;
+      return (
+        <WithTitleBar title={getTitle(detail)} size={detail.content_size}>
+          <ImagePreview imagePath={detail.image_path} />
+        </WithTitleBar>
+      );
     case "file":
       return (
-        <FilePreview
-          filePath={detail.file_path}
-          fileName={detail.file_name}
-          contentSize={detail.content_size}
-        />
+        <WithTitleBar title={getTitle(detail)} size={detail.content_size}>
+          <FileContent
+            filePath={detail.file_path}
+            fileName={detail.file_name}
+            contentSize={detail.content_size}
+          />
+        </WithTitleBar>
       );
     default:
-      return <PlainTextPreview text={detail.plain_text} />;
+      return <ReadableCard><PlainTextPreview text={detail.plain_text} /></ReadableCard>;
   }
+}
+
+/** Title bar + 3-side padded content — Quick Look style */
+function WithTitleBar({ title, size, children }: { title: string; size: number; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col w-full h-full">
+      <div className="shrink-0 flex items-center px-3 py-1.5">
+        <span className="text-xs font-medium text-foreground/70 truncate flex-1">{title}</span>
+        <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatSize(size)}</span>
+      </div>
+      <div className="flex-1 min-h-0 overflow-hidden px-2 pb-2 rounded-b-xl">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function getTitle(detail: ItemDetail): string {
+  if (detail.file_name) return detail.file_name;
+  if (detail.content_type === "image" && detail.image_path) {
+    const parts = detail.image_path.split("/");
+    return parts[parts.length - 1] || "Image";
+  }
+  if (detail.file_path) {
+    const parts = detail.file_path.split("/");
+    return parts[parts.length - 1] || "File";
+  }
+  return detail.content_type === "image" ? "Image" : "File";
+}
+
+/** Semi-transparent card for text-based content — readable against glassmorphism */
+function ReadableCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="w-full h-full p-3">
+      <div className="w-full h-full overflow-y-auto rounded-xl bg-card/60 p-4">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function PlainTextPreview({ text }: { text: string }) {
@@ -168,7 +196,7 @@ function RichTextPreview({
 
   return (
     <div
-      className="text-sm text-foreground prose prose-sm prose-invert max-w-none"
+      className="text-sm text-foreground prose prose-sm max-w-none"
       dangerouslySetInnerHTML={{ __html: sanitized }}
     />
   );
@@ -177,21 +205,21 @@ function RichTextPreview({
 function ImagePreview({ imagePath }: { imagePath?: string }) {
   const assetUrl = imagePath ? convertFileSrc(imagePath) : null;
 
+  if (!assetUrl) {
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-full gap-2 text-muted-foreground">
+        <ImageIcon size={48} />
+        <span className="text-sm">Image not available</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center justify-center h-full">
-      {assetUrl ? (
-        <img
-          src={assetUrl}
-          alt="Preview"
-          className="max-w-full max-h-full object-contain rounded-lg"
-        />
-      ) : (
-        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <ImageIcon size={48} />
-          <span className="text-sm">Image not available</span>
-        </div>
-      )}
-    </div>
+    <img
+      src={assetUrl}
+      alt="Preview"
+      className="w-full h-full object-contain rounded-md"
+    />
   );
 }
 
@@ -210,7 +238,7 @@ function getFileExtension(path?: string, name?: string): string {
   return dot >= 0 ? source.slice(dot + 1).toLowerCase() : "";
 }
 
-function FilePreview({
+function FileContent({
   filePath,
   fileName,
   contentSize,
@@ -226,7 +254,7 @@ function FilePreview({
   }
 
   if (TEXT_EXTENSIONS.has(ext) && filePath) {
-    return <TextFilePreview filePath={filePath} />;
+    return <ReadableCard><TextFilePreview filePath={filePath} /></ReadableCard>;
   }
 
   // Fallback: file metadata display
@@ -291,42 +319,6 @@ function TextFilePreview({ filePath }: { filePath: string }) {
 }
 
 // --- Helpers ---
-
-function ContentTypeIcon({ type }: { type: string }) {
-  const cls = "text-muted-foreground";
-  switch (type) {
-    case "plain_text":
-      return <Type size={14} className={cls} />;
-    case "rich_text":
-      return <FileText size={14} className={cls} />;
-    case "image":
-      return <ImageIcon size={14} className={cls} />;
-    case "file":
-      return <File size={14} className={cls} />;
-    default:
-      return <Type size={14} className={cls} />;
-  }
-}
-
-function getHeaderText(detail: ItemDetail): string {
-  switch (detail.content_type) {
-    case "plain_text": {
-      const lineCount = detail.plain_text.split("\n").length;
-      return lineCount > 1 ? `Text · ${lineCount} lines` : "Text";
-    }
-    case "rich_text": {
-      if (!detail.plain_text) return "Rich Text";
-      const firstLine = detail.plain_text.split("\n")[0].trim();
-      return firstLine.length > 60 ? firstLine.slice(0, 57) + "..." : firstLine || "Rich Text";
-    }
-    case "image":
-      return detail.file_name || "Clipboard Image";
-    case "file":
-      return detail.file_name || detail.file_path || "File";
-    default:
-      return "Preview";
-  }
-}
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

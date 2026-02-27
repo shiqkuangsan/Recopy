@@ -580,21 +580,23 @@ pub async fn animate_close_preview(
 
 /// Calculate adaptive window size based on content type and available space.
 /// `available_h` = space above the main panel (preview lives above the panel).
-/// Padding breakdown: header (48px) + content padding top/bottom (32px) + outer window padding (40px) = 120px
 fn calculate_preview_size(detail: &ItemDetail, screen_w: f64, available_h: f64) -> (f64, f64) {
+    // Image/file layout: title bar (py-1.5*2 + text ≈ 28) + bottom padding pb-2 (8)
+    let img_chrome_y = 36.0; // title bar + bottom pad
+    let img_chrome_x = 16.0; // px-2 left + right = 8*2
+    // Padding for text types: outer p-3 (24) + ReadableCard p-4 (32) = 56
+    let text_pad = 56.0;
     let content_width = 600.0;
-    let padding_x = 32.0; // left + right padding
-    let padding_y = 120.0; // header (48) + content padding (32) + outer padding (40)
     let line_height = 22.0; // matches text-sm leading-relaxed
-    let min_h = 240.0; // minimum height fallback (even if it overlaps panel)
-    let max_w = screen_w * 0.7; // 70% of screen width
-    let max_h = available_h.max(min_h); // use available space above panel, but never below min_h
+    let min_h = 240.0;
+    let max_w = screen_w * 0.7;
+    let max_h = available_h.max(min_h);
 
-    /// Scale image dimensions to fit within max bounds, don't upscale.
-    fn fit_image(iw: u32, ih: u32, max_w: f64, max_h: f64, pad_x: f64, pad_y: f64, min_h: f64) -> (f64, f64) {
+    /// Scale image to fit max bounds (Quick Look style).
+    fn fit_image(iw: u32, ih: u32, max_w: f64, max_h: f64, min_h: f64) -> (f64, f64) {
         let scale = (max_w / iw as f64).min(max_h / ih as f64).min(1.0);
-        let win_w = (iw as f64 * scale + pad_x).max(300.0);
-        let win_h = (ih as f64 * scale + pad_y).max(min_h);
+        let win_w = (iw as f64 * scale).max(300.0);
+        let win_h = (ih as f64 * scale).max(min_h);
         (win_w, win_h)
     }
 
@@ -602,27 +604,26 @@ fn calculate_preview_size(detail: &ItemDetail, screen_w: f64, available_h: f64) 
         "image" => {
             if let Some(ref path) = detail.image_path {
                 if let Ok((w, h)) = image::image_dimensions(path) {
-                    return fit_image(w, h, max_w - padding_x, max_h - padding_y, padding_x, padding_y, min_h);
+                    let (iw, ih) = fit_image(w, h, max_w - img_chrome_x, max_h - img_chrome_y, min_h);
+                    return (iw + img_chrome_x, ih + img_chrome_y);
                 }
             }
             (600.0, 480.0)
         }
         "plain_text" => {
-            let effective_lines = estimate_display_lines(&detail.plain_text, content_width - padding_x);
-            let height = (effective_lines as f64 * line_height + padding_y).clamp(min_h, max_h);
+            let effective_lines = estimate_display_lines(&detail.plain_text, content_width - text_pad);
+            let height = (effective_lines as f64 * line_height + text_pad).clamp(min_h, max_h);
             (content_width, height)
         }
         "rich_text" => {
-            // Use plain_text fallback for height estimation (HTML rendering height is unpredictable)
             let text = &detail.plain_text;
             let effective_lines = if text.is_empty() { 10 } else {
-                estimate_display_lines(text, content_width - padding_x)
+                estimate_display_lines(text, content_width - text_pad)
             };
-            let height = (effective_lines as f64 * line_height + padding_y).clamp(min_h, max_h);
+            let height = (effective_lines as f64 * line_height + text_pad).clamp(min_h, max_h);
             (content_width, height)
         }
         "file" => {
-            // Check if it's a text-based file that we can preview with content
             if let Some(ref path) = detail.file_path {
                 let ext = std::path::Path::new(path)
                     .extension()
@@ -630,17 +631,18 @@ fn calculate_preview_size(detail: &ItemDetail, screen_w: f64, available_h: f64) 
                     .unwrap_or("")
                     .to_lowercase();
                 if TEXT_EXTENSIONS.contains(&ext.as_str()) {
-                    let effective_lines = estimate_display_lines(&detail.plain_text, content_width - padding_x).max(10);
-                    let height = (effective_lines as f64 * line_height + padding_y).clamp(min_h, max_h);
+                    let effective_lines = estimate_display_lines(&detail.plain_text, content_width - text_pad).max(10);
+                    let height = (effective_lines as f64 * line_height + text_pad + img_chrome_y).clamp(min_h, max_h);
                     return (content_width, height);
                 }
                 if IMAGE_EXTENSIONS.contains(&ext.as_str()) {
                     if let Ok((w, h)) = image::image_dimensions(path) {
-                        return fit_image(w, h, max_w - padding_x, max_h - padding_y, padding_x, padding_y, min_h);
+                        let (iw, ih) = fit_image(w, h, max_w - img_chrome_x, max_h - img_chrome_y, min_h);
+                        return (iw + img_chrome_x, ih + img_chrome_y);
                     }
                 }
             }
-            (400.0, 300.0)
+            (400.0, 300.0 + img_chrome_y)
         }
         _ => (content_width, 480.0),
     }
