@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepare": "husky"
   },
   "license": "PolyForm-Noncommercial-1.0.0",
   "packageManager": "pnpm@10.26.1",
@@ -39,6 +40,8 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.4.2",
+    "@commitlint/config-conventional": "^20.4.2",
     "@tailwindcss/vite": "^4.2.0",
     "@tauri-apps/cli": "^2.10.0",
     "@testing-library/jest-dom": "^6.9.1",
@@ -46,6 +49,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
+    "husky": "^9.1.7",
     "jsdom": "^28.1.0",
     "tailwindcss": "^4.2.0",
     "typescript": "^5.9.3",
