@@ -8,6 +8,7 @@
   ],
   "permissions": [
     "core:default",
+    "core:app:default",
     "clipboard-x:default",
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
