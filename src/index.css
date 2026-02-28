@@ -148,6 +148,107 @@ html[data-theme="dark"] {
   animation: preview-scale-out 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
+/* Easter egg: micro-vibrate "purr" */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+
+/* Easter egg: app name click ripple */
+@keyframes echo-ripple {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* Easter egg: cat fortune bubble pop-in/out */
+@keyframes fortune-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.9);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.95);
+  }
+}
+
+/* Easter egg: rainbow glass pulse on card */
+@keyframes rainbow-pulse {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Easter egg Layer 4: purple mystic glow */
+@keyframes purple-glow {
+  0%, 100% {
+    box-shadow: 0 0 6px rgba(168, 85, 247, 0.25), 0 0 12px rgba(139, 92, 246, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.4), 0 0 20px rgba(139, 92, 246, 0.15);
+  }
+}
+
+/* Easter egg Layer 5: pink → purple → blue breathing aura */
+@keyframes neko-aura {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(244, 114, 182, 0.4), 0 0 16px rgba(244, 114, 182, 0.1);
+  }
+  33% {
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.45), 0 0 20px rgba(168, 85, 247, 0.12);
+  }
+  66% {
+    box-shadow: 0 0 10px rgba(96, 165, 250, 0.4), 0 0 20px rgba(96, 165, 250, 0.12);
+  }
+}
+
+/* Easter egg: cat ear pop-in */
+@keyframes neko-ear-pop {
+  0% { opacity: 0; transform: translateY(4px) scale(0.3); }
+  50% { opacity: 1; transform: translateY(-2px) scale(1.15); }
+  70% { transform: translateY(0) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Easter egg: gentle float for ultimate text */
+@keyframes neko-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+/* Easter egg: mixed particles drift upward with sway */
+@keyframes neko-particle-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) translateX(0) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-12px) translateX(var(--sway, 3px)) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px) translateX(calc(var(--sway, 3px) * -1)) scale(0.3);
+  }
+}
+
 /* Hide scrollbar utility */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

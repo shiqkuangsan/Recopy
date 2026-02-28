@@ -121,6 +121,15 @@
     "monthly": "每月",
     "never": "从不"
   },
+  "easter": {
+    "hint": "{{count}}/7 ...",
+    "fortune1": "Nya~ 复制成功喵 ✨",
+    "fortune2": "剪贴板在呼噜呢...",
+    "fortune3": "粘贴运气 +10 喵♡",
+    "fortune4": "本喵帮你记住了哦～",
+    "fortune5": "Ctrl+V 的力量觉醒了！",
+    "fortune6": "每一次复制都是一次相遇呢～"
+  },
   "time": {
     "justNow": "刚刚",
     "minutesAgo": "{{count}}分钟前",

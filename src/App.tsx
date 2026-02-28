@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Check, Settings } from "lucide-react";
+import { BrandLogo } from "./components/BrandLogo";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "./components/ui/button";
 import { SearchBar } from "./components/SearchBar";
@@ -134,7 +135,7 @@ function MainApp() {
         {/* Header — single row, centered */}
         <div className="relative flex items-center justify-center gap-3 px-4 pt-3 pb-2 shrink-0">
           <div className="absolute left-4 flex items-center gap-2">
-            <span className="text-base font-bold text-foreground/80 tracking-tight">Recopy</span>
+            <BrandLogo />
             <span className="translate-y-px">
               <UpdateBanner />
             </span>

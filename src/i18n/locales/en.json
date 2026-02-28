@@ -121,6 +121,15 @@
     "monthly": "Monthly",
     "never": "Never"
   },
+  "easter": {
+    "hint": "{{count}}/7 ...",
+    "fortune1": "Nya~ copied purr-fectly ✨",
+    "fortune2": "Clipboard is purring...",
+    "fortune3": "Paste luck +10 ♡",
+    "fortune4": "Meow-morized for you~",
+    "fortune5": "The power of Ctrl+V awakens!",
+    "fortune6": "Every copy is a new encounter~"
+  },
   "time": {
     "justNow": "just now",
     "minutesAgo": "{{count}}m ago",
