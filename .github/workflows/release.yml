@@ -88,7 +88,7 @@ jobs:
             | macOS (Intel) | `Recopy_x.x.x_x64.dmg` |
             | Windows (64-bit) | `Recopy_x.x.x_x64-setup.exe` |
 
-            > **macOS note:** The app is not notarized yet. On first launch, right-click the app → Open, then confirm.
+            > **macOS note:** The app is not notarized yet. On first launch, right-click the app → Open, then confirm. See [Installation Guide](https://github.com/shiqkuangsan/Recopy/blob/main/docs/macos-unsigned-app.md).
 
             ## What's New
 

@@ -138,7 +138,7 @@ Once CI succeeds, write bilingual release notes (English on top, Chinese below, 
 | table of assets from `gh release view` |
 
 ### Notes
-- macOS unsigned app notice with link to installation guide
+- **macOS:** The app is not notarized yet. On first launch: right-click → Open → confirm. See [Installation Guide](https://github.com/shiqkuangsan/Recopy/blob/main/docs/macos-unsigned-app.md).
 - Platform testing status
 
 ---
@@ -146,6 +146,9 @@ Once CI succeeds, write bilingual release notes (English on top, Chinese below, 
 ## Recopy vX.Y.Z — [中文标题]
 
 [same content in Chinese]
+
+### 说明
+- **macOS：** 应用尚未公证。首次打开：右键 → 打开 → 确认。详见 [安装指南](https://github.com/shiqkuangsan/Recopy/blob/main/docs/macos-unsigned-app.md)。
 ```
 
 ### Content Rules
