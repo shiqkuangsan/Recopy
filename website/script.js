@@ -317,6 +317,28 @@ function updateDownloadButtons() {
 }
 
 // ============================================================
+// Lightbox
+// ============================================================
+function openLightbox() {
+  const src = document.getElementById('demo-preview').src;
+  const lightbox = document.getElementById('lightbox');
+  const img = document.getElementById('lightbox-img');
+  img.src = src;
+  lightbox.classList.add('is-open');
+  document.addEventListener('keydown', closeLightboxOnEsc);
+}
+
+function closeLightbox() {
+  const lightbox = document.getElementById('lightbox');
+  lightbox.classList.remove('is-open');
+  document.removeEventListener('keydown', closeLightboxOnEsc);
+}
+
+function closeLightboxOnEsc(e) {
+  if (e.key === 'Escape') closeLightbox();
+}
+
+// ============================================================
 // Init
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {

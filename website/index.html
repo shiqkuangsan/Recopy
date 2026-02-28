@@ -39,7 +39,9 @@
     body.blobity-active a,
     body.blobity-active button,
     body.blobity-active [data-blobity],
-    body.blobity-active [data-blobity-tooltip] {
+    body.blobity-active [data-blobity-tooltip],
+    body.blobity-active .demo-window,
+    body.blobity-active .lightbox {
       cursor: none !important;
     }
   </style>
@@ -92,8 +94,13 @@
   <!-- Demo -->
   <section class="demo">
     <div class="container">
-      <div class="demo-window">
+      <div class="demo-window" onclick="openLightbox()">
         <img id="demo-preview" src="images/preview-dark-en.png" alt="Recopy Demo" class="demo-img" loading="lazy">
+        <div class="demo-zoom-hint">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/>
+          </svg>
+        </div>
       </div>
     </div>
   </section>
@@ -390,6 +397,11 @@
       </div>
     </div>
   </footer>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <img id="lightbox-img" src="" alt="">
+  </div>
 
   <script src="script.js"></script>
 </body>

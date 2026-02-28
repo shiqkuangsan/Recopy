@@ -281,10 +281,74 @@ a {
 }
 
 .demo-window {
+  position: relative;
   border: var(--border-width) solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: 10px 10px 0 var(--border);
+  cursor: zoom-in;
+}
+
+.demo-zoom-hint {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--surface);
+  color: var(--text);
+  border: var(--border-width) solid var(--border);
+  border-radius: 50%;
+  box-shadow: 3px 3px 0 var(--border);
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.15s;
+  pointer-events: none;
+}
+
+.demo-window:hover .demo-zoom-hint {
+  opacity: 1;
+}
+
+.demo-window:active .demo-zoom-hint {
+  transform: scale(0.9);
+}
+
+/* ============================================================
+   Lightbox
+   ============================================================ */
+.lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: zoom-out;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.lightbox.is-open {
+  display: flex;
+  animation: lightbox-in 0.25s ease-out;
+}
+
+.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes lightbox-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .demo-img {
