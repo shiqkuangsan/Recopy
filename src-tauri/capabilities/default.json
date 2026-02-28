@@ -4,7 +4,8 @@
   "description": "enables the default permissions",
   "windows": [
     "main",
-    "preview"
+    "preview",
+    "settings"
   ],
   "permissions": [
     "core:default",
