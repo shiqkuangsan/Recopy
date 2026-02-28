@@ -1005,8 +1005,8 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
 #[tauri::command]
 pub async fn open_url(url: String) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(|e| format!("Invalid URL: {}", e))?;
-    if !matches!(parsed.scheme(), "http" | "https") {
-        return Err("Only http/https URLs are allowed".to_string());
+    if !matches!(parsed.scheme(), "http" | "https" | "x-apple.systempreferences") {
+        return Err("Only http/https and system preferences URLs are allowed".to_string());
     }
     let normalized = parsed.as_str();
 

@@ -273,10 +273,14 @@ function PrivacySettings() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             {t("settings.privacy.accessibilityDesc")}
           </p>
-          <p className="flex items-center gap-1.5 text-xs text-primary">
+          <button
+            onClick={() => invoke("open_url", { url: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" })}
+            className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors"
+          >
             <ChevronRight size={12} />
             {t("settings.privacy.accessibilityPath")}
-          </p>
+            <ExternalLink size={11} />
+          </button>
         </CardContent>
       </Card>
 
