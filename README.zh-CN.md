@@ -11,7 +11,19 @@
 
 [English](README.md) | 中文
 
-![Recopy 预览](assets/preview.png)
+### 暗色模式
+![Recopy — 暗色模式](assets/screenshots/dark-main-zh.png)
+
+<details>
+<summary>更多截图</summary>
+
+### 亮色模式
+![Recopy — 亮色模式](assets/screenshots/light-main-zh.png)
+
+### 快速预览
+![快速预览](assets/screenshots/dark-preview-zh.png)
+
+</details>
 
 ## 安装
 

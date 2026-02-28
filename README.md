@@ -11,7 +11,19 @@ A free, source-available clipboard history manager for macOS and Windows.
 
 English | [中文](README.zh-CN.md)
 
-![Recopy Preview](assets/preview.png)
+### Dark Mode
+![Recopy — Dark Mode](assets/screenshots/dark-main-en.png)
+
+<details>
+<summary>More screenshots</summary>
+
+### Light Mode
+![Recopy — Light Mode](assets/screenshots/light-main-en.png)
+
+### Quick Look Preview
+![Quick Look Preview](assets/screenshots/dark-preview-en.png)
+
+</details>
 
 ## Installation
 
