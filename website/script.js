@@ -17,7 +17,7 @@ function updateDemoPreview() {
   if (!img) return;
   const theme = document.documentElement.getAttribute('data-theme') || 'dark';
   const lang = currentLang === 'zh' ? 'zh' : 'en';
-  img.src = `images/preview-${theme}-${lang}.png`;
+  img.src = `images/preview-${theme}-${lang}.webp`;
 }
 
 function applyLang() {
