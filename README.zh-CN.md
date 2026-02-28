@@ -1,6 +1,11 @@
 # Recopy
 
-免费开源的剪贴板历史管理工具。目前仅在 macOS (Apple Silicon) 上测试通过，macOS Intel 和 Windows 版本可构建但尚未验证。
+[![GitHub Release](https://img.shields.io/github/v/release/shiqkuangsan/Recopy)](https://github.com/shiqkuangsan/Recopy/releases)
+[![License](https://img.shields.io/badge/license-PolyForm%20NC%201.0-blue)](LICENSE)
+[![macOS](https://img.shields.io/badge/macOS-supported-brightgreen)](https://github.com/shiqkuangsan/Recopy/releases)
+[![Windows](https://img.shields.io/badge/Windows-supported-brightgreen)](https://github.com/shiqkuangsan/Recopy/releases)
+
+免费、源码开放的剪贴板历史管理工具，支持 macOS 和 Windows。
 
 > 你的每一次复制，都不会再丢失。
 
@@ -25,18 +30,18 @@
 
 ## 功能特性
 
-- **全类型支持** — 纯文本、富文本、图片、文件
+- **全类型支持** — 纯文本、富文本、图片、文件、链接
 - **一键召唤** — `Cmd+Shift+V` 呼出面板，方向键导航，Enter 粘贴
+- **空格预览** — 按空格键预览任意条目，Finder 风格缩放动画
 - **智能去重** — SHA-256 哈希自动去重，重复内容自动置顶
 - **全文搜索** — FTS5 + trigram 分词，中英文模糊搜索
+- **链接识别** — 自动识别 URL 并显示专属卡片，`Cmd+Click` 可在浏览器打开
 - **输入法友好** — 搜索栏正确处理中文输入法组合输入
 - **收藏夹** — 置顶常用条目，快速访问
 - **不抢焦点** — macOS 使用 NSPanel，面板不会抢走前台应用的焦点
 - **复制反馈** — 毛玻璃 HUD 提示，复制操作一目了然
-- **丰富设置** — 主题、语言、快捷键、开机启动、保留策略等
-- **主题切换** — 深色/浅色模式，支持跟随系统
-- **中英双语** — 自动检测系统语言，可手动切换（含托盘菜单）
-- **缩略图懒加载** — 异步生成缩略图，打开面板零延迟
+- **自动更新** — 内置更新检查，应用内下载，一键重启升级
+- **丰富设置** — 主题（深色/浅色/跟随系统）、语言（中/英）、快捷键、开机启动、保留策略
 - **隐私优先** — 所有数据存储在本地 SQLite，不上传任何内容
 
 ## 快捷键
@@ -47,6 +52,7 @@
 | `←` `→` | 左右导航条目 |
 | `↑` `↓` | 在日期分组间跳转 |
 | `Enter` | 粘贴选中条目 |
+| `Space` | 快速预览选中条目 |
 | `Cmd+C` | 复制到剪贴板（显示 HUD 反馈） |
 | `Cmd+F` | 聚焦搜索框 |
 | `Cmd+,` | 打开设置 |
@@ -139,9 +145,9 @@ Recopy
 
 ## 路线图
 
-- [ ] 来源应用检测（显示内容来自哪个应用）
+- [x] ~~自动更新~~ — 已在 v1.0.0 通过 tauri-plugin-updater 实现
+- [ ] 来源应用展示（数据层已就绪，卡片 UI 待开发）
 - [ ] 应用排除列表（跳过密码管理器等）
-- [ ] 自动更新（Sparkle / tauri-plugin-updater）
 
 ## 许可证
 

@@ -1,6 +1,11 @@
 # Recopy
 
-A free, open-source clipboard history manager. Currently tested on macOS (Apple Silicon). macOS Intel and Windows builds are available but not yet verified.
+[![GitHub Release](https://img.shields.io/github/v/release/shiqkuangsan/Recopy)](https://github.com/shiqkuangsan/Recopy/releases)
+[![License](https://img.shields.io/badge/license-PolyForm%20NC%201.0-blue)](LICENSE)
+[![macOS](https://img.shields.io/badge/macOS-supported-brightgreen)](https://github.com/shiqkuangsan/Recopy/releases)
+[![Windows](https://img.shields.io/badge/Windows-supported-brightgreen)](https://github.com/shiqkuangsan/Recopy/releases)
+
+A free, source-available clipboard history manager for macOS and Windows.
 
 > Every copy you make, always within reach.
 
@@ -25,18 +30,18 @@ Download the latest `.dmg` from the [Releases](https://github.com/shiqkuangsan/R
 
 ## Features
 
-- **Full-type support** — Plain text, rich text, images, and files
+- **Full-type support** — Plain text, rich text, images, files, and links
 - **Instant recall** — `Cmd+Shift+V` to summon, arrow keys to navigate, Enter to paste
+- **Quick Look preview** — Press Space to preview any item with Finder-style zoom animation
 - **Smart dedup** — SHA-256 hash prevents duplicate entries, bumps latest to top
 - **Full-text search** — FTS5 with trigram tokenizer for Chinese/English fuzzy search
+- **Link detection** — URLs auto-recognized with dedicated cards, `Cmd+Click` to open in browser
 - **IME friendly** — Search works correctly with Chinese input methods (composition-aware)
 - **Favorites** — Pin frequently used items for quick access
 - **Non-activating panel** — NSPanel on macOS, never steals focus from your active app
 - **Copy HUD** — Frosted glass feedback overlay when copying to clipboard
-- **Configurable settings** — Theme, language, shortcut, auto-start, retention policy, and more
-- **Themes** — Dark and light mode, follows system preference
-- **i18n** — Chinese and English, auto-detects system language (including tray menu)
-- **Lazy thumbnails** — Async thumbnail generation, no blocking on panel open
+- **Auto-update** — Built-in update checker with in-app download and one-click restart
+- **Configurable** — Theme (dark/light/system), language (en/zh), shortcut, auto-start, retention policy
 - **Privacy first** — All data stored locally in SQLite, nothing leaves your machine
 
 ## Keyboard Shortcuts
@@ -47,6 +52,7 @@ Download the latest `.dmg` from the [Releases](https://github.com/shiqkuangsan/R
 | `←` `→` | Navigate between items |
 | `↑` `↓` | Jump between date groups |
 | `Enter` | Paste selected item |
+| `Space` | Quick Look preview |
 | `Cmd+C` | Copy to clipboard (with HUD feedback) |
 | `Cmd+F` | Focus search |
 | `Cmd+,` | Open settings |
@@ -139,9 +145,9 @@ Recopy
 
 ## Roadmap
 
-- [ ] Source app detection (show which app content was copied from)
+- [x] ~~Auto-update~~ — shipped in v1.0.0 via tauri-plugin-updater
+- [ ] Source app display (data model ready, card UI pending)
 - [ ] App exclusion list (skip password managers, etc.)
-- [ ] Auto-update (Sparkle / tauri-plugin-updater)
 
 ## License
 
