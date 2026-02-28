@@ -5,10 +5,11 @@
 // ============================================================
 // i18n
 // ============================================================
-let currentLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
+let currentLang = localStorage.getItem('lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en');
 
 function toggleLang() {
   currentLang = currentLang === 'en' ? 'zh' : 'en';
+  localStorage.setItem('lang', currentLang);
   applyLang();
 }
 
