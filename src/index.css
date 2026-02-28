@@ -249,6 +249,100 @@ html[data-theme="dark"] {
   }
 }
 
+/* Easter egg Layer 6: ascension shell — breathing glow with lift */
+@keyframes neko-ascension-shell {
+  0% { box-shadow: 0 0 0 rgba(0,0,0,0); transform: translateY(0) scale(1); }
+  16% { box-shadow: 0 0 10px rgba(244,244,245,.22), 0 0 18px rgba(167,139,250,.16); transform: translateY(-1px) scale(1.02); }
+  30% { box-shadow: 0 0 26px rgba(244,244,245,.40), 0 0 48px rgba(196,181,253,.30); transform: translateY(-2px) scale(1.08); }
+  38% { box-shadow: 0 0 18px rgba(244,244,245,.32), 0 0 30px rgba(148,163,184,.24); transform: translateY(-1px) scale(1.04); }
+  72% { box-shadow: 0 0 14px rgba(244,244,245,.28), 0 0 24px rgba(167,139,250,.20); transform: translateY(-1px) scale(1.03); }
+  100% { box-shadow: 0 0 0 rgba(0,0,0,0); transform: translateY(0) scale(1); }
+}
+
+/* Easter egg Layer 6: core text compression → expansion → float → settle */
+@keyframes neko-ascension-core {
+  0% { transform: translateY(0) scale(1); letter-spacing: 0; opacity: .9; }
+  14% { transform: translateY(1px) scale(.9); letter-spacing: -.02em; opacity: 1; }
+  24% { transform: translateY(-2px) scale(1.12); letter-spacing: .01em; opacity: 1; }
+  31% { transform: translateY(-3px) scale(1.2); letter-spacing: .03em; opacity: 1; }
+  37% { transform: translateY(-1px) scale(1.06); letter-spacing: .01em; }
+  72% { transform: translateY(-2px) scale(1.05); opacity: 1; }
+  86% { transform: translateY(-1px) scale(1.02); opacity: .95; }
+  100% { transform: translateY(0) scale(1); letter-spacing: 0; opacity: 1; }
+}
+
+/* Easter egg Layer 6: solid ring — scale up + rotate clockwise */
+@keyframes neko-ascension-ring {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.35) rotate(-40deg); }
+  18% { opacity: .85; transform: translate(-50%, -50%) scale(1.02) rotate(18deg); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(170deg); }
+  42% { opacity: .72; transform: translate(-50%, -50%) scale(1.1) rotate(260deg); }
+  78% { opacity: .62; transform: translate(-50%, -50%) scale(1.05) rotate(480deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(.92) rotate(560deg); }
+}
+
+/* Easter egg Layer 6: dashed ring — counter-rotate */
+@keyframes neko-ascension-ring-reverse {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.55) rotate(35deg); }
+  22% { opacity: .7; transform: translate(-50%, -50%) scale(1.06) rotate(-20deg); }
+  34% { opacity: .95; transform: translate(-50%, -50%) scale(1.14) rotate(-150deg); }
+  70% { opacity: .55; transform: translate(-50%, -50%) scale(1.06) rotate(-330deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(.9) rotate(-420deg); }
+}
+
+/* Easter egg Layer 6: shockwave flash burst */
+@keyframes neko-ascension-shockwave {
+  0%, 24% { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
+  28% { opacity: .85; transform: translate(-50%, -50%) scale(.3); }
+  36% { opacity: 0; transform: translate(-50%, -50%) scale(2.4); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.4); }
+}
+
+/* Easter egg Layer 6: echo ghost drifting left */
+@keyframes neko-ascension-echo-left {
+  0%, 22% { opacity: 0; transform: translate(-50%, -50%) scale(.98); }
+  29% { opacity: .72; transform: translate(calc(-50% - 12px), calc(-50% - 3px)) scale(1.08); }
+  55% { opacity: .48; transform: translate(calc(-50% - 8px), calc(-50% + 2px)) scale(1.02); }
+  86% { opacity: .36; transform: translate(calc(-50% - 5px), calc(-50% + 1px)) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(.98); }
+}
+
+/* Easter egg Layer 6: echo ghost drifting right */
+@keyframes neko-ascension-echo-right {
+  0%, 22% { opacity: 0; transform: translate(-50%, -50%) scale(.98); }
+  29% { opacity: .72; transform: translate(calc(-50% + 13px), calc(-50% + 2px)) scale(1.08); }
+  58% { opacity: .5; transform: translate(calc(-50% + 8px), calc(-50% - 2px)) scale(1.02); }
+  86% { opacity: .35; transform: translate(calc(-50% + 4px), calc(-50% - 1px)) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(.98); }
+}
+
+/* Easter egg Layer 6: rune orbiting with CSS custom properties */
+@keyframes neko-ascension-rune {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--r-angle)) translateX(8px) scale(.25);
+    filter: blur(1px);
+  }
+  18% {
+    opacity: .95;
+    transform: translate(-50%, -50%) rotate(var(--r-angle)) translateX(var(--r-radius)) scale(1);
+    filter: blur(0);
+  }
+  32% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(calc(var(--r-angle) + 130deg)) translateX(calc(var(--r-radius) + 4px)) scale(1.12);
+  }
+  72% {
+    opacity: .78;
+    transform: translate(-50%, -50%) rotate(calc(var(--r-angle) + 310deg)) translateX(var(--r-radius)) scale(.95);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(calc(var(--r-angle) + 430deg)) translateX(calc(var(--r-radius) - 8px)) scale(.35);
+    filter: blur(1px);
+  }
+}
+
 /* Hide scrollbar utility */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
