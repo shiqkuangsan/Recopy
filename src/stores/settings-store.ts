@@ -34,6 +34,7 @@ const DEFAULT_SETTINGS: Settings = {
 export interface ShowEventPayload {
   theme?: string;
   language?: string;
+  update_check_interval?: string;
 }
 
 interface SettingsState {
@@ -134,7 +135,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
 
   syncSettingsFromEvent: (payload: ShowEventPayload) => {
-    const { theme, language } = payload;
+    const { theme, language, update_check_interval } = payload;
     if (theme) {
       applyTheme(theme as Theme);
       set((state) => ({
@@ -145,6 +146,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       applyLanguage(language);
       set((state) => ({
         settings: { ...state.settings, language },
+      }));
+    }
+    if (update_check_interval) {
+      set((state) => ({
+        settings: { ...state.settings, update_check_interval },
       }));
     }
   },
