@@ -12,6 +12,14 @@ function toggleLang() {
   applyLang();
 }
 
+function updateDemoPreview() {
+  const img = document.getElementById('demo-preview');
+  if (!img) return;
+  const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const lang = currentLang === 'zh' ? 'zh' : 'en';
+  img.src = `images/preview-${theme}-${lang}.png`;
+}
+
 function applyLang() {
   document.querySelectorAll('[data-en][data-zh]').forEach(el => {
     const text = el.getAttribute(`data-${currentLang}`);
@@ -30,6 +38,8 @@ function applyLang() {
   document.title = currentLang === 'zh'
     ? 'Recopy — 你的每一次复制，都不会再丢失。'
     : 'Recopy — Every copy you make, always within reach.';
+
+  updateDemoPreview();
 }
 
 // ============================================================
@@ -201,6 +211,7 @@ function applyTheme(pref) {
   document.documentElement.setAttribute('data-theme', effective);
   updateThemeIcon(pref);
   updateBlobityForTheme(effective);
+  updateDemoPreview();
 }
 
 function toggleTheme() {

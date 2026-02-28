@@ -285,33 +285,6 @@ a {
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: 10px 10px 0 var(--border);
-  background: #1a1a1a;
-}
-
-.demo-titlebar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 16px;
-  background: #2d2d2d;
-  border-bottom: var(--border-width) solid var(--border);
-}
-
-.demo-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 2px solid rgba(0, 0, 0, 0.3);
-}
-
-.demo-titlebar-text {
-  flex: 1;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: #888;
-  font-family: var(--font-mono);
-  margin-right: 60px;
 }
 
 .demo-img {
