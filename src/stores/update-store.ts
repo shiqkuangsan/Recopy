@@ -43,6 +43,8 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       const { check } = await import("@tauri-apps/plugin-updater");
       const update = await check();
       if (update) {
+        // Close previous handle to avoid Tauri backend Resource leak
+        get()._updateRef?.close();
         set({
           status: "available",
           version: update.version,
@@ -50,6 +52,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
           _updateRef: update,
         });
       } else {
+        get()._updateRef?.close();
         set({ status: "idle", _updateRef: null });
       }
     } catch {
@@ -100,6 +103,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
   },
 
   dismissError: () => {
+    get()._updateRef?.close();
     set({ status: "idle", _updateRef: null });
   },
 
