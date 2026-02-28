@@ -29,8 +29,8 @@ jobs:
       - id: set-matrix
         run: |
           ALL='[
-            {"name":"macOS-arm64","os":"macos-latest","target":"aarch64-apple-darwin","bundles":"dmg,updater"},
-            {"name":"macOS-x64","os":"macos-latest","target":"x86_64-apple-darwin","bundles":"dmg,updater"},
+            {"name":"macOS-arm64","os":"macos-latest","target":"aarch64-apple-darwin","bundles":"app,dmg"},
+            {"name":"macOS-x64","os":"macos-latest","target":"x86_64-apple-darwin","bundles":"app,dmg"},
             {"name":"Windows-x64","os":"windows-latest","target":"x86_64-pc-windows-msvc","bundles":"nsis"}
           ]'
 
