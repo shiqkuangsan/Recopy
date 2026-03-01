@@ -27,7 +27,18 @@
 
 ## 安装
 
-从 [Releases](https://github.com/shiqkuangsan/Recopy/releases) 页面下载最新的 `.dmg` 安装包。
+### Homebrew（macOS）
+
+```bash
+brew install --cask shiqkuangsan/recopy/recopy
+
+# 更新到最新版
+brew upgrade --cask recopy
+```
+
+### 手动下载
+
+从 [Releases](https://github.com/shiqkuangsan/Recopy/releases) 页面下载最新的 `.dmg` 或 `.exe` 安装包。
 
 > [!IMPORTANT]
 > **macOS 用户注意：** Recopy 尚未进行代码签名。首次打开时 macOS 会提示 **"应用已损坏"** 或 **"无法打开"**，这是正常现象——在终端执行以下命令即可解决：

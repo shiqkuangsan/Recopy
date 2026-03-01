@@ -80,6 +80,20 @@
           <span data-en="View on GitHub" data-zh="在 GitHub 查看">View on GitHub</span>
         </a>
       </div>
+      <div class="hero-brew">
+        <span data-en="or install via" data-zh="或通过">or install via</span>
+        <a href="https://github.com/shiqkuangsan/homebrew-recopy" target="_blank" class="hero-brew-link">Homebrew</a>
+      </div>
+      <div class="hero-brew-commands">
+        <div class="hero-brew-row">
+          <span class="hero-brew-label" data-en="Install" data-zh="安装">Install</span>
+          <code class="hero-brew-cmd" onclick="copyBrew(this, 'install')">brew install --cask shiqkuangsan/recopy/recopy</code>
+        </div>
+        <div class="hero-brew-row">
+          <span class="hero-brew-label" data-en="Update" data-zh="更新">Update</span>
+          <code class="hero-brew-cmd" onclick="copyBrew(this, 'upgrade')">brew upgrade --cask recopy</code>
+        </div>
+      </div>
       <p class="hero-note">
         <span data-en="macOS note: Not yet code-signed. Right-click → Open on first launch." data-zh="macOS 提示：尚未代码签名，首次启动需右键 → 打开。">macOS note: Not yet code-signed. Right-click → Open on first launch.</span>
         <a href="https://github.com/shiqkuangsan/Recopy/blob/main/docs/macos-unsigned-app.md" target="_blank" data-en="Learn more →" data-zh="了解更多 →">Learn more →</a>

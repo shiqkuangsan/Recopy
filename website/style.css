@@ -258,6 +258,78 @@ a {
   flex-wrap: wrap;
 }
 
+.hero-brew {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.hero-brew-link {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.hero-brew-link:hover {
+  color: var(--primary-hover);
+}
+.hero-brew-cmd {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s;
+  position: relative;
+}
+.hero-brew-cmd:hover {
+  box-shadow: var(--shadow);
+  transform: translate(-2px, -2px);
+}
+.hero-brew-commands {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.hero-brew-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hero-brew-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 52px;
+  text-align: right;
+}
+.hero-brew-cmd.copied::after {
+  content: 'Copied!';
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 0.75rem;
+  padding: 2px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  animation: fadeUp 1s forwards;
+}
+@keyframes fadeUp {
+  0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+}
+
 .hero-note {
   margin-top: 16px;
   font-size: 0.85rem;

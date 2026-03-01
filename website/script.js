@@ -318,6 +318,18 @@ function updateDownloadButtons() {
 }
 
 // ============================================================
+// Homebrew copy
+// ============================================================
+function copyBrew(el, type) {
+  const cmd = type === 'upgrade'
+    ? 'brew upgrade --cask recopy'
+    : 'brew install --cask shiqkuangsan/recopy/recopy';
+  navigator.clipboard.writeText(cmd);
+  el.classList.add('copied');
+  setTimeout(() => el.classList.remove('copied'), 1200);
+}
+
+// ============================================================
 // Lightbox
 // ============================================================
 function openLightbox() {

@@ -27,7 +27,18 @@ English | [中文](README.zh-CN.md)
 
 ## Installation
 
-Download the latest `.dmg` from the [Releases](https://github.com/shiqkuangsan/Recopy/releases) page.
+### Homebrew (macOS)
+
+```bash
+brew install --cask shiqkuangsan/recopy/recopy
+
+# update to latest version
+brew upgrade --cask recopy
+```
+
+### Manual Download
+
+Download the latest `.dmg` or `.exe` from the [Releases](https://github.com/shiqkuangsan/Recopy/releases) page.
 
 > [!IMPORTANT]
 > **macOS users:** Recopy is not code-signed yet. macOS will show **"app is damaged"** or **"cannot be opened"** on first launch. This is normal — just run this command in Terminal to fix it:
