@@ -238,6 +238,138 @@ pub fn platform_hide_preview(app: &tauri::AppHandle) {
     });
 }
 
+// ---------------------------------------------------------------------------
+// CGEvent-based paste simulation (replaces osascript, sandbox-compatible)
+// ---------------------------------------------------------------------------
+
+mod cgevent_ffi {
+    use std::ffi::c_void;
+
+    pub type CGEventRef = *mut c_void;
+    pub type CGEventSourceRef = *mut c_void;
+    pub type CGEventFlags = u64;
+
+    pub const CG_EVENT_SOURCE_STATE_HID_SYSTEM: i32 = 1;
+    pub const CG_EVENT_TAP_LOCATION_HID: u32 = 0;
+    pub const CG_EVENT_FLAG_MASK_COMMAND: CGEventFlags = 0x0010_0000;
+    pub const KEY_V: u16 = 9; // kVK_ANSI_V
+
+    extern "C" {
+        pub fn CGPreflightPostEventAccess() -> bool;
+        #[allow(dead_code)]
+        pub fn CGRequestPostEventAccess() -> bool;
+        pub fn CGEventSourceCreate(state_id: i32) -> CGEventSourceRef;
+        pub fn CGEventCreateKeyboardEvent(
+            source: CGEventSourceRef,
+            virtual_key: u16,
+            key_down: bool,
+        ) -> CGEventRef;
+        pub fn CGEventSetFlags(event: CGEventRef, flags: CGEventFlags);
+        pub fn CGEventPost(tap: u32, event: CGEventRef);
+        pub fn CFRelease(cf: *const c_void);
+    }
+}
+
+/// Check if accessibility permission is granted for posting keyboard events.
+#[allow(dead_code)]
+pub fn check_accessibility_permission() -> bool {
+    unsafe { cgevent_ffi::CGPreflightPostEventAccess() }
+}
+
+/// Request accessibility permission (shows system dialog if not yet granted).
+#[allow(dead_code)]
+pub fn request_accessibility_permission() -> bool {
+    unsafe { cgevent_ffi::CGRequestPostEventAccess() }
+}
+
+/// Simulate Cmd+V using CGEvent. Returns Ok(true) if paste was simulated,
+/// Ok(false) if no Accessibility permission, Err on failure.
+pub fn simulate_paste_cgevent() -> Result<bool, String> {
+    use cgevent_ffi::*;
+
+    unsafe {
+        // Check permission first (does not prompt)
+        if !CGPreflightPostEventAccess() {
+            log::warn!("No Accessibility permission — auto-paste disabled, copy-only mode");
+            return Ok(false);
+        }
+
+        let source = CGEventSourceCreate(CG_EVENT_SOURCE_STATE_HID_SYSTEM);
+        if source.is_null() {
+            return Err("Failed to create CGEventSource".to_string());
+        }
+
+        // Key down: V with Command modifier
+        let key_down = CGEventCreateKeyboardEvent(source, KEY_V, true);
+        if key_down.is_null() {
+            CFRelease(source);
+            return Err("Failed to create key-down event".to_string());
+        }
+        CGEventSetFlags(key_down, CG_EVENT_FLAG_MASK_COMMAND);
+
+        // Key up: V with Command modifier
+        let key_up = CGEventCreateKeyboardEvent(source, KEY_V, false);
+        if key_up.is_null() {
+            CFRelease(key_down);
+            CFRelease(source);
+            return Err("Failed to create key-up event".to_string());
+        }
+        CGEventSetFlags(key_up, CG_EVENT_FLAG_MASK_COMMAND);
+
+        // Post to HID event tap (lowest level, most reliable)
+        CGEventPost(CG_EVENT_TAP_LOCATION_HID, key_down);
+        CGEventPost(CG_EVENT_TAP_LOCATION_HID, key_up);
+
+        // Clean up
+        CFRelease(key_up);
+        CFRelease(key_down);
+        CFRelease(source);
+
+        Ok(true)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SMAppService-based autostart (replaces LaunchAgent, sandbox-compatible)
+// ---------------------------------------------------------------------------
+
+/// Enable login item via SMAppService (macOS 13+).
+pub fn enable_autostart() -> Result<(), String> {
+    use smappservice_rs::{AppService, ServiceType};
+    let service = AppService::new(ServiceType::MainApp);
+    service.register().map_err(|e| format!("SMAppService register failed: {}", e))
+}
+
+/// Disable login item via SMAppService (macOS 13+).
+pub fn disable_autostart() -> Result<(), String> {
+    use smappservice_rs::{AppService, ServiceType};
+    let service = AppService::new(ServiceType::MainApp);
+    service.unregister().map_err(|e| format!("SMAppService unregister failed: {}", e))
+}
+
+/// Check if login item is enabled via SMAppService.
+#[allow(dead_code)]
+pub fn is_autostart_enabled() -> bool {
+    use smappservice_rs::{AppService, ServiceType, ServiceStatus};
+    let service = AppService::new(ServiceType::MainApp);
+    matches!(service.status(), ServiceStatus::Enabled)
+}
+
+// ---------------------------------------------------------------------------
+// System appearance detection (replaces `defaults read`, sandbox-compatible)
+// ---------------------------------------------------------------------------
+
+/// Detect if the system is in light mode by reading NSUserDefaults directly.
+pub fn detect_system_is_light() -> bool {
+    use objc2_foundation::{NSString, NSUserDefaults};
+    let defaults = NSUserDefaults::standardUserDefaults();
+    let key = NSString::from_str("AppleInterfaceStyle");
+    match defaults.stringForKey(&key) {
+        Some(value) => !value.to_string().contains("Dark"),
+        None => true, // No key = Light mode (macOS default)
+    }
+}
+
 /// Write raw image bytes directly to NSPasteboard, bypassing decode→encode cycle.
 /// Reads the PNG file from disk and writes it directly as NSPasteboardTypePNG.
 pub fn platform_write_image_to_pasteboard(path: &str) -> Result<(), String> {

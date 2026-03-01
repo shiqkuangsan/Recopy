@@ -4,7 +4,6 @@ use crate::db::{
 };
 use crate::clipboard as clip_util;
 use tauri::{AppHandle, Emitter, Manager, State};
-use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static HUD_GENERATION: AtomicU64 = AtomicU64::new(0);
@@ -135,8 +134,18 @@ pub async fn paste_clipboard_item(
     if auto_paste.unwrap_or(true) {
         // Resign keyboard focus so the previous app receives the Cmd+V
         crate::platform::platform_resign_before_paste(&app);
-        simulate_paste();
-        // Now hide the panel
+        match simulate_paste() {
+            Ok(true) => {
+                log::info!("Auto-paste simulated via CGEvent");
+            }
+            Ok(false) => {
+                log::info!("Auto-paste skipped (no Accessibility permission), content copied to clipboard");
+            }
+            Err(e) => {
+                log::error!("Failed to simulate paste: {}", e);
+            }
+        }
+        // Hide the panel regardless of paste result
         crate::platform::platform_hide_window(&app);
     }
 
@@ -166,8 +175,8 @@ pub async fn paste_as_plain_text(
 
     // Resign keyboard focus so the previous app receives the Cmd+V
     crate::platform::platform_resign_before_paste(&app);
-    simulate_paste();
-    // Now hide the panel
+    let _ = simulate_paste();
+    // Hide the panel regardless of paste result
     crate::platform::platform_hide_window(&app);
     Ok(())
 }
@@ -254,17 +263,12 @@ async fn write_to_clipboard(
     Ok(())
 }
 
-/// Simulate Cmd+V paste via osascript on macOS.
-fn simulate_paste() {
-    #[cfg(target_os = "macos")]
-    {
-        // Small delay to let clipboard settle
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        let _ = Command::new("osascript")
-            .arg("-e")
-            .arg("tell application \"System Events\" to keystroke \"v\" using command down")
-            .output();
-    }
+/// Simulate Cmd+V paste using CGEvent (macOS) or no-op (other platforms).
+/// Returns Ok(true) if paste was simulated, Ok(false) if no permission.
+fn simulate_paste() -> Result<bool, String> {
+    // Small delay to let clipboard settle
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    crate::platform::simulate_paste_cgevent()
 }
 
 /// Get favorited items, optionally filtered by content type.
@@ -317,6 +321,12 @@ pub async fn set_setting(
     key: String,
     value: String,
 ) -> Result<(), String> {
+    // Handle autostart toggle BEFORE persisting to DB, so a failed OS call
+    // doesn't leave the DB out of sync with actual OS autostart state.
+    if key == "auto_start" {
+        handle_autostart_change(&app, &value)?;
+    }
+
     queries::set_setting(&db.0, &key, &value)
         .await
         .map_err(|e| e.to_string())?;
@@ -327,6 +337,32 @@ pub async fn set_setting(
     }
 
     Ok(())
+}
+
+/// Handle autostart enable/disable. macOS uses SMAppService, others use tauri-plugin-autostart.
+fn handle_autostart_change(app: &AppHandle, value: &str) -> Result<(), String> {
+    let enabled = value == "true";
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = app; // macOS path doesn't need AppHandle
+        if enabled {
+            crate::platform::enable_autostart()
+        } else {
+            crate::platform::disable_autostart()
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        use tauri_plugin_autostart::ManagerExt;
+        let autolaunch = app.autolaunch();
+        if enabled {
+            autolaunch.enable().map_err(|e| e.to_string())
+        } else {
+            autolaunch.disable().map_err(|e| e.to_string())
+        }
+    }
 }
 
 /// Unregister the current global shortcut (used during shortcut recording).
@@ -706,8 +742,27 @@ const TEXT_EXTENSIONS: &[&str] = &[
 const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "svg"];
 
 /// Read file content for preview (first N bytes, up to 200 lines).
+/// In app-store (sandbox) mode, file access outside the container is restricted.
 #[tauri::command]
 pub async fn read_file_preview(path: String, max_bytes: Option<usize>) -> Result<FilePreviewData, String> {
+    // App Store sandbox restricts reading files outside the container
+    #[cfg(feature = "app-store")]
+    {
+        let _ = max_bytes;
+        let path_ref = std::path::Path::new(&path);
+        let file_name = path_ref
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.clone());
+        return Ok(FilePreviewData {
+            content: format!("[Sandbox] File preview not available: {}", file_name),
+            truncated: false,
+            total_lines: 1,
+        });
+    }
+
+    #[cfg(not(feature = "app-store"))]
+    {
     let max = max_bytes.unwrap_or(50 * 1024); // default 50KB
     let path_ref = std::path::Path::new(&path);
 
@@ -749,6 +804,7 @@ pub async fn read_file_preview(path: String, max_bytes: Option<usize>) -> Result
         truncated,
         total_lines,
     })
+    } // #[cfg(not(feature = "app-store"))]
 }
 
 /// Hide the main window (works with NSPanel on macOS).
@@ -960,21 +1016,8 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     let is_light = match theme {
         "light" => true,
         "dark" => false,
-        // "system": read system preference via macOS defaults
-        _ => {
-            #[cfg(target_os = "macos")]
-            {
-                std::process::Command::new("defaults")
-                    .args(["read", "-g", "AppleInterfaceStyle"])
-                    .output()
-                    .map(|o| !String::from_utf8_lossy(&o.stdout).contains("Dark"))
-                    .unwrap_or(false)
-            }
-            #[cfg(not(target_os = "macos"))]
-            {
-                false
-            }
-        }
+        // "system": detect via NSUserDefaults (sandbox-compatible, no subprocess)
+        _ => crate::platform::detect_system_is_light(),
     };
 
     if let Some(main_window) = app.get_webview_window("main") {
@@ -1001,31 +1044,18 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     }
 }
 
-/// Open a URL in the default browser.
+/// Open a URL in the default browser (sandbox-compatible via tauri-plugin-opener).
 #[tauri::command]
-pub async fn open_url(url: String) -> Result<(), String> {
+pub async fn open_url(app: AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+
     let parsed = url::Url::parse(&url).map_err(|e| format!("Invalid URL: {}", e))?;
     if !matches!(parsed.scheme(), "http" | "https" | "x-apple.systempreferences") {
         return Err("Only http/https and system preferences URLs are allowed".to_string());
     }
-    let normalized = parsed.as_str();
 
-    #[cfg(target_os = "macos")]
-    Command::new("open")
-        .arg(normalized)
-        .spawn()
-        .map_err(|e| format!("Failed to open URL: {}", e))?;
-
-    #[cfg(target_os = "windows")]
-    Command::new("cmd")
-        .args(["/c", "start", "", normalized])
-        .spawn()
-        .map_err(|e| format!("Failed to open URL: {}", e))?;
-
-    #[cfg(target_os = "linux")]
-    Command::new("xdg-open")
-        .arg(normalized)
-        .spawn()
+    app.opener()
+        .open_url(parsed.as_str(), None::<&str>)
         .map_err(|e| format!("Failed to open URL: {}", e))?;
 
     Ok(())

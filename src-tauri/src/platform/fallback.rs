@@ -53,6 +53,37 @@ pub fn init_hud_panel(_app: &tauri::App) -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
+// CGEvent paste — not available on non-macOS
+pub fn check_accessibility_permission() -> bool {
+    false
+}
+
+pub fn request_accessibility_permission() -> bool {
+    false
+}
+
+pub fn simulate_paste_cgevent() -> Result<bool, String> {
+    Ok(false)
+}
+
+// SMAppService autostart — not available on non-macOS
+pub fn enable_autostart() -> Result<(), String> {
+    Ok(())
+}
+
+pub fn disable_autostart() -> Result<(), String> {
+    Ok(())
+}
+
+pub fn is_autostart_enabled() -> bool {
+    false
+}
+
+// System appearance — not available on non-macOS
+pub fn detect_system_is_light() -> bool {
+    false
+}
+
 pub fn platform_show_hud(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("hud") {
         let _ = window.show();

@@ -74,7 +74,7 @@
       "csp": "default-src 'self' 'unsafe-inline' asset: http://asset.localhost; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'",
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/images/**", "**"]
+        "scope": ["$APPDATA/images/**"]
       }
     }
   },
@@ -90,10 +90,10 @@
     ],
     "category": "Utility",
     "shortDescription": "Clipboard history manager",
-    "longDescription": "Recopy is a free, open-source cross-platform clipboard history manager. It monitors your clipboard, stores text, images, rich text, and files, with full-text search, favorites, and groups.",
+    "longDescription": "Recopy is a free, source-available clipboard history manager for macOS and Windows. It monitors your clipboard, stores text, images, rich text, and files, with full-text search, favorites, and groups.",
     "createUpdaterArtifacts": true,
     "macOS": {
-      "minimumSystemVersion": "12.0"
+      "minimumSystemVersion": "13.0"
     },
     "windows": {
       "nsis": {

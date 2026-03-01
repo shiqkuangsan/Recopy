@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
-import { enable as enableAutostart, disable as disableAutostart } from "@tauri-apps/plugin-autostart";
 import i18n from "../i18n";
 
 export type Theme = "dark" | "light" | "system";
@@ -118,17 +117,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       if (key === "language") {
         applyLanguage(value);
       }
-      if (key === "auto_start") {
-        try {
-          if (value === "true") {
-            await enableAutostart();
-          } else {
-            await disableAutostart();
-          }
-        } catch (err) {
-          console.error("Failed to toggle autostart:", err);
-        }
-      }
+      // auto_start is handled by the Rust backend in set_setting()
+      // (SMAppService on macOS, tauri-plugin-autostart on Windows)
     } catch (e) {
       console.error("Failed to update setting:", e);
     }

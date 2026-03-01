@@ -1,0 +1,65 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "app": {
+    "macOSPrivateApi": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Recopy",
+        "width": 880,
+        "height": 380,
+        "minHeight": 300,
+        "resizable": false,
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": false,
+        "alwaysOnTop": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "windowEffects": null
+      },
+      {
+        "label": "hud",
+        "url": "index.html?page=hud",
+        "title": "",
+        "width": 140,
+        "height": 140,
+        "resizable": false,
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": false,
+        "alwaysOnTop": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "windowEffects": null
+      },
+      {
+        "label": "preview",
+        "url": "index.html?page=preview",
+        "title": "",
+        "width": 600,
+        "height": 480,
+        "resizable": false,
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": false,
+        "alwaysOnTop": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "windowEffects": null
+      }
+    ],
+    "security": {
+      "assetProtocol": {
+        "scope": ["$APPDATA/images/**"]
+      }
+    }
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "macOS": {
+      "minimumSystemVersion": "13.0"
+    }
+  },
+  "plugins": {}
+}
