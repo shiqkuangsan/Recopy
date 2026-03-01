@@ -407,12 +407,12 @@ function AboutSettings() {
 
       <Card className="border-border/50 bg-card/60 py-0 overflow-hidden">
         {[
-          { label: t("settings.about.author"), value: "shiqkuangsan", link: "https://github.com/shiqkuangsan" },
+          { label: t("settings.about.homepage"), value: "recopy.pages.dev", link: "https://recopy.pages.dev" },
           { label: t("settings.about.repository"), value: "GitHub", link: "https://github.com/shiqkuangsan/Recopy" },
+          { label: t("settings.about.feedback"), value: t("settings.about.reportIssue"), link: "https://github.com/shiqkuangsan/Recopy/issues" },
+          { label: t("settings.about.author"), value: "shiqkuangsan", link: "https://github.com/shiqkuangsan" },
           { label: t("settings.about.license"), value: "PolyForm Noncommercial 1.0.0" },
-          { label: t("settings.about.framework"), value: "Tauri v2" },
-          { label: t("settings.about.frontend"), value: "React + TypeScript" },
-          { label: t("settings.about.database"), value: "SQLite (sqlx)" },
+          { label: "Homebrew", value: t("settings.about.brewAvailable"), link: "https://github.com/shiqkuangsan/homebrew-recopy" },
         ].map((item, i, arr) => (
           <div
             key={item.label}

@@ -99,12 +99,13 @@
     },
     "about": {
       "title": "About",
-      "author": "Author",
+      "homepage": "Homepage",
       "repository": "Repository",
+      "feedback": "Feedback",
+      "reportIssue": "Report Issue",
+      "author": "Author",
       "license": "License",
-      "framework": "Framework",
-      "frontend": "Frontend",
-      "database": "Database"
+      "brewAvailable": "Supported"
     }
   },
   "update": {
