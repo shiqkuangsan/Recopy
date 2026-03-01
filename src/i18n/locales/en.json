@@ -119,7 +119,9 @@
     "daily": "Daily",
     "weekly": "Weekly",
     "monthly": "Monthly",
-    "never": "Never"
+    "never": "Never",
+    "checkNow": "Check for Updates",
+    "upToDate": "You're up to date"
   },
   "easter": {
     "hint": "{{count}}/7 ...",

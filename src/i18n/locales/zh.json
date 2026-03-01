@@ -119,7 +119,9 @@
     "daily": "每天",
     "weekly": "每周",
     "monthly": "每月",
-    "never": "从不"
+    "never": "从不",
+    "checkNow": "检查更新",
+    "upToDate": "已是最新版本"
   },
   "easter": {
     "hint": "{{count}}/7 ...",

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettingsStore, type Settings as AppSettings } from "../stores/settings-store";
+import { useUpdateStore } from "../stores/update-store";
 import {
   Settings,
   Clock,
@@ -15,6 +16,9 @@ import {
   ChevronRight,
   Globe,
   ExternalLink,
+  RefreshCw,
+  Download,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -292,6 +296,78 @@ function PrivacySettings() {
   );
 }
 
+function UpdateCheckButton() {
+  const { t } = useTranslation();
+  const { status, version, progress, checkForUpdate, downloadAndInstall, relaunch, dismissError } = useUpdateStore();
+  const [showUpToDate, setShowUpToDate] = useState(false);
+
+  const handleCheck = async () => {
+    const prevStatus = useUpdateStore.getState().status;
+    await checkForUpdate();
+    const newStatus = useUpdateStore.getState().status;
+    if (prevStatus !== "idle" || newStatus !== "idle") return;
+    // No update found — show "up to date" briefly
+    setShowUpToDate(true);
+    setTimeout(() => setShowUpToDate(false), 3000);
+  };
+
+  if (status === "ready") {
+    return (
+      <Button size="sm" className="gap-1.5" onClick={relaunch}>
+        <RotateCcw size={14} />
+        {t("update.restart")}
+      </Button>
+    );
+  }
+
+  if (status === "downloading") {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <RefreshCw size={14} className="animate-spin" />
+        <span>{progress}%</span>
+      </div>
+    );
+  }
+
+  if (status === "available") {
+    return (
+      <Button size="sm" variant="outline" className="gap-1.5" onClick={downloadAndInstall}>
+        <Download size={14} />
+        {t("update.available", { version })}
+      </Button>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-destructive">{t("update.failed")}</span>
+        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={dismissError}>
+          {t("update.dismiss")}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {showUpToDate && (
+        <span className="text-xs text-muted-foreground">{t("update.upToDate")}</span>
+      )}
+      <Button
+        size="sm"
+        variant="ghost"
+        className="gap-1.5"
+        disabled={status === "checking"}
+        onClick={handleCheck}
+      >
+        <RefreshCw size={14} className={status === "checking" ? "animate-spin" : ""} />
+        {t("update.checkNow")}
+      </Button>
+    </div>
+  );
+}
+
 function AboutSettings() {
   const { t } = useTranslation();
   const [version, setVersion] = useState("");
@@ -308,10 +384,11 @@ function AboutSettings() {
       <SectionTitle>{t("settings.about.title")}</SectionTitle>
 
       <Card className="border-border/50 bg-card/60 py-0">
-        <CardContent className="p-5 text-center space-y-2">
+        <CardContent className="p-5 text-center space-y-3">
           <h3 className="text-xl font-bold">{t("app.name")}</h3>
           <p className="text-sm text-muted-foreground">{t("app.version", { version: version || "..." })}</p>
           <p className="text-xs text-muted-foreground/80">{t("app.description")}</p>
+          <UpdateCheckButton />
         </CardContent>
       </Card>
 
