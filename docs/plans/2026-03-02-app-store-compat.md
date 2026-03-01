@@ -78,6 +78,8 @@ tauri = { version = "2", features = ["tray-icon", "image-png", "protocol-asset"]
 | `self-update` | ✅ enabled (default) | ❌ excluded |
 | `app-store` | ❌ | ✅ enabled |
 
+The `self-update` feature gates the in-app auto-update mechanism (`tauri-plugin-updater` + `tauri-plugin-process`), which checks GitHub Releases for new versions and provides inline download/restart UI via `UpdateBanner` in the title bar. App Store builds exclude this per Apple App Review Guidelines 2.4.5 — the App Store handles updates natively. See `src/stores/update-store.ts` and `src/components/UpdateBanner.tsx` for implementation.
+
 ### Build Commands
 
 ```bash
