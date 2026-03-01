@@ -15,8 +15,7 @@
         "transparent": false,
         "alwaysOnTop": true,
         "visible": false,
-        "skipTaskbar": true,
-        "windowEffects": null
+        "skipTaskbar": true
       },
       {
         "label": "hud",
@@ -30,8 +29,7 @@
         "transparent": false,
         "alwaysOnTop": true,
         "visible": false,
-        "skipTaskbar": true,
-        "windowEffects": null
+        "skipTaskbar": true
       },
       {
         "label": "preview",
@@ -45,8 +43,7 @@
         "transparent": false,
         "alwaysOnTop": true,
         "visible": false,
-        "skipTaskbar": true,
-        "windowEffects": null
+        "skipTaskbar": true
       }
     ],
     "security": {

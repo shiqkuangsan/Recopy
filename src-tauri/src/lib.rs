@@ -114,6 +114,10 @@ pub fn run() {
                 log::warn!("Failed to init preview panel: {}", e);
             }
 
+            // App Store path: defer WKWebView transparency until view hierarchy is ready
+            #[cfg(all(target_os = "macos", not(feature = "private-api")))]
+            platform::deferred_webview_transparency(app);
+
             // Setup system tray
             setup_tray(app)?;
 

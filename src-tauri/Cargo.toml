@@ -9,8 +9,9 @@ edition = "2021"
 rust-version = "1.77.2"
 
 [features]
-default = ["self-update"]
+default = ["self-update", "private-api"]
 self-update = ["tauri-plugin-updater", "tauri-plugin-process"]
+private-api = ["tauri/macos-private-api"]
 app-store = []  # Mac App Store build: disables self-update, enables sandbox-compatible code paths
 
 [lib]
@@ -21,7 +22,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png", "protocol-asset"] }
+tauri = { version = "2", features = ["tray-icon", "image-png", "protocol-asset"] }
 tauri-plugin-log = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -43,8 +44,11 @@ tauri-plugin-updater = { version = "2", optional = true }
 tauri-plugin-process = { version = "2", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
 objc2 = "0.6.3"
-objc2-foundation = { version = "0.3.2", features = ["NSData", "NSArray", "NSString", "NSUserDefaults"] }
-objc2-app-kit = { version = "0.3.2", features = ["NSPasteboard", "NSPasteboardItem"] }
+objc2-foundation = { version = "0.3.2", features = ["NSData", "NSArray", "NSString", "NSUserDefaults", "NSNotification"] }
+objc2-app-kit = { version = "0.3.2", features = [
+    "NSPasteboard", "NSPasteboardItem",
+    "NSPanel", "NSWindow", "NSView", "NSColor",
+    "NSEvent", "NSResponder", "NSVisualEffectView",
+] }
 smappservice-rs = "0.1"

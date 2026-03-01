@@ -375,6 +375,13 @@ html[data-theme="dark"] {
   }
 }
 
+/* App Store fallback: solid themed background when native vibrancy is unavailable.
+   The Rust backend injects data-no-vibrancy attribute for non-private-api builds. */
+html[data-no-vibrancy],
+html[data-no-vibrancy] body {
+  background-color: var(--color-background);
+}
+
 /* Global styles */
 html, body {
   background-color: transparent;
