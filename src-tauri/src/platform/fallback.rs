@@ -1,9 +1,5 @@
 use tauri::Manager;
 
-pub fn apply_plugin(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
-    builder
-}
-
 pub fn init_platform(_app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }

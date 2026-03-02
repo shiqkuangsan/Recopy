@@ -22,7 +22,7 @@
       "prettier --write"
     ],
     "src-tauri/src/**/*.rs": [
-      "cargo fmt --"
+      "cargo fmt --manifest-path src-tauri/Cargo.toml --"
     ]
   },
   "license": "PolyForm-Noncommercial-1.0.0",
