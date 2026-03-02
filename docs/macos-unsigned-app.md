@@ -31,9 +31,9 @@ xattr -d com.apple.quarantine /Applications/Recopy.app
 
 ## Why is this necessary?
 
-macOS Gatekeeper requires apps to be signed with an Apple Developer certificate ($99/year). Recopy is a free, open-source project and does not yet have a paid developer account. The app is safe to use — you can review the full source code on [GitHub](https://github.com/shiqkuangsan/Recopy).
+macOS Gatekeeper requires apps to be signed with an Apple Developer certificate. Recopy is a free project and does not yet have code signing configured. The app is safe to use — you can review the full source code on [GitHub](https://github.com/shiqkuangsan/Recopy).
 
-We plan to add code signing and notarization in the future as the project grows.
+We plan to add code signing and notarization in the future.
 
 ---
 
@@ -70,6 +70,6 @@ xattr -d com.apple.quarantine /Applications/Recopy.app
 
 ## 为什么需要这样做？
 
-macOS Gatekeeper 要求应用使用 Apple 开发者证书签名（年费 $99）。Recopy 是免费的开源项目，暂时没有付费开发者账号。应用本身是安全的——你可以在 [GitHub](https://github.com/shiqkuangsan/Recopy) 上查看完整源代码。
+macOS Gatekeeper 要求应用使用 Apple 开发者证书签名。Recopy 是免费项目，尚未配置代码签名。应用本身是安全的——你可以在 [GitHub](https://github.com/shiqkuangsan/Recopy) 上查看完整源代码。
 
-我们计划在项目发展后添加代码签名和公证。
+我们计划后续添加代码签名和公证。
