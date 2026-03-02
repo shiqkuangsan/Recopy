@@ -41,6 +41,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: npx tsc --noEmit
+      - run: pnpm run lint
+      - run: pnpm run format:check
       - run: pnpm test
 
   test-rust:

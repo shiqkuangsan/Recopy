@@ -11,7 +11,18 @@ interface FileCardProps {
   onClick: () => void;
 }
 
-const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "tiff", "tif"]);
+const IMAGE_EXTS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "svg",
+  "bmp",
+  "ico",
+  "tiff",
+  "tif",
+]);
 
 export function FileCard({ item, selected, onClick }: FileCardProps) {
   const { t } = useTranslation();
@@ -20,7 +31,6 @@ export function FileCard({ item, selected, onClick }: FileCardProps) {
   });
   const fileName = item.file_name || item.file_path || t("card.unknownFile");
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  const IconComponent = getFileIcon(ext);
 
   // Only fetch thumbnail for image files
   const isImageFile = IMAGE_EXTS.has(ext);
@@ -44,9 +54,7 @@ export function FileCard({ item, selected, onClick }: FileCardProps) {
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <File size={13} />
         <span className="text-sm">{t("card.file")}</span>
-        {thumbnailUrl && (
-          <span className="text-sm ml-auto">{formatSize(item.content_size)}</span>
-        )}
+        {thumbnailUrl && <span className="text-sm ml-auto">{formatSize(item.content_size)}</span>}
       </div>
       {thumbnailUrl ? (
         <>
@@ -63,7 +71,7 @@ export function FileCard({ item, selected, onClick }: FileCardProps) {
         </>
       ) : (
         <div className="flex items-center gap-3 py-2">
-          <IconComponent size={28} className="text-primary shrink-0" />
+          <FileIcon ext={ext} />
           <div className="min-w-0">
             <p className="text-sm text-foreground truncate" title={fileName}>
               {fileName}
@@ -82,14 +90,34 @@ export function FileCard({ item, selected, onClick }: FileCardProps) {
   );
 }
 
-function getFileIcon(ext: string) {
-  const imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"];
-  const codeExts = ["ts", "tsx", "js", "jsx", "py", "rs", "go", "java", "c", "cpp", "h", "css", "html", "json", "yaml", "yml", "toml"];
-  const archiveExts = ["zip", "tar", "gz", "rar", "7z", "bz2"];
+const IMAGE_EXT_LIST = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"];
+const CODE_EXT_LIST = [
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "py",
+  "rs",
+  "go",
+  "java",
+  "c",
+  "cpp",
+  "h",
+  "css",
+  "html",
+  "json",
+  "yaml",
+  "yml",
+  "toml",
+];
+const ARCHIVE_EXT_LIST = ["zip", "tar", "gz", "rar", "7z", "bz2"];
+const TEXT_EXT_LIST = ["txt", "md", "doc", "docx", "pdf", "rtf"];
 
-  if (imageExts.includes(ext)) return FileImage;
-  if (codeExts.includes(ext)) return FileCode;
-  if (archiveExts.includes(ext)) return FileArchive;
-  if (["txt", "md", "doc", "docx", "pdf", "rtf"].includes(ext)) return FileText;
-  return File;
+function FileIcon({ ext }: { ext: string }) {
+  const props = { size: 28, className: "text-primary shrink-0" };
+  if (IMAGE_EXT_LIST.includes(ext)) return <FileImage {...props} />;
+  if (CODE_EXT_LIST.includes(ext)) return <FileCode {...props} />;
+  if (ARCHIVE_EXT_LIST.includes(ext)) return <FileArchive {...props} />;
+  if (TEXT_EXT_LIST.includes(ext)) return <FileText {...props} />;
+  return <File {...props} />;
 }

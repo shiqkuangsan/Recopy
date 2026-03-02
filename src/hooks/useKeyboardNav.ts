@@ -27,7 +27,9 @@ export function useKeyboardNav() {
   }, [items]);
 
   const itemsRef = useRef(items);
-  itemsRef.current = items;
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const openPreview = useCallback((id: string) => {
     previewOpenRef.current = true;
@@ -174,7 +176,7 @@ export function useKeyboardNav() {
         }
       }
     },
-    [items, selectedIndex, setSelectedIndex, groupStartIndices, openPreview, closePreview]
+    [items, selectedIndex, setSelectedIndex, groupStartIndices, openPreview, closePreview],
   );
 
   useEffect(() => {

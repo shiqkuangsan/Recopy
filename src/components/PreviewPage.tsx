@@ -51,7 +51,7 @@ export function PreviewPage() {
     // Poll interval
     const timer = setInterval(poll, 100);
     return () => clearInterval(timer);
-  }, [closing]);
+  }, [closing, loading]);
 
   if (loading || !detail) {
     return (
@@ -62,7 +62,9 @@ export function PreviewPage() {
   }
 
   return (
-    <div className={`preview-content ${closing ? "preview-exit" : "preview-enter"} h-screen w-screen`}>
+    <div
+      className={`preview-content ${closing ? "preview-exit" : "preview-enter"} h-screen w-screen`}
+    >
       <PreviewContent detail={detail} />
     </div>
   );
@@ -71,7 +73,11 @@ export function PreviewPage() {
 function PreviewContent({ detail }: { detail: ItemDetail }) {
   switch (detail.content_type) {
     case "plain_text":
-      return <ReadableCard><PlainTextPreview text={detail.plain_text} /></ReadableCard>;
+      return (
+        <ReadableCard>
+          <PlainTextPreview text={detail.plain_text} />
+        </ReadableCard>
+      );
     case "rich_text":
       return (
         <ReadableCard>
@@ -95,23 +101,37 @@ function PreviewContent({ detail }: { detail: ItemDetail }) {
         </WithTitleBar>
       );
     case "link":
-      return <ReadableCard><PlainTextPreview text={detail.plain_text} /></ReadableCard>;
+      return (
+        <ReadableCard>
+          <PlainTextPreview text={detail.plain_text} />
+        </ReadableCard>
+      );
     default:
-      return <ReadableCard><PlainTextPreview text={detail.plain_text} /></ReadableCard>;
+      return (
+        <ReadableCard>
+          <PlainTextPreview text={detail.plain_text} />
+        </ReadableCard>
+      );
   }
 }
 
 /** Title bar + 3-side padded content — Quick Look style */
-function WithTitleBar({ title, size, children }: { title: string; size: number; children: React.ReactNode }) {
+function WithTitleBar({
+  title,
+  size,
+  children,
+}: {
+  title: string;
+  size: number;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col w-full h-full">
       <div className="shrink-0 flex items-center px-3 py-1.5">
         <span className="text-xs font-medium text-foreground/70 truncate flex-1">{title}</span>
         <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatSize(size)}</span>
       </div>
-      <div className="flex-1 min-h-0 overflow-hidden px-2 pb-2 rounded-b-xl">
-        {children}
-      </div>
+      <div className="flex-1 min-h-0 overflow-hidden px-2 pb-2 rounded-b-xl">{children}</div>
     </div>
   );
 }
@@ -133,9 +153,7 @@ function getTitle(detail: ItemDetail): string {
 function ReadableCard({ children }: { children: React.ReactNode }) {
   return (
     <div className="w-full h-full p-3">
-      <div className="w-full h-full overflow-y-auto rounded-xl bg-card/60 p-4">
-        {children}
-      </div>
+      <div className="w-full h-full overflow-y-auto rounded-xl bg-card/60 p-4">{children}</div>
     </div>
   );
 }
@@ -148,13 +166,7 @@ function PlainTextPreview({ text }: { text: string }) {
   );
 }
 
-function RichTextPreview({
-  html,
-  fallback,
-}: {
-  html?: string;
-  fallback: string;
-}) {
+function RichTextPreview({ html, fallback }: { html?: string; fallback: string }) {
   if (!html) {
     return <PlainTextPreview text={fallback} />;
   }
@@ -216,20 +228,49 @@ function ImagePreview({ imagePath }: { imagePath?: string }) {
     );
   }
 
-  return (
-    <img
-      src={assetUrl}
-      alt="Preview"
-      className="w-full h-full object-contain rounded-md"
-    />
-  );
+  return <img src={assetUrl} alt="Preview" className="w-full h-full object-contain rounded-md" />;
 }
 
 const TEXT_EXTENSIONS = new Set([
-  "txt", "md", "json", "js", "ts", "jsx", "tsx", "py", "rs", "css", "html", "xml",
-  "yaml", "yml", "toml", "log", "csv", "sh", "bash", "zsh", "fish",
-  "c", "cpp", "h", "hpp", "java", "kt", "go", "rb", "php", "swift", "sql",
-  "env", "gitignore", "dockerfile", "makefile", "conf", "ini", "cfg",
+  "txt",
+  "md",
+  "json",
+  "js",
+  "ts",
+  "jsx",
+  "tsx",
+  "py",
+  "rs",
+  "css",
+  "html",
+  "xml",
+  "yaml",
+  "yml",
+  "toml",
+  "log",
+  "csv",
+  "sh",
+  "bash",
+  "zsh",
+  "fish",
+  "c",
+  "cpp",
+  "h",
+  "hpp",
+  "java",
+  "kt",
+  "go",
+  "rb",
+  "php",
+  "swift",
+  "sql",
+  "env",
+  "gitignore",
+  "dockerfile",
+  "makefile",
+  "conf",
+  "ini",
+  "cfg",
 ]);
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "svg"]);
@@ -256,7 +297,11 @@ function FileContent({
   }
 
   if (TEXT_EXTENSIONS.has(ext) && filePath) {
-    return <ReadableCard><TextFilePreview filePath={filePath} /></ReadableCard>;
+    return (
+      <ReadableCard>
+        <TextFilePreview filePath={filePath} />
+      </ReadableCard>
+    );
   }
 
   // Fallback: file metadata display
@@ -266,14 +311,10 @@ function FileContent({
         <File size={40} className="text-muted-foreground" />
       </div>
       <div className="text-center space-y-1">
-        <p className="text-base font-medium text-foreground">
-          {fileName || "Unknown file"}
-        </p>
+        <p className="text-base font-medium text-foreground">{fileName || "Unknown file"}</p>
         <p className="text-sm text-muted-foreground">{formatSize(contentSize)}</p>
         {filePath && (
-          <p className="text-xs text-muted-foreground/60 max-w-md truncate">
-            {filePath}
-          </p>
+          <p className="text-xs text-muted-foreground/60 max-w-md truncate">{filePath}</p>
         )}
       </div>
     </div>

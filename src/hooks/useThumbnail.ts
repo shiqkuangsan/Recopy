@@ -13,18 +13,14 @@ const thumbnailCache = new Map<string, string>();
  * file-thumbnail), retries up to 3 times with 500ms intervals.
  */
 export function useThumbnail(id: string | null): string | null {
-  const [url, setUrl] = useState<string | null>(
-    () => (id && thumbnailCache.get(id)) ?? null,
-  );
+  const [url, setUrl] = useState<string | null>(() => (id && thumbnailCache.get(id)) ?? null);
   const retryRef = useRef(0);
 
   useEffect(() => {
     if (!id) return;
 
-    if (thumbnailCache.has(id)) {
-      setUrl(thumbnailCache.get(id)!);
-      return;
-    }
+    // Cache hit already handled by useState initializer
+    if (thumbnailCache.has(id)) return;
 
     let cancelled = false;
     retryRef.current = 0;
@@ -41,7 +37,9 @@ export function useThumbnail(id: string | null): string | null {
         } else if (retryRef.current < 3) {
           // Thumbnail not ready yet (async generation), retry after delay
           retryRef.current += 1;
-          setTimeout(() => { if (!cancelled) fetchThumbnail(); }, 500);
+          setTimeout(() => {
+            if (!cancelled) fetchThumbnail();
+          }, 500);
         }
       });
     };
