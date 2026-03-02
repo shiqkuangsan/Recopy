@@ -4,7 +4,10 @@ use uuid::Uuid;
 use super::models::{ClipboardItem, NewClipboardItem};
 
 /// Insert a new clipboard item and sync FTS index (transactional).
-pub async fn insert_item(pool: &SqlitePool, item: &NewClipboardItem) -> Result<String, sqlx::Error> {
+pub async fn insert_item(
+    pool: &SqlitePool,
+    item: &NewClipboardItem,
+) -> Result<String, sqlx::Error> {
     let id = Uuid::new_v4().to_string();
 
     let mut tx = pool.begin().await?;
@@ -45,7 +48,10 @@ pub async fn insert_item(pool: &SqlitePool, item: &NewClipboardItem) -> Result<S
 
 /// Check if a clipboard item with the given hash already exists.
 /// If so, bump its updated_at and return its id.
-pub async fn find_and_bump_by_hash(pool: &SqlitePool, hash: &str) -> Result<Option<String>, sqlx::Error> {
+pub async fn find_and_bump_by_hash(
+    pool: &SqlitePool,
+    hash: &str,
+) -> Result<Option<String>, sqlx::Error> {
     let row: Option<(String,)> = sqlx::query_as(
         "UPDATE clipboard_items SET updated_at = datetime('now') WHERE content_hash = ? RETURNING id",
     )
@@ -107,7 +113,19 @@ pub async fn get_items(
 }
 
 /// Get a single clipboard item by id.
-pub async fn get_item_by_id(pool: &SqlitePool, id: &str) -> Result<Option<(String, String, Option<Vec<u8>>, Option<String>, Option<String>)>, sqlx::Error> {
+pub async fn get_item_by_id(
+    pool: &SqlitePool,
+    id: &str,
+) -> Result<
+    Option<(
+        String,
+        String,
+        Option<Vec<u8>>,
+        Option<String>,
+        Option<String>,
+    )>,
+    sqlx::Error,
+> {
     sqlx::query_as(
         "SELECT content_type, plain_text, rich_content, image_path, file_path FROM clipboard_items WHERE id = ?",
     )
@@ -120,9 +138,29 @@ pub async fn get_item_by_id(pool: &SqlitePool, id: &str) -> Result<Option<(Strin
 pub async fn get_item_detail(
     pool: &SqlitePool,
     id: &str,
-) -> Result<Option<(String, String, Option<String>, Option<String>, Option<String>, Option<String>, i64)>, sqlx::Error> {
+) -> Result<
+    Option<(
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        i64,
+    )>,
+    sqlx::Error,
+> {
     // Query rich_content as raw bytes, then convert in the caller
-    let row: Option<(String, String, Option<Vec<u8>>, Option<String>, Option<String>, Option<String>, i64)> = sqlx::query_as(
+    #[allow(clippy::type_complexity)]
+    let row: Option<(
+        String,
+        String,
+        Option<Vec<u8>>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        i64,
+    )> = sqlx::query_as(
         "SELECT content_type, plain_text, rich_content, image_path, file_path, file_name, content_size
          FROM clipboard_items WHERE id = ?",
     )
@@ -137,13 +175,15 @@ pub async fn get_item_detail(
 }
 
 /// Return the image_path of a single item (None if not an image or not found).
-pub async fn get_image_path_by_id(pool: &SqlitePool, id: &str) -> Result<Option<String>, sqlx::Error> {
-    let row: Option<(Option<String>,)> = sqlx::query_as(
-        "SELECT image_path FROM clipboard_items WHERE id = ?",
-    )
-    .bind(id)
-    .fetch_optional(pool)
-    .await?;
+pub async fn get_image_path_by_id(
+    pool: &SqlitePool,
+    id: &str,
+) -> Result<Option<String>, sqlx::Error> {
+    let row: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT image_path FROM clipboard_items WHERE id = ?")
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
 
     Ok(row.and_then(|(p,)| p))
 }
@@ -202,11 +242,10 @@ pub async fn get_retention_overflow_image_paths(
 
 /// Return all non-null image_paths currently referenced in the database.
 pub async fn get_all_image_paths(pool: &SqlitePool) -> Result<Vec<String>, sqlx::Error> {
-    let rows: Vec<(String,)> = sqlx::query_as(
-        "SELECT image_path FROM clipboard_items WHERE image_path IS NOT NULL",
-    )
-    .fetch_all(pool)
-    .await?;
+    let rows: Vec<(String,)> =
+        sqlx::query_as("SELECT image_path FROM clipboard_items WHERE image_path IS NOT NULL")
+            .fetch_all(pool)
+            .await?;
 
     Ok(rows.into_iter().map(|(p,)| p).collect())
 }
@@ -246,13 +285,12 @@ pub async fn search_items(
 
     let fts_query = format!("\"{}\"", query.replace('"', "\"\""));
 
-    let item_ids: Vec<(String,)> = sqlx::query_as(
-        "SELECT item_id FROM clipboard_fts WHERE clipboard_fts MATCH ? LIMIT ?",
-    )
-    .bind(&fts_query)
-    .bind(limit)
-    .fetch_all(pool)
-    .await?;
+    let item_ids: Vec<(String,)> =
+        sqlx::query_as("SELECT item_id FROM clipboard_fts WHERE clipboard_fts MATCH ? LIMIT ?")
+            .bind(&fts_query)
+            .bind(limit)
+            .fetch_all(pool)
+            .await?;
 
     if item_ids.is_empty() {
         return Ok(vec![]);
@@ -275,7 +313,24 @@ pub async fn search_items(
         )
     };
 
-    let mut q = sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(&sql);
+    let mut q = sqlx::query_as::<
+        _,
+        (
+            String,
+            String,
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            String,
+            String,
+            i64,
+            String,
+            bool,
+            String,
+            String,
+        ),
+    >(&sql);
     for id in &ids {
         q = q.bind(id);
     }
@@ -364,17 +419,20 @@ async fn search_items_like(
 
 /// Get the thumbnail blob for a single item.
 pub async fn get_thumbnail(pool: &SqlitePool, id: &str) -> Result<Option<Vec<u8>>, sqlx::Error> {
-    let row: Option<(Option<Vec<u8>>,)> = sqlx::query_as(
-        "SELECT thumbnail FROM clipboard_items WHERE id = ?",
-    )
-    .bind(id)
-    .fetch_optional(pool)
-    .await?;
+    let row: Option<(Option<Vec<u8>>,)> =
+        sqlx::query_as("SELECT thumbnail FROM clipboard_items WHERE id = ?")
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
     Ok(row.and_then(|r| r.0))
 }
 
 /// Update the thumbnail for an existing clipboard item.
-pub async fn update_thumbnail(pool: &SqlitePool, id: &str, thumbnail: &[u8]) -> Result<(), sqlx::Error> {
+pub async fn update_thumbnail(
+    pool: &SqlitePool,
+    id: &str,
+    thumbnail: &[u8],
+) -> Result<(), sqlx::Error> {
     sqlx::query("UPDATE clipboard_items SET thumbnail = ? WHERE id = ?")
         .bind(thumbnail)
         .bind(id)
@@ -387,7 +445,12 @@ pub async fn update_thumbnail(pool: &SqlitePool, id: &str, thumbnail: &[u8]) -> 
 
 /// Get all favorited items, optionally filtered by content type.
 /// Excludes thumbnail blobs for fast IPC transfer.
-pub async fn get_favorited_items(pool: &SqlitePool, content_type: Option<&str>, limit: i64, offset: i64) -> Result<Vec<super::models::ClipboardItem>, sqlx::Error> {
+pub async fn get_favorited_items(
+    pool: &SqlitePool,
+    content_type: Option<&str>,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<super::models::ClipboardItem>, sqlx::Error> {
     let sql = if content_type.is_some() {
         "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
          FROM clipboard_items WHERE is_favorited = 1 AND content_type = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?"
@@ -397,22 +460,71 @@ pub async fn get_favorited_items(pool: &SqlitePool, content_type: Option<&str>, 
     };
 
     let items = if let Some(ct) = content_type {
-        sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(sql)
-            .bind(ct).bind(limit).bind(offset)
-            .fetch_all(pool).await?
+        sqlx::query_as::<
+            _,
+            (
+                String,
+                String,
+                String,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+                String,
+                String,
+                i64,
+                String,
+                bool,
+                String,
+                String,
+            ),
+        >(sql)
+        .bind(ct)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await?
     } else {
-        sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(sql)
-            .bind(limit).bind(offset)
-            .fetch_all(pool).await?
+        sqlx::query_as::<
+            _,
+            (
+                String,
+                String,
+                String,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+                String,
+                String,
+                i64,
+                String,
+                bool,
+                String,
+                String,
+            ),
+        >(sql)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await?
     };
 
     Ok(items
         .into_iter()
         .map(|r| super::models::ClipboardItem {
-            id: r.0, content_type: r.1, plain_text: r.2, thumbnail: None,
-            image_path: r.3, file_path: r.4, file_name: r.5,
-            source_app: r.6, source_app_name: r.7, content_size: r.8,
-            content_hash: r.9, is_favorited: r.10, created_at: r.11, updated_at: r.12,
+            id: r.0,
+            content_type: r.1,
+            plain_text: r.2,
+            thumbnail: None,
+            image_path: r.3,
+            file_path: r.4,
+            file_name: r.5,
+            source_app: r.6,
+            source_app_name: r.7,
+            content_size: r.8,
+            content_hash: r.9,
+            is_favorited: r.10,
+            created_at: r.11,
+            updated_at: r.12,
         })
         .collect())
 }
@@ -646,26 +758,24 @@ mod tests {
             .await
             .unwrap();
 
-        let original_updated_at: (String,) = sqlx::query_as(
-            "SELECT updated_at FROM clipboard_items WHERE id = ?",
-        )
-        .bind(&id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let original_updated_at: (String,) =
+            sqlx::query_as("SELECT updated_at FROM clipboard_items WHERE id = ?")
+                .bind(&id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(original_updated_at.0, "2000-01-01 00:00:00");
 
         // Bump should update updated_at to current time
         let bumped = find_and_bump_by_hash(&pool, "bump-hash").await.unwrap();
         assert_eq!(bumped, Some(id.clone()));
 
-        let new_updated_at: (String,) = sqlx::query_as(
-            "SELECT updated_at FROM clipboard_items WHERE id = ?",
-        )
-        .bind(&id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let new_updated_at: (String,) =
+            sqlx::query_as("SELECT updated_at FROM clipboard_items WHERE id = ?")
+                .bind(&id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert!(
             new_updated_at.0.as_str() > "2000-01-01 00:00:00",
             "updated_at should have been bumped from the old date, got: {}",
@@ -702,9 +812,13 @@ mod tests {
     async fn test_search_fts5() {
         let pool = test_pool().await;
 
-        for (i, text) in ["Hello World example", "支持中文搜索功能测试", "Rust programming"]
-            .iter()
-            .enumerate()
+        for (i, text) in [
+            "Hello World example",
+            "支持中文搜索功能测试",
+            "Rust programming",
+        ]
+        .iter()
+        .enumerate()
         {
             let item = NewClipboardItem {
                 content_type: ContentType::PlainText,
@@ -738,7 +852,9 @@ mod tests {
         assert!(results[0].plain_text.contains("Rust"));
 
         // Type filter
-        let results = search_items(&pool, "World", Some("image"), 10).await.unwrap();
+        let results = search_items(&pool, "World", Some("image"), 10)
+            .await
+            .unwrap();
         assert_eq!(results.len(), 0);
     }
 
@@ -796,10 +912,15 @@ mod tests {
         let item = NewClipboardItem {
             content_type: ContentType::PlainText,
             plain_text: "Favorite me".into(),
-            rich_content: None, thumbnail: None, image_path: None,
-            file_path: None, file_name: None,
-            source_app: "".into(), source_app_name: "".into(),
-            content_size: 11, content_hash: "fav-hash".into(),
+            rich_content: None,
+            thumbnail: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            source_app: "".into(),
+            source_app_name: "".into(),
+            content_size: 11,
+            content_hash: "fav-hash".into(),
         };
         let id = insert_item(&pool, &item).await.unwrap();
 
@@ -809,7 +930,10 @@ mod tests {
 
         // Favorite it
         sqlx::query("UPDATE clipboard_items SET is_favorited = 1 WHERE id = ?")
-            .bind(&id).execute(&pool).await.unwrap();
+            .bind(&id)
+            .execute(&pool)
+            .await
+            .unwrap();
 
         let favs = get_favorited_items(&pool, None, 10, 0).await.unwrap();
         assert_eq!(favs.len(), 1);
@@ -841,7 +965,9 @@ mod tests {
         assert_eq!(none, None);
 
         // Insert new key
-        set_setting(&pool, "custom_key", "custom_value").await.unwrap();
+        set_setting(&pool, "custom_key", "custom_value")
+            .await
+            .unwrap();
         let val = get_setting(&pool, "custom_key").await.unwrap();
         assert_eq!(val, Some("custom_value".to_string()));
     }
@@ -855,10 +981,15 @@ mod tests {
             let item = NewClipboardItem {
                 content_type: ContentType::PlainText,
                 plain_text: format!("Item {}", i),
-                rich_content: None, thumbnail: None, image_path: None,
-                file_path: None, file_name: None,
-                source_app: "".into(), source_app_name: "".into(),
-                content_size: 6, content_hash: format!("clear-hash-{}", i),
+                rich_content: None,
+                thumbnail: None,
+                image_path: None,
+                file_path: None,
+                file_name: None,
+                source_app: "".into(),
+                source_app_name: "".into(),
+                content_size: 6,
+                content_hash: format!("clear-hash-{}", i),
             };
             insert_item(&pool, &item).await.unwrap();
         }
@@ -890,10 +1021,15 @@ mod tests {
             let item = NewClipboardItem {
                 content_type: ContentType::PlainText,
                 plain_text: format!("Retention item {}", i),
-                rich_content: None, thumbnail: None, image_path: None,
-                file_path: None, file_name: None,
-                source_app: "".into(), source_app_name: "".into(),
-                content_size: 16, content_hash: format!("ret-hash-{}", i),
+                rich_content: None,
+                thumbnail: None,
+                image_path: None,
+                file_path: None,
+                file_name: None,
+                source_app: "".into(),
+                source_app_name: "".into(),
+                content_size: 16,
+                content_hash: format!("ret-hash-{}", i),
             };
             insert_item(&pool, &item).await.unwrap();
         }
@@ -913,18 +1049,24 @@ mod tests {
         let item = NewClipboardItem {
             content_type: ContentType::PlainText,
             plain_text: "Keep me".into(),
-            rich_content: None, thumbnail: None, image_path: None,
-            file_path: None, file_name: None,
-            source_app: "".into(), source_app_name: "".into(),
-            content_size: 7, content_hash: "noop-hash".into(),
+            rich_content: None,
+            thumbnail: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            source_app: "".into(),
+            source_app_name: "".into(),
+            content_size: 7,
+            content_hash: "noop-hash".into(),
         };
         insert_item(&pool, &item).await.unwrap();
 
-        let deleted = cleanup_by_retention(&pool, "unlimited", 0, 0).await.unwrap();
+        let deleted = cleanup_by_retention(&pool, "unlimited", 0, 0)
+            .await
+            .unwrap();
         assert_eq!(deleted, 0);
 
         let remaining = get_items(&pool, None, 10, 0).await.unwrap();
         assert_eq!(remaining.len(), 1);
     }
-
 }

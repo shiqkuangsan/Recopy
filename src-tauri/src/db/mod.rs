@@ -15,10 +15,7 @@ fn db_path(app: &AppHandle) -> String {
         .app_data_dir()
         .expect("Failed to get app data dir");
     fs::create_dir_all(&app_data).expect("Failed to create app data dir");
-    app_data
-        .join("recopy.db")
-        .to_string_lossy()
-        .to_string()
+    app_data.join("recopy.db").to_string_lossy().to_string()
 }
 
 /// Initialize the database connection pool and run migrations.
@@ -103,13 +100,12 @@ mod tests {
         .unwrap();
 
         // Read
-        let row: (String, String, String) = sqlx::query_as(
-            "SELECT id, content_type, plain_text FROM clipboard_items WHERE id = ?",
-        )
-        .bind(&id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let row: (String, String, String) =
+            sqlx::query_as("SELECT id, content_type, plain_text FROM clipboard_items WHERE id = ?")
+                .bind(&id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(row.0, id);
         assert_eq!(row.1, "plain_text");
         assert_eq!(row.2, "Hello, World!");
@@ -121,12 +117,11 @@ mod tests {
             .await
             .unwrap();
 
-        let fav: (bool,) =
-            sqlx::query_as("SELECT is_favorited FROM clipboard_items WHERE id = ?")
-                .bind(&id)
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let fav: (bool,) = sqlx::query_as("SELECT is_favorited FROM clipboard_items WHERE id = ?")
+            .bind(&id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert!(fav.0);
 
         // Delete
@@ -136,12 +131,11 @@ mod tests {
             .await
             .unwrap();
 
-        let count: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM clipboard_items WHERE id = ?")
-                .bind(&id)
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM clipboard_items WHERE id = ?")
+            .bind(&id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(count.0, 0);
     }
 
@@ -232,11 +226,10 @@ mod tests {
                 .unwrap();
         assert_eq!(shortcut.0, "CommandOrControl+Shift+V");
 
-        let theme: (String,) =
-            sqlx::query_as("SELECT value FROM settings WHERE key = 'theme'")
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let theme: (String,) = sqlx::query_as("SELECT value FROM settings WHERE key = 'theme'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(theme.0, "dark");
 
         let max_size: (String,) =

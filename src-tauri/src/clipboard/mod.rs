@@ -24,14 +24,18 @@ pub fn exceeds_size_limit(size: usize, limit_mb: usize) -> bool {
 /// The thumbnail is resized to THUMBNAIL_WIDTH while maintaining aspect ratio.
 /// Output format is PNG.
 pub fn generate_thumbnail(image_data: &[u8]) -> Result<Vec<u8>, String> {
-    let img = image::load_from_memory(image_data)
-        .map_err(|e| format!("Failed to load image: {}", e))?;
+    let img =
+        image::load_from_memory(image_data).map_err(|e| format!("Failed to load image: {}", e))?;
 
     let (w, h) = (img.width(), img.height());
 
     let thumb = if w > THUMBNAIL_WIDTH {
         let new_height = (THUMBNAIL_WIDTH as f64 / w as f64 * h as f64) as u32;
-        img.resize(THUMBNAIL_WIDTH, new_height, image::imageops::FilterType::Lanczos3)
+        img.resize(
+            THUMBNAIL_WIDTH,
+            new_height,
+            image::imageops::FilterType::Lanczos3,
+        )
     } else {
         img
     };
@@ -56,14 +60,12 @@ pub fn save_original_image(
         .join("images")
         .join(now.format("%Y-%m").to_string());
 
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| format!("Failed to create image dir: {}", e))?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create image dir: {}", e))?;
 
     let filename = format!("{}.{}", uuid::Uuid::new_v4(), ext);
     let path = dir.join(&filename);
 
-    std::fs::write(&path, image_data)
-        .map_err(|e| format!("Failed to write image: {}", e))?;
+    std::fs::write(&path, image_data).map_err(|e| format!("Failed to write image: {}", e))?;
 
     Ok(path.to_string_lossy().to_string())
 }

@@ -20,9 +20,9 @@ pub fn clear_skip_next_clipboard_change() {
     SKIP_NEXT_CLIPBOARD_CHANGE.store(false, Ordering::SeqCst);
 }
 use tauri::{
-    Emitter, Listener, Manager,
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    Emitter, Listener, Manager,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -95,7 +95,9 @@ pub fn run() {
 
             // Initialize preview state for Quick Look feature
             app.manage(db::models::PreviewState(std::sync::Mutex::new(None)));
-            app.manage(db::models::PreviewClosing(std::sync::atomic::AtomicBool::new(false)));
+            app.manage(db::models::PreviewClosing(
+                std::sync::atomic::AtomicBool::new(false),
+            ));
 
             // Initialize platform (convert window to NSPanel on macOS)
             platform::init_platform(app)?;
@@ -168,17 +170,24 @@ pub fn show_main_window(app: &tauri::AppHandle) {
         let _ = window.set_max_size(Some(tauri::Size::Logical(tauri::LogicalSize::new(
             win_width, 800.0,
         ))));
-        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(
-            x, y,
-        )));
+        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)));
     }
 
     // Read settings from DB and sync before showing
     let pool = app.state::<db::DbPool>();
     let (theme, language, update_check_interval) = tauri::async_runtime::block_on(async {
-        let t = db::queries::get_setting(&pool.0, "theme").await.ok().flatten();
-        let l = db::queries::get_setting(&pool.0, "language").await.ok().flatten();
-        let u = db::queries::get_setting(&pool.0, "update_check_interval").await.ok().flatten();
+        let t = db::queries::get_setting(&pool.0, "theme")
+            .await
+            .ok()
+            .flatten();
+        let l = db::queries::get_setting(&pool.0, "language")
+            .await
+            .ok()
+            .flatten();
+        let u = db::queries::get_setting(&pool.0, "update_check_interval")
+            .await
+            .ok()
+            .flatten();
         (t, l, u)
     });
     let theme = theme.unwrap_or_else(|| "dark".to_string());
@@ -228,9 +237,7 @@ pub fn show_preview_window_impl(app: &tauri::AppHandle, width: f64, height: f64)
         let x = mon_x + (screen_w - width) / 2.0;
         let y = panel_top_y - height - gap;
 
-        let _ = window.set_position(tauri::Position::Logical(
-            tauri::LogicalPosition::new(x, y),
-        ));
+        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)));
         Some(())
     })();
 
@@ -246,14 +253,20 @@ pub fn show_preview_window_impl(app: &tauri::AppHandle, width: f64, height: f64)
 fn detect_language(app: &tauri::App) -> String {
     let pool = app.state::<db::DbPool>();
     // Read language setting from DB
-    if let Ok(Some(lang)) = tauri::async_runtime::block_on(db::queries::get_setting(&pool.0, "language")) {
+    if let Ok(Some(lang)) =
+        tauri::async_runtime::block_on(db::queries::get_setting(&pool.0, "language"))
+    {
         if lang == "zh" || lang == "en" {
             return lang;
         }
     }
     // Fallback: detect system language
     let locale = sys_locale::get_locale().unwrap_or_else(|| "en".to_string());
-    if locale.starts_with("zh") { "zh".to_string() } else { "en".to_string() }
+    if locale.starts_with("zh") {
+        "zh".to_string()
+    } else {
+        "en".to_string()
+    }
 }
 
 fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -398,9 +411,8 @@ fn setup_global_shortcut(app: &tauri::AppHandle) -> Result<(), Box<dyn std::erro
     };
 
     let app_handle = app.clone();
-    app.global_shortcut().on_shortcut(
-        shortcut.as_str(),
-        move |_app, _shortcut, event| {
+    app.global_shortcut()
+        .on_shortcut(shortcut.as_str(), move |_app, _shortcut, event| {
             if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
                 if platform::platform_is_visible(&app_handle) {
                     hide_main_window(&app_handle);
@@ -408,8 +420,7 @@ fn setup_global_shortcut(app: &tauri::AppHandle) -> Result<(), Box<dyn std::erro
                     show_main_window(&app_handle);
                 }
             }
-        },
-    )?;
+        })?;
 
     log::info!("Global shortcut registered: {}", shortcut);
     Ok(())
@@ -579,18 +590,12 @@ async fn extract_clipboard_content(
                 // Skip files larger than size limit
                 if let Ok(meta) = tokio::fs::metadata(path).await {
                     if clipboard::exceeds_size_limit(meta.len() as usize, max_size_mb) {
-                        log::info!(
-                            "Skipping large file: {} ({}B)",
-                            first,
-                            meta.len()
-                        );
+                        log::info!("Skipping large file: {} ({}B)", first, meta.len());
                         return None;
                     }
                 }
 
-                let file_name = path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string());
+                let file_name = path.file_name().map(|n| n.to_string_lossy().to_string());
                 let content = first.as_bytes().to_vec();
                 return Some((
                     ContentType::File,
@@ -617,7 +622,9 @@ async fn extract_clipboard_content(
     // Try HTML (rich text)
     if let Ok(true) = tauri_plugin_clipboard_x::has_html().await {
         if let Ok(html) = tauri_plugin_clipboard_x::read_html().await {
-            let plain = tauri_plugin_clipboard_x::read_text().await.unwrap_or_default();
+            let plain = tauri_plugin_clipboard_x::read_text()
+                .await
+                .unwrap_or_default();
             let html_bytes = html.as_bytes().to_vec();
             let content_bytes = plain.as_bytes().to_vec();
             return Some((
@@ -654,7 +661,14 @@ async fn extract_clipboard_content(
             // Fall through to plain text
             if !text.is_empty() {
                 let content = text.as_bytes().to_vec();
-                return Some((ContentType::PlainText, content, Some(text), None, None, None));
+                return Some((
+                    ContentType::PlainText,
+                    content,
+                    Some(text),
+                    None,
+                    None,
+                    None,
+                ));
             }
         }
     }
