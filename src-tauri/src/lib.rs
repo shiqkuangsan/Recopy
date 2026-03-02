@@ -653,6 +653,10 @@ async fn extract_clipboard_content(
         if let Ok(img_result) = tauri_plugin_clipboard_x::read_image(app.clone(), None).await {
             // Read the saved image file
             if let Ok(img_data) = tokio::fs::read(&img_result.path).await {
+                if clipboard::exceeds_size_limit(img_data.len(), max_size_mb) {
+                    log::info!("Skipping large image: {}B", img_data.len());
+                    return None;
+                }
                 return Some((ContentType::Image, img_data, None, None, None, None));
             }
         }
