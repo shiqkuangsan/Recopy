@@ -298,7 +298,7 @@ function PrivacySettings() {
 
 function UpdateCheckButton() {
   const { t } = useTranslation();
-  const { status, version, progress, checkForUpdate, downloadAndInstall, relaunch, dismissError } = useUpdateStore();
+  const { status, version, progress, relaunchFailed, checkForUpdate, downloadAndInstall, retryDownload, relaunch, dismissError } = useUpdateStore();
   const [showUpToDate, setShowUpToDate] = useState(false);
 
   const handleCheck = async () => {
@@ -312,6 +312,11 @@ function UpdateCheckButton() {
   };
 
   if (status === "ready") {
+    if (relaunchFailed) {
+      return (
+        <span className="text-sm text-warning/80">{t("update.restartManually")}</span>
+      );
+    }
     return (
       <Button size="sm" className="gap-1.5" onClick={relaunch}>
         <RotateCcw size={14} />
@@ -322,9 +327,14 @@ function UpdateCheckButton() {
 
   if (status === "downloading") {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <RefreshCw size={14} className="animate-spin" />
-        <span>{progress}%</span>
+      <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
+        <div className="w-24 h-1.5 rounded-full bg-muted/40 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <span className="tabular-nums">{progress}%</span>
       </div>
     );
   }
@@ -340,8 +350,12 @@ function UpdateCheckButton() {
 
   if (status === "error") {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-2">
         <span className="text-sm text-destructive">{t("update.failed")}</span>
+        <Button size="sm" variant="ghost" className="h-7 px-2 gap-1" onClick={retryDownload}>
+          <RefreshCw size={12} />
+          {t("update.retry")}
+        </Button>
         <Button size="sm" variant="ghost" className="h-7 px-2" onClick={dismissError}>
           {t("update.dismiss")}
         </Button>
