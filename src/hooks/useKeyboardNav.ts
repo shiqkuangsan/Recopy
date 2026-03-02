@@ -125,6 +125,15 @@ export function useKeyboardNav() {
         return;
       }
 
+      // Delete / Backspace: delete selected item
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        if (items[selectedIndex]) {
+          useClipboardStore.getState().deleteItem(items[selectedIndex].id);
+        }
+        return;
+      }
+
       switch (e.key) {
         case "ArrowRight": {
           e.preventDefault();
