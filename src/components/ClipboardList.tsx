@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useClipboardStore } from "../stores/clipboard-store";
 import { ClipboardCard } from "./ClipboardCard";
@@ -39,6 +39,20 @@ export function ClipboardList() {
     return result;
   }, [items]);
 
+  // Convert vertical-only wheel events to horizontal scroll on card rows.
+  // Mouse wheels only produce deltaY, which overflow-x containers ignore.
+  // Trackpad horizontal swipes (deltaX !== 0) and shift+wheel are left
+  // to the browser's native handling.
+  const onRowWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollWidth <= el.clientWidth) return; // nothing to scroll
+    if (e.deltaX !== 0 || e.shiftKey) return; // native horizontal scroll
+    if (e.deltaY !== 0) {
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    }
+  }, []);
+
   // Auto-scroll selected card into view
   useEffect(() => {
     selectedRef.current?.scrollIntoView({
@@ -73,7 +87,7 @@ export function ClipboardList() {
           <div className="text-xs font-medium text-muted-foreground px-1 py-1">
             {t(group.label)}
           </div>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1" onWheel={onRowWheel}>
             {group.items.map(({ item, flatIndex }) => (
               <div
                 key={item.id}
