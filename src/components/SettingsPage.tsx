@@ -350,7 +350,7 @@ function UpdateCheckButton() {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center justify-center gap-2">
       {showUpToDate && (
         <span className="text-xs text-muted-foreground">{t("update.upToDate")}</span>
       )}
