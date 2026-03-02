@@ -18,6 +18,9 @@ on:
       - '.claude/**'
       - 'LICENSE'
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -47,6 +50,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -57,20 +62,33 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
+      - name: Check formatting
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
       - name: Run Rust tests
         working-directory: src-tauri
         run: cargo test
 
   build-check:
-    name: Build Check (${{ matrix.os }})
+    name: Build Check (${{ matrix.name }})
     needs: [test-frontend, test-rust]
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          - name: macOS-arm64
+            os: macos-latest
             target: aarch64-apple-darwin
-          - os: windows-latest
+          - name: macOS-x64
+            os: macos-latest
+            target: x86_64-apple-darwin
+          - name: Windows-x64
+            os: windows-latest
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
     steps:
