@@ -277,9 +277,14 @@ pub async fn search_items(
     content_type: Option<&str>,
     limit: i64,
 ) -> Result<Vec<ClipboardItem>, sqlx::Error> {
-    // Trigram requires >= 3 chars
+    // Multi-token query: always use LIKE with AND matching
+    let tokens: Vec<&str> = query.split_whitespace().collect();
+    if tokens.len() > 1 {
+        return search_items_like(pool, query, content_type, limit).await;
+    }
+
+    // Single token: FTS5 for >= 3 chars, LIKE for < 3
     if query.chars().count() < 3 {
-        // Fallback to LIKE for short queries
         return search_items_like(pool, query, content_type, limit).await;
     }
 
@@ -361,7 +366,7 @@ pub async fn search_items(
         .collect())
 }
 
-/// Fallback search using LIKE for queries shorter than 3 chars.
+/// Fallback search using LIKE with multi-token AND matching.
 /// Excludes thumbnail blobs for fast IPC transfer.
 async fn search_items_like(
     pool: &SqlitePool,
@@ -369,32 +374,49 @@ async fn search_items_like(
     content_type: Option<&str>,
     limit: i64,
 ) -> Result<Vec<ClipboardItem>, sqlx::Error> {
-    let like_pattern = format!("%{}%", query);
+    let tokens: Vec<&str> = query.split_whitespace().filter(|t| !t.is_empty()).collect();
+    if tokens.is_empty() {
+        return Ok(vec![]);
+    }
 
-    let items = if let Some(ct) = content_type {
-        sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(
+    // Build per-token conditions: each token must match at least one searchable field
+    let mut conditions = Vec::new();
+    let mut binds = Vec::new();
+    for token in &tokens {
+        let pattern = format!("%{}%", token);
+        conditions.push("(plain_text LIKE ? OR file_name LIKE ? OR source_app_name LIKE ?)");
+        binds.push(pattern);
+    }
+    let where_clause = conditions.join(" AND ");
+
+    let sql = if let Some(_ct) = content_type {
+        format!(
             "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE (plain_text LIKE ? OR file_name LIKE ? OR source_app_name LIKE ?) AND content_type = ? ORDER BY updated_at DESC LIMIT ?",
+             FROM clipboard_items WHERE {} AND content_type = ? ORDER BY updated_at DESC LIMIT ?",
+            where_clause
         )
-        .bind(&like_pattern)
-        .bind(&like_pattern)
-        .bind(&like_pattern)
-        .bind(ct)
-        .bind(limit)
-        .fetch_all(pool)
-        .await?
     } else {
-        sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(
+        format!(
             "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE (plain_text LIKE ? OR file_name LIKE ? OR source_app_name LIKE ?) ORDER BY updated_at DESC LIMIT ?",
+             FROM clipboard_items WHERE {} ORDER BY updated_at DESC LIMIT ?",
+            where_clause
         )
-        .bind(&like_pattern)
-        .bind(&like_pattern)
-        .bind(&like_pattern)
-        .bind(limit)
-        .fetch_all(pool)
-        .await?
     };
+
+    let mut q = sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(&sql);
+
+    // Bind each token's pattern 3 times (for plain_text, file_name, source_app_name)
+    for pattern in &binds {
+        q = q.bind(pattern);
+        q = q.bind(pattern);
+        q = q.bind(pattern);
+    }
+    if let Some(ct) = content_type {
+        q = q.bind(ct);
+    }
+    q = q.bind(limit);
+
+    let items = q.fetch_all(pool).await?;
 
     Ok(items
         .into_iter()
