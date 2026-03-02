@@ -1,11 +1,14 @@
+use crate::clipboard as clip_util;
 use crate::db::{
-    models::{ClipboardItem, ContentType, FilePreviewData, ItemDetail, NewClipboardItem, PreviewClosing, PreviewResponse, PreviewState},
+    models::{
+        ClipboardItem, ContentType, FilePreviewData, ItemDetail, NewClipboardItem, PreviewClosing,
+        PreviewResponse, PreviewState,
+    },
     queries, DbPool,
 };
-use crate::clipboard as clip_util;
-use tauri::{AppHandle, Emitter, Manager, State};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 static HUD_GENERATION: AtomicU64 = AtomicU64::new(0);
 
@@ -44,10 +47,7 @@ pub async fn search_clipboard_items(
 
 /// Get the thumbnail for a single clipboard item (lazy loading).
 #[tauri::command]
-pub async fn get_thumbnail(
-    db: State<'_, DbPool>,
-    id: String,
-) -> Result<Option<Vec<u8>>, String> {
+pub async fn get_thumbnail(db: State<'_, DbPool>, id: String) -> Result<Option<Vec<u8>>, String> {
     queries::get_thumbnail(&db.0, &id)
         .await
         .map_err(|e| e.to_string())
@@ -60,7 +60,8 @@ async fn load_item_detail(db: &DbPool, id: &str) -> Result<ItemDetail, String> {
         .map_err(|e| e.to_string())?
         .ok_or("Item not found")?;
 
-    let (content_type, plain_text, rich_content, image_path, file_path, file_name, content_size) = row;
+    let (content_type, plain_text, rich_content, image_path, file_path, file_name, content_size) =
+        row;
 
     Ok(ItemDetail {
         id: id.to_string(),
@@ -76,19 +77,13 @@ async fn load_item_detail(db: &DbPool, id: &str) -> Result<ItemDetail, String> {
 
 /// Get full item detail for preview (includes rich_content).
 #[tauri::command]
-pub async fn get_item_detail(
-    db: State<'_, DbPool>,
-    id: String,
-) -> Result<ItemDetail, String> {
+pub async fn get_item_detail(db: State<'_, DbPool>, id: String) -> Result<ItemDetail, String> {
     load_item_detail(&db, &id).await
 }
 
 /// Delete a clipboard item and remove its original image file if present.
 #[tauri::command]
-pub async fn delete_clipboard_item(
-    db: State<'_, DbPool>,
-    id: String,
-) -> Result<(), String> {
+pub async fn delete_clipboard_item(db: State<'_, DbPool>, id: String) -> Result<(), String> {
     // Capture image_path before deleting the DB row
     let image_path = queries::get_image_path_by_id(&db.0, &id)
         .await
@@ -127,7 +122,16 @@ pub async fn paste_clipboard_item(
 
     // Skip self-monitoring for this clipboard write (clear flag on failure)
     crate::set_skip_next_clipboard_change();
-    if let Err(e) = write_to_clipboard(&app, &content_type, &plain_text, &rich_content, &image_path, &file_path).await {
+    if let Err(e) = write_to_clipboard(
+        &app,
+        &content_type,
+        &plain_text,
+        &rich_content,
+        &image_path,
+        &file_path,
+    )
+    .await
+    {
         crate::clear_skip_next_clipboard_change();
         return Err(e);
     }
@@ -174,17 +178,12 @@ pub async fn paste_as_plain_text(
 
 /// Toggle favorite status of a clipboard item.
 #[tauri::command]
-pub async fn toggle_favorite(
-    db: State<'_, DbPool>,
-    id: String,
-) -> Result<bool, String> {
-    let current: (bool,) = sqlx::query_as(
-        "SELECT is_favorited FROM clipboard_items WHERE id = ?",
-    )
-    .bind(&id)
-    .fetch_one(&db.0)
-    .await
-    .map_err(|e| e.to_string())?;
+pub async fn toggle_favorite(db: State<'_, DbPool>, id: String) -> Result<bool, String> {
+    let current: (bool,) = sqlx::query_as("SELECT is_favorited FROM clipboard_items WHERE id = ?")
+        .bind(&id)
+        .fetch_one(&db.0)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let new_val = !current.0;
     sqlx::query("UPDATE clipboard_items SET is_favorited = ? WHERE id = ?")
@@ -275,18 +274,21 @@ pub async fn get_favorited_items(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<Vec<ClipboardItem>, String> {
-    queries::get_favorited_items(&db.0, content_type.as_deref(), limit.unwrap_or(200), offset.unwrap_or(0))
-        .await
-        .map_err(|e| e.to_string())
+    queries::get_favorited_items(
+        &db.0,
+        content_type.as_deref(),
+        limit.unwrap_or(200),
+        offset.unwrap_or(0),
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
 // ---- Settings commands ----
 
 /// Get all settings.
 #[tauri::command]
-pub async fn get_settings(
-    db: State<'_, DbPool>,
-) -> Result<serde_json::Value, String> {
+pub async fn get_settings(db: State<'_, DbPool>) -> Result<serde_json::Value, String> {
     let settings = queries::get_all_settings(&db.0)
         .await
         .map_err(|e| e.to_string())?;
@@ -300,10 +302,7 @@ pub async fn get_settings(
 
 /// Get a single setting value.
 #[tauri::command]
-pub async fn get_setting(
-    db: State<'_, DbPool>,
-    key: String,
-) -> Result<Option<String>, String> {
+pub async fn get_setting(db: State<'_, DbPool>, key: String) -> Result<Option<String>, String> {
     queries::get_setting(&db.0, &key)
         .await
         .map_err(|e| e.to_string())
@@ -333,7 +332,9 @@ pub async fn set_setting(
 #[tauri::command]
 pub async fn unregister_shortcut(app: AppHandle) -> Result<(), String> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
-    app.global_shortcut().unregister_all().map_err(|e| e.to_string())
+    app.global_shortcut()
+        .unregister_all()
+        .map_err(|e| e.to_string())
 }
 
 /// Re-register the global shortcut from DB settings.
@@ -347,7 +348,9 @@ pub async fn register_shortcut(app: AppHandle, db: State<'_, DbPool>) -> Result<
         .unwrap_or_else(|| "CommandOrControl+Shift+V".to_string());
 
     // Unregister all existing shortcuts before registering new one
-    app.global_shortcut().unregister_all().map_err(|e| e.to_string())?;
+    app.global_shortcut()
+        .unregister_all()
+        .map_err(|e| e.to_string())?;
 
     let app_handle = app.clone();
     app.global_shortcut()
@@ -365,9 +368,7 @@ pub async fn register_shortcut(app: AppHandle, db: State<'_, DbPool>) -> Result<
 
 /// Clear all clipboard history (preserve favorites), removing image files from disk.
 #[tauri::command]
-pub async fn clear_history(
-    db: State<'_, DbPool>,
-) -> Result<i64, String> {
+pub async fn clear_history(db: State<'_, DbPool>) -> Result<i64, String> {
     // Collect image paths before deleting rows
     let image_paths = queries::get_non_favorited_image_paths(&db.0)
         .await
@@ -393,9 +394,7 @@ pub async fn clear_history(
 
 /// Run retention cleanup based on current settings, removing image files from disk.
 #[tauri::command]
-pub async fn run_retention_cleanup(
-    db: State<'_, DbPool>,
-) -> Result<i64, String> {
+pub async fn run_retention_cleanup(db: State<'_, DbPool>) -> Result<i64, String> {
     let policy = queries::get_setting(&db.0, "retention_policy")
         .await
         .map_err(|e| e.to_string())?
@@ -490,7 +489,11 @@ pub async fn cleanup_orphan_images(app: &AppHandle) {
             let path_str = file_path.to_string_lossy().to_string();
             if !known_paths.contains(&path_str) {
                 if let Err(e) = std::fs::remove_file(&file_path) {
-                    log::warn!("cleanup_orphan_images: failed to remove {}: {}", path_str, e);
+                    log::warn!(
+                        "cleanup_orphan_images: failed to remove {}: {}",
+                        path_str,
+                        e
+                    );
                 } else {
                     orphan_count += 1;
                 }
@@ -499,7 +502,10 @@ pub async fn cleanup_orphan_images(app: &AppHandle) {
     }
 
     if orphan_count > 0 {
-        log::info!("cleanup_orphan_images: removed {} orphan file(s)", orphan_count);
+        log::info!(
+            "cleanup_orphan_images: removed {} orphan file(s)",
+            orphan_count
+        );
     }
 }
 
@@ -603,7 +609,7 @@ fn calculate_preview_size(detail: &ItemDetail, screen_w: f64, available_h: f64) 
     // Image/file layout: title bar (py-1.5*2 + text ≈ 28) + bottom padding pb-2 (8)
     let img_chrome_y = 36.0; // title bar + bottom pad
     let img_chrome_x = 16.0; // px-2 left + right = 8*2
-    // Padding for text types: outer p-3 (24) + ReadableCard p-4 (32) = 56
+                             // Padding for text types: outer p-3 (24) + ReadableCard p-4 (32) = 56
     let text_pad = 56.0;
     let content_width = 600.0;
     let line_height = 22.0; // matches text-sm leading-relaxed
@@ -623,20 +629,24 @@ fn calculate_preview_size(detail: &ItemDetail, screen_w: f64, available_h: f64) 
         "image" => {
             if let Some(ref path) = detail.image_path {
                 if let Ok((w, h)) = image::image_dimensions(path) {
-                    let (iw, ih) = fit_image(w, h, max_w - img_chrome_x, max_h - img_chrome_y, min_h);
+                    let (iw, ih) =
+                        fit_image(w, h, max_w - img_chrome_x, max_h - img_chrome_y, min_h);
                     return (iw + img_chrome_x, ih + img_chrome_y);
                 }
             }
             (600.0, 480.0)
         }
         "plain_text" => {
-            let effective_lines = estimate_display_lines(&detail.plain_text, content_width - text_pad);
+            let effective_lines =
+                estimate_display_lines(&detail.plain_text, content_width - text_pad);
             let height = (effective_lines as f64 * line_height + text_pad).clamp(min_h, max_h);
             (content_width, height)
         }
         "rich_text" => {
             let text = &detail.plain_text;
-            let effective_lines = if text.is_empty() { 10 } else {
+            let effective_lines = if text.is_empty() {
+                10
+            } else {
                 estimate_display_lines(text, content_width - text_pad)
             };
             let height = (effective_lines as f64 * line_height + text_pad).clamp(min_h, max_h);
@@ -650,13 +660,17 @@ fn calculate_preview_size(detail: &ItemDetail, screen_w: f64, available_h: f64) 
                     .unwrap_or("")
                     .to_lowercase();
                 if TEXT_EXTENSIONS.contains(&ext.as_str()) {
-                    let effective_lines = estimate_display_lines(&detail.plain_text, content_width - text_pad).max(10);
-                    let height = (effective_lines as f64 * line_height + text_pad + img_chrome_y).clamp(min_h, max_h);
+                    let effective_lines =
+                        estimate_display_lines(&detail.plain_text, content_width - text_pad)
+                            .max(10);
+                    let height = (effective_lines as f64 * line_height + text_pad + img_chrome_y)
+                        .clamp(min_h, max_h);
                     return (content_width, height);
                 }
                 if IMAGE_EXTENSIONS.contains(&ext.as_str()) {
                     if let Ok((w, h)) = image::image_dimensions(path) {
-                        let (iw, ih) = fit_image(w, h, max_w - img_chrome_x, max_h - img_chrome_y, min_h);
+                        let (iw, ih) =
+                            fit_image(w, h, max_w - img_chrome_x, max_h - img_chrome_y, min_h);
                         return (iw + img_chrome_x, ih + img_chrome_y);
                     }
                 }
@@ -664,7 +678,8 @@ fn calculate_preview_size(detail: &ItemDetail, screen_w: f64, available_h: f64) 
             (400.0, 300.0 + img_chrome_y)
         }
         "link" => {
-            let effective_lines = estimate_display_lines(&detail.plain_text, content_width - text_pad);
+            let effective_lines =
+                estimate_display_lines(&detail.plain_text, content_width - text_pad);
             let height = (effective_lines as f64 * line_height + text_pad).clamp(min_h, 240.0);
             (content_width, height)
         }
@@ -688,7 +703,7 @@ fn estimate_display_lines(text: &str, available_width: f64) -> usize {
             total_lines += 1; // empty line still takes 1 row
         } else {
             // How many visual lines does this line wrap into?
-            total_lines += (char_count + chars_per_line - 1) / chars_per_line;
+            total_lines += char_count.div_ceil(chars_per_line);
         }
     }
     total_lines.max(1)
@@ -696,10 +711,45 @@ fn estimate_display_lines(text: &str, available_width: f64) -> usize {
 
 /// Text file extensions that should be rendered as code/text in preview.
 const TEXT_EXTENSIONS: &[&str] = &[
-    "txt", "md", "json", "js", "ts", "jsx", "tsx", "py", "rs", "css", "html", "xml",
-    "yaml", "yml", "toml", "log", "csv", "sh", "bash", "zsh", "fish",
-    "c", "cpp", "h", "hpp", "java", "kt", "go", "rb", "php", "swift", "sql",
-    "env", "gitignore", "dockerfile", "makefile", "conf", "ini", "cfg",
+    "txt",
+    "md",
+    "json",
+    "js",
+    "ts",
+    "jsx",
+    "tsx",
+    "py",
+    "rs",
+    "css",
+    "html",
+    "xml",
+    "yaml",
+    "yml",
+    "toml",
+    "log",
+    "csv",
+    "sh",
+    "bash",
+    "zsh",
+    "fish",
+    "c",
+    "cpp",
+    "h",
+    "hpp",
+    "java",
+    "kt",
+    "go",
+    "rb",
+    "php",
+    "swift",
+    "sql",
+    "env",
+    "gitignore",
+    "dockerfile",
+    "makefile",
+    "conf",
+    "ini",
+    "cfg",
 ];
 
 /// Image file extensions that should be rendered as images in preview.
@@ -707,7 +757,10 @@ const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", 
 
 /// Read file content for preview (first N bytes, up to 200 lines).
 #[tauri::command]
-pub async fn read_file_preview(path: String, max_bytes: Option<usize>) -> Result<FilePreviewData, String> {
+pub async fn read_file_preview(
+    path: String,
+    max_bytes: Option<usize>,
+) -> Result<FilePreviewData, String> {
     let max = max_bytes.unwrap_or(50 * 1024); // default 50KB
     let path_ref = std::path::Path::new(&path);
 
@@ -715,7 +768,9 @@ pub async fn read_file_preview(path: String, max_bytes: Option<usize>) -> Result
         return Err("File not found".to_string());
     }
 
-    let metadata = tokio::fs::metadata(path_ref).await.map_err(|e| e.to_string())?;
+    let metadata = tokio::fs::metadata(path_ref)
+        .await
+        .map_err(|e| e.to_string())?;
     let file_size = metadata.len() as usize;
 
     // Read up to max bytes
@@ -724,7 +779,9 @@ pub async fn read_file_preview(path: String, max_bytes: Option<usize>) -> Result
     } else {
         let mut buf = vec![0u8; max];
         use tokio::io::AsyncReadExt;
-        let mut f = tokio::fs::File::open(path_ref).await.map_err(|e| e.to_string())?;
+        let mut f = tokio::fs::File::open(path_ref)
+            .await
+            .map_err(|e| e.to_string())?;
         let n = f.read(&mut buf).await.map_err(|e| e.to_string())?;
         buf.truncate(n);
         buf
@@ -775,9 +832,7 @@ pub fn show_copy_hud(app: AppHandle) {
             let hud_h = 140.0;
             let x = pos.x as f64 / scale + (screen_w - hud_w) / 2.0;
             let y = pos.y as f64 / scale + (screen_h - hud_h) / 2.0;
-            let _ = hud.set_position(tauri::Position::Logical(
-                tauri::LogicalPosition::new(x, y),
-            ));
+            let _ = hud.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)));
         }
     }
 
@@ -818,6 +873,7 @@ fn is_image_file(path: &str) -> bool {
 
 /// Process and store a new clipboard entry from the monitoring system.
 /// Called internally, not directly from frontend.
+#[allow(clippy::too_many_arguments)]
 pub async fn process_clipboard_change(
     app: &AppHandle,
     content_type: ContentType,
@@ -838,7 +894,11 @@ pub async fn process_clipboard_change(
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(clip_util::DEFAULT_MAX_ITEM_SIZE_MB);
     if clip_util::exceeds_size_limit(content.len(), max_size_mb) {
-        log::info!("Clipboard content exceeds size limit ({}B > {}MB), skipping", content.len(), max_size_mb);
+        log::info!(
+            "Clipboard content exceeds size limit ({}B > {}MB), skipping",
+            content.len(),
+            max_size_mb
+        );
         return Ok(None);
     }
 
@@ -857,10 +917,7 @@ pub async fn process_clipboard_change(
     // Process image: generate thumbnail and save original (off the async runtime)
     // Note: For file-type images, thumbnail is generated asynchronously after insert (see below)
     let (thumbnail, image_path) = if content_type == ContentType::Image {
-        let app_data = app
-            .path()
-            .app_data_dir()
-            .map_err(|e| e.to_string())?;
+        let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
         let content_for_img = content.clone();
         tokio::task::spawn_blocking(move || {
             let thumb = clip_util::generate_thumbnail(&content_for_img).ok();
@@ -904,7 +961,11 @@ pub async fn process_clipboard_change(
         .await
         .map_err(|e| e.to_string())?;
 
-    log::info!("New clipboard item stored: {} ({})", id, new_item.content_type.as_str());
+    log::info!(
+        "New clipboard item stored: {} ({})",
+        id,
+        new_item.content_type.as_str()
+    );
 
     // Background: generate thumbnail for image files (non-blocking)
     if new_item.content_type == ContentType::File {
@@ -938,10 +999,8 @@ pub async fn process_clipboard_change(
                         return;
                     }
                     // Notify frontend to refresh with the new thumbnail
-                    let _ = app_clone.emit(
-                        "clipboard-changed",
-                        serde_json::json!({ "id": id_clone }),
-                    );
+                    let _ =
+                        app_clone.emit("clipboard-changed", serde_json::json!({ "id": id_clone }));
                     log::info!("Thumbnail generated for file item: {}", id_clone);
                 });
             }
@@ -954,8 +1013,8 @@ pub async fn process_clipboard_change(
 /// Update main window visual effects to match the given theme.
 #[allow(deprecated)]
 pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
-    use tauri::window::{Effect, EffectState};
     use tauri::utils::config::WindowEffectsConfig;
+    use tauri::window::{Effect, EffectState};
 
     let is_light = match theme {
         "light" => true,
@@ -1005,7 +1064,10 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
 #[tauri::command]
 pub async fn open_url(url: String) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(|e| format!("Invalid URL: {}", e))?;
-    if !matches!(parsed.scheme(), "http" | "https" | "x-apple.systempreferences") {
+    if !matches!(
+        parsed.scheme(),
+        "http" | "https" | "x-apple.systempreferences"
+    ) {
         return Err("Only http/https and system preferences URLs are allowed".to_string());
     }
     let normalized = parsed.as_str();

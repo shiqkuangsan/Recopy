@@ -1,3 +1,6 @@
+// The tauri_panel! macro generates `-> ()` signatures that trigger clippy::unused_unit.
+#![allow(clippy::unused_unit)]
+
 use tauri::{Emitter, Manager};
 use tauri_nspanel::{
     tauri_panel, CollectionBehavior, ManagerExt, PanelLevel, StyleMask, WebviewWindowExt,
@@ -30,9 +33,7 @@ tauri_panel! {
 }
 
 /// Register the tauri-nspanel plugin on the builder (must happen before .setup())
-pub fn apply_plugin(
-    builder: tauri::Builder<tauri::Wry>,
-) -> tauri::Builder<tauri::Wry> {
+pub fn apply_plugin(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
     builder.plugin(tauri_nspanel::init())
 }
 
@@ -52,12 +53,7 @@ pub fn init_platform(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>>
     // NonactivatingPanel: clicking the panel does NOT activate the app
     // Keep resizable so the top edge drag handle works for height adjustment.
     // Width is locked via min/max size constraints set in show_main_window().
-    panel.set_style_mask(
-        StyleMask::empty()
-            .nonactivating_panel()
-            .resizable()
-            .into(),
-    );
+    panel.set_style_mask(StyleMask::empty().nonactivating_panel().resizable().into());
 
     // Collection behavior for hidden state:
     // - Stationary: don't participate in Exposé
@@ -241,8 +237,7 @@ pub fn platform_hide_preview(app: &tauri::AppHandle) {
 /// Write raw image bytes directly to NSPasteboard, bypassing decode→encode cycle.
 /// Reads the PNG file from disk and writes it directly as NSPasteboardTypePNG.
 pub fn platform_write_image_to_pasteboard(path: &str) -> Result<(), String> {
-    let bytes = std::fs::read(path)
-        .map_err(|e| format!("Failed to read image file: {}", e))?;
+    let bytes = std::fs::read(path).map_err(|e| format!("Failed to read image file: {}", e))?;
 
     use objc2::runtime::ProtocolObject;
     use objc2_app_kit::{NSPasteboard, NSPasteboardItem, NSPasteboardTypePNG, NSPasteboardWriting};

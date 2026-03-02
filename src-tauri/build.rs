@@ -23,10 +23,8 @@ fn main() {
         if needs_write {
             std::fs::write(&updater_cap, content).expect("Failed to write updater capability");
         }
-    } else {
-        if updater_cap.exists() {
-            let _ = std::fs::remove_file(&updater_cap);
-        }
+    } else if updater_cap.exists() {
+        let _ = std::fs::remove_file(&updater_cap);
     }
 
     tauri_build::build()
