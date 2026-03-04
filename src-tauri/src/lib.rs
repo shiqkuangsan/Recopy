@@ -556,7 +556,17 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
                     }
                     let app_inner = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
-                        hide_main_window(&app_inner);
+                        let should_hide = if let Some(pool) = app_inner.try_state::<db::DbPool>() {
+                            db::queries::get_setting(&pool.0, "close_on_blur")
+                                .await
+                                .unwrap_or(None)
+                                .unwrap_or_else(|| "true".to_string())
+                        } else {
+                            "true".to_string()
+                        };
+                        if should_hide == "true" {
+                            hide_main_window(&app_inner);
+                        }
                     });
                 }
             });
