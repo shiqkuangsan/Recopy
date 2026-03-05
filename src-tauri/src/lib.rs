@@ -509,24 +509,65 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
 
     #[cfg(not(target_os = "macos"))]
     {
+        // Main window focus events:
+        // - Focused(true):  clear preview guard (focus dance complete after show+set_focus)
+        // - Focused(false): hide unless guard is active (preview opening stole focus briefly)
         if let Some(window) = app.get_webview_window("main") {
             let w = window.clone();
-            window.on_window_event(move |event| {
-                if let tauri::WindowEvent::Focused(false) = event {
-                    let app_handle = w.app_handle();
-                    let should_hide = tauri::async_runtime::block_on(async {
-                        if let Some(pool) = app_handle.try_state::<db::DbPool>() {
+            window.on_window_event(move |event| match event {
+                tauri::WindowEvent::Focused(true) => {
+                    platform::set_preview_focus_guard(false);
+                }
+                tauri::WindowEvent::Focused(false) => {
+                    if platform::is_preview_focus_guard() {
+                        return;
+                    }
+                    let app_handle = w.app_handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        let should_hide = if let Some(pool) = app_handle.try_state::<db::DbPool>() {
                             db::queries::get_setting(&pool.0, "close_on_blur")
                                 .await
                                 .unwrap_or(None)
                                 .unwrap_or_else(|| "true".to_string())
                         } else {
                             "true".to_string()
+                        };
+                        if should_hide == "true" {
+                            hide_main_window(&app_handle);
                         }
                     });
-                    if should_hide == "true" {
-                        let _ = w.hide();
+                }
+                _ => {}
+            });
+        }
+
+        // Preview window blur (safety net): if preview somehow gets focus
+        // (e.g. user clicks on it), close all when it loses focus.
+        // Guard check prevents firing during the show+set_focus dance.
+        if let Some(preview) = app.get_webview_window("preview") {
+            let app_handle = app.clone();
+            preview.on_window_event(move |event| {
+                if let tauri::WindowEvent::Focused(false) = event {
+                    if platform::is_preview_focus_guard() {
+                        return;
                     }
+                    if platform::take_preview_programmatic_hide() {
+                        return;
+                    }
+                    let app_inner = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let should_hide = if let Some(pool) = app_inner.try_state::<db::DbPool>() {
+                            db::queries::get_setting(&pool.0, "close_on_blur")
+                                .await
+                                .unwrap_or(None)
+                                .unwrap_or_else(|| "true".to_string())
+                        } else {
+                            "true".to_string()
+                        };
+                        if should_hide == "true" {
+                            hide_main_window(&app_inner);
+                        }
+                    });
                 }
             });
         }

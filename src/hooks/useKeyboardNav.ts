@@ -6,6 +6,10 @@ import { useCopyHud } from "../components/CopyHud";
 import { pasteItem, copyToClipboard } from "../lib/paste";
 import { dateGroupLabel } from "../lib/time";
 
+// Module-level preview state for cross-component access.
+// Set in openPreview/closePreview, reset on recopy-hide.
+export const previewState = { open: false };
+
 export function useKeyboardNav() {
   const items = useClipboardStore((s) => s.items);
   const selectedIndex = useClipboardStore((s) => s.selectedIndex);
@@ -33,11 +37,13 @@ export function useKeyboardNav() {
 
   const openPreview = useCallback((id: string) => {
     previewOpenRef.current = true;
+    previewState.open = true;
     invoke("show_preview_window", { id });
   }, []);
 
   const closePreview = useCallback(() => {
     previewOpenRef.current = false;
+    previewState.open = false;
     invoke("animate_close_preview");
   }, []);
 
@@ -201,14 +207,18 @@ export function useKeyboardNav() {
     }
   }, [selectedItemId, updatePreview]);
 
-  // Reset preview state when panel hides (blur)
+  // Reset preview state when the panel actually hides (Rust emits recopy-hide).
+  // Using recopy-hide instead of tauri://blur avoids false resets during the
+  // Windows focus dance (preview.show + main.set_focus causes a brief blur).
   useEffect(() => {
-    const unlisten = listen("tauri://blur", () => {
+    const unlisten = listen("recopy-hide", () => {
       previewOpenRef.current = false;
+      previewState.open = false;
     });
     return () => {
       unlisten.then((fn) => fn());
       previewOpenRef.current = false;
+      previewState.open = false;
     };
   }, []);
 }

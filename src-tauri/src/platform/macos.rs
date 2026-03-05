@@ -255,6 +255,15 @@ pub fn platform_write_image_to_pasteboard(path: &str) -> Result<(), String> {
     Ok(())
 }
 
+// No-ops on macOS: NSPanel is non-activating, so preview never steals focus.
+pub fn is_preview_focus_guard() -> bool {
+    false
+}
+pub fn set_preview_focus_guard(_val: bool) {}
+pub fn take_preview_programmatic_hide() -> bool {
+    false
+}
+
 /// Resign key window status without hiding.
 /// This returns keyboard focus to the previously active app
 /// so that simulate_paste() sends Cmd+V to the correct target.
