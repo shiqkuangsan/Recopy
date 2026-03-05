@@ -256,10 +256,14 @@ pub fn platform_write_image_to_pasteboard(path: &str) -> Result<(), String> {
 }
 
 // No-ops on macOS: NSPanel is non-activating, so preview never steals focus.
+// Called via `platform::*` re-export in lib.rs; compiler cannot trace glob re-exports.
+#[allow(dead_code)]
 pub fn is_preview_focus_guard() -> bool {
     false
 }
+#[allow(dead_code)]
 pub fn set_preview_focus_guard(_val: bool) {}
+#[allow(dead_code)]
 pub fn take_preview_programmatic_hide() -> bool {
     false
 }
