@@ -94,21 +94,18 @@ export function ClipboardList() {
       {/* Spacer at scroll-end for reversed mode (visually at top due to flex-col-reverse) */}
       {isReversed && <div className="shrink-0 h-4" />}
       {groups.map((group, groupIdx) => (
-        <div
-          key={group.label}
-          className={
-            isVertical
-              ? `mb-2 ${groupIdx > 0 ? "mt-2 pt-2 border-t border-border/30" : ""}`
-              : "mb-1"
-          }
-        >
+        <div key={group.label} className={isVertical ? (groupIdx > 0 ? "mt-2" : "") : "mb-1"}>
           <div
-            className={`text-xs font-medium text-muted-foreground px-1 ${isVertical ? "py-1.5 sticky top-0 z-10 bg-background/90 backdrop-blur-sm" : "py-1"}`}
+            className={`text-xs font-medium ${
+              isVertical
+                ? "px-5 py-2 sticky top-0 z-10 bg-muted/50 backdrop-blur-md text-muted-foreground/80 border-b border-border/15"
+                : "px-5 py-1 text-muted-foreground"
+            }`}
           >
             {t(group.label)}
           </div>
           {isVertical ? (
-            <div className="flex flex-col gap-3 pb-1">
+            <div className="flex flex-col gap-3 pb-1 px-5">
               {group.items.map(({ item, flatIndex }) => (
                 <div
                   key={item.id}
@@ -124,7 +121,7 @@ export function ClipboardList() {
               ))}
             </div>
           ) : (
-            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1" onWheel={onRowWheel}>
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-5" onWheel={onRowWheel}>
               {group.items.map(({ item, flatIndex }) => (
                 <div
                   key={item.id}
