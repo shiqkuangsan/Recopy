@@ -26,14 +26,10 @@ export function ImageCard({ item, selected, onClick }: ImageCardProps) {
       className={`relative flex flex-col gap-1.5 rounded-lg border p-2.5 cursor-pointer transition-colors h-full overflow-hidden
         ${selected ? "border-primary bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >
-      {item.is_favorited && (
-        <Star
-          className="absolute top-2 right-2 text-yellow-500 z-10 group-hover:hidden"
-          size={14}
-          fill="currentColor"
-        />
-      )}
-      <div className="flex items-center gap-1.5 text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-muted-foreground pr-5">
+        {item.is_favorited && (
+          <Star className="text-yellow-500 shrink-0" size={14} fill="currentColor" />
+        )}
         <ImageIcon size={13} />
         <span className="text-sm">{t("card.image")}</span>
         <span className="text-sm ml-auto">{formatSize(item.content_size)}</span>
