@@ -101,56 +101,65 @@ export function ClipboardList() {
       {isReversed && <div className="shrink-0 h-4" />}
       {groups.map((group, groupIdx) => (
         <div key={group.label} className={isVertical ? (groupIdx > 0 ? "mt-2" : "") : "mb-1"}>
-          <div
-            className={`text-xs font-medium ${
-              isVertical
-                ? "px-5 py-2 sticky top-0 z-10 bg-muted/50 backdrop-blur-md text-muted-foreground/80 border-b border-border/15 cursor-pointer select-none"
-                : "px-5 py-1 text-muted-foreground"
-            }`}
-            onClick={
-              isVertical
-                ? (e) =>
-                    e.currentTarget.parentElement?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    })
-                : undefined
-            }
-          >
-            {t(group.label)}
-          </div>
           {isVertical ? (
-            <div className="flex flex-col gap-3 pb-1 px-5">
-              {group.items.map(({ item, flatIndex }) => (
-                <div
-                  key={item.id}
-                  ref={flatIndex === selectedIndex ? selectedRef : undefined}
-                  className="w-full h-[180px]"
-                >
-                  <ClipboardCard
-                    item={item}
-                    selected={flatIndex === selectedIndex}
-                    onClick={() => setSelectedIndex(flatIndex)}
-                  />
-                </div>
-              ))}
-            </div>
+            <>
+              <div
+                className="px-5 py-2 sticky top-0 z-10 bg-muted/50 backdrop-blur-md text-muted-foreground/80 border-b border-border/15 text-xs font-medium cursor-pointer select-none"
+                onClick={(e) =>
+                  e.currentTarget.parentElement?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  })
+                }
+              >
+                {t(group.label)}
+              </div>
+              <div className="flex flex-col gap-3 pb-1 px-5">
+                {group.items.map(({ item, flatIndex }) => (
+                  <div
+                    key={item.id}
+                    ref={flatIndex === selectedIndex ? selectedRef : undefined}
+                    className="w-full h-[180px]"
+                  >
+                    <ClipboardCard
+                      item={item}
+                      selected={flatIndex === selectedIndex}
+                      onClick={() => setSelectedIndex(flatIndex)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
-            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-5" onWheel={onRowWheel}>
-              {group.items.map(({ item, flatIndex }) => (
-                <div
-                  key={item.id}
-                  ref={flatIndex === selectedIndex ? selectedRef : undefined}
-                  className="shrink-0 w-[300px] h-[260px]"
-                >
-                  <ClipboardCard
-                    item={item}
-                    selected={flatIndex === selectedIndex}
-                    onClick={() => setSelectedIndex(flatIndex)}
-                  />
-                </div>
-              ))}
-            </div>
+            <>
+              <div
+                className="px-5 py-1 text-muted-foreground text-xs font-medium cursor-pointer select-none"
+                onClick={(e) => {
+                  const row = e.currentTarget.nextElementSibling as HTMLElement | null;
+                  row?.scrollTo({ left: 0, behavior: "smooth" });
+                }}
+              >
+                {t(group.label)}
+              </div>
+              <div
+                className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-5"
+                onWheel={onRowWheel}
+              >
+                {group.items.map(({ item, flatIndex }) => (
+                  <div
+                    key={item.id}
+                    ref={flatIndex === selectedIndex ? selectedRef : undefined}
+                    className="shrink-0 w-[300px] h-[260px]"
+                  >
+                    <ClipboardCard
+                      item={item}
+                      selected={flatIndex === selectedIndex}
+                      onClick={() => setSelectedIndex(flatIndex)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       ))}
