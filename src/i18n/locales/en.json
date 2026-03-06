@@ -67,6 +67,12 @@
       "languageDesc": "Choose display language",
       "closeOnBlur": "Hide on Focus Loss",
       "closeOnBlurDesc": "Hide the window when it loses focus",
+      "panelPosition": "Panel Position",
+      "panelPositionDesc": "Where the panel appears on screen",
+      "posBottom": "Bottom",
+      "posTop": "Top",
+      "posLeft": "Left",
+      "posRight": "Right",
       "pressKeys": "Press keys..."
     },
     "history": {

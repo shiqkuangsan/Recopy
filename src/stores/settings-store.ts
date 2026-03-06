@@ -19,6 +19,7 @@ export interface Settings {
   max_item_size_mb: string;
   close_on_blur: string;
   update_check_interval: string;
+  panel_position: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -32,12 +33,14 @@ const DEFAULT_SETTINGS: Settings = {
   max_item_size_mb: "10",
   close_on_blur: "true",
   update_check_interval: "weekly",
+  panel_position: "bottom",
 };
 
 export interface ShowEventPayload {
   theme?: string;
   language?: string;
   update_check_interval?: string;
+  panel_position?: string;
 }
 
 interface SettingsState {
@@ -89,6 +92,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         max_item_size_mb: raw.max_item_size_mb ?? DEFAULT_SETTINGS.max_item_size_mb,
         close_on_blur: raw.close_on_blur ?? DEFAULT_SETTINGS.close_on_blur,
         update_check_interval: raw.update_check_interval ?? DEFAULT_SETTINGS.update_check_interval,
+        panel_position: raw.panel_position ?? DEFAULT_SETTINGS.panel_position,
       };
       set({ settings, loaded: true });
       applyTheme(settings.theme);
@@ -132,7 +136,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
 
   syncSettingsFromEvent: (payload: ShowEventPayload) => {
-    const { theme, language, update_check_interval } = payload;
+    const { theme, language, update_check_interval, panel_position } = payload;
     if (theme) {
       applyTheme(theme as Theme);
       set((state) => ({
@@ -148,6 +152,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     if (update_check_interval) {
       set((state) => ({
         settings: { ...state.settings, update_check_interval },
+      }));
+    }
+    if (panel_position) {
+      set((state) => ({
+        settings: { ...state.settings, panel_position },
       }));
     }
   },

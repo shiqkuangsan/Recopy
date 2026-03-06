@@ -20,6 +20,10 @@ import {
   RefreshCw,
   Download,
   RotateCcw,
+  PanelBottom,
+  PanelTop,
+  PanelLeft,
+  PanelRight,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -158,6 +162,30 @@ function GeneralSettings({
         <Switch
           checked={settings.close_on_blur === "true"}
           onCheckedChange={(v) => updateSetting("close_on_blur", v ? "true" : "false")}
+        />
+      </SettingRow>
+
+      <SettingRow
+        label={t("settings.general.panelPosition")}
+        description={t("settings.general.panelPositionDesc")}
+      >
+        <SegmentedControl
+          value={settings.panel_position}
+          options={[
+            {
+              value: "bottom",
+              icon: <PanelBottom size={13} />,
+              label: t("settings.general.posBottom"),
+            },
+            { value: "top", icon: <PanelTop size={13} />, label: t("settings.general.posTop") },
+            { value: "left", icon: <PanelLeft size={13} />, label: t("settings.general.posLeft") },
+            {
+              value: "right",
+              icon: <PanelRight size={13} />,
+              label: t("settings.general.posRight"),
+            },
+          ]}
+          onChange={(v) => updateSetting("panel_position", v)}
         />
       </SettingRow>
     </div>

@@ -67,6 +67,12 @@
       "languageDesc": "选择显示语言",
       "closeOnBlur": "失焦隐藏",
       "closeOnBlurDesc": "窗口失去焦点时自动隐藏",
+      "panelPosition": "面板位置",
+      "panelPositionDesc": "面板弹出的屏幕位置",
+      "posBottom": "底部",
+      "posTop": "顶部",
+      "posLeft": "左侧",
+      "posRight": "右侧",
       "pressKeys": "按下快捷键..."
     },
     "history": {
