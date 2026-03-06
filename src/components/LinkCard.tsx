@@ -73,7 +73,11 @@ export function LinkCard({ item, selected, onClick }: LinkCardProps) {
         ${selected ? "border-primary bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >
       {item.is_favorited && (
-        <Star className="absolute top-2 right-2 text-yellow-500" size={14} fill="currentColor" />
+        <Star
+          className="absolute top-2 right-2 text-yellow-500 group-hover:hidden"
+          size={14}
+          fill="currentColor"
+        />
       )}
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <Globe size={13} />

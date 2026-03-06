@@ -46,7 +46,7 @@ export function FileCard({ item, selected, onClick }: FileCardProps) {
     >
       {item.is_favorited && (
         <Star
-          className="absolute top-2 right-2 text-yellow-500 z-10"
+          className="absolute top-2 right-2 text-yellow-500 z-10 group-hover:hidden"
           size={14}
           fill="currentColor"
         />
