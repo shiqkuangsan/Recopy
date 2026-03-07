@@ -96,8 +96,10 @@
         </div>
       </div>
       <p class="hero-note">
-        <span data-en="macOS note: Not yet code-signed. Right-click → Open on first launch." data-zh="macOS 提示：尚未代码签名，首次启动需右键 → 打开。">macOS note: Not yet code-signed. Right-click → Open on first launch.</span>
-        <a href="https://github.com/shiqkuangsan/Recopy/blob/main/docs/macos-unsigned-app.md" target="_blank" data-en="Learn more →" data-zh="了解更多 →">Learn more →</a>
+        <span data-en="macOS note: Not yet code-signed. Run" data-zh="macOS 提示：尚未代码签名，运行">macOS note: Not yet code-signed. Run</span>
+        <code class="hero-note-cmd" onclick="copyCmd(this)">xattr -d com.apple.quarantine /Applications/Recopy.app</code>
+        <span data-en="on first launch." data-zh="即可启动。">on first launch.</span>
+        <a href="https://github.com/shiqkuangsan/Recopy/blob/main/docs/macos-unsigned-app.md" target="_blank" data-en="Details →" data-zh="详情 →">Details →</a>
       </p>
     </div>
   </section>

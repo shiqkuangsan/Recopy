@@ -329,6 +329,12 @@ function copyBrew(el, type) {
   setTimeout(() => el.classList.remove('copied'), 1200);
 }
 
+function copyCmd(el) {
+  navigator.clipboard.writeText(el.textContent);
+  el.classList.add('copied');
+  setTimeout(() => el.classList.remove('copied'), 1200);
+}
+
 // ============================================================
 // Lightbox
 // ============================================================
