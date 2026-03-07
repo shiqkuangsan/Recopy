@@ -292,12 +292,24 @@ function detectPlatform() {
   return 'other';
 }
 
+function getDownloadUrl(platform) {
+  if (platform === 'windows') return '/download/windows';
+  if (platform === 'macos') return '/download/macos';
+  return 'https://github.com/shiqkuangsan/Recopy/releases';
+}
+
 function updateDownloadButtons() {
   const platform = detectPlatform();
+  const downloadUrl = getDownloadUrl(platform);
   const downloadBtn = document.getElementById('download-btn');
   const heroBtn = document.getElementById('hero-download-btn');
   const heroSpan = heroBtn ? heroBtn.querySelector('span[data-en]') : null;
   const ctaBtn = document.getElementById('cta-download-btn');
+
+  // Update download URLs to use CF proxy
+  if (downloadBtn) downloadBtn.href = downloadUrl;
+  if (heroBtn) heroBtn.href = downloadUrl;
+  if (ctaBtn) ctaBtn.href = downloadUrl;
 
   if (platform === 'windows') {
     if (downloadBtn) {
@@ -313,8 +325,6 @@ function updateDownloadButtons() {
       ctaBtn.setAttribute('data-zh', '下载 Windows 版');
     }
   }
-  // macOS is the default text, no change needed
-  // 'other' also uses generic text
 }
 
 // ============================================================

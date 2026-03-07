@@ -29,6 +29,9 @@ Thumbs.db
 # TypeScript build cache
 tsconfig.tsbuildinfo
 
+# Cloudflare
+.wrangler/
+
 # Local task tracking
 todos/
 CLAUDE.local.md

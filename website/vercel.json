@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/download/:platform",
+      "destination": "https://recopy.pages.dev/download/:platform",
+      "statusCode": 302
+    }
+  ]
+}

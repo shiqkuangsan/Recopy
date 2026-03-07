@@ -258,8 +258,35 @@ a {
   flex-wrap: wrap;
 }
 
-.hero-brew {
+.hero-alt-download {
   margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+.hero-alt-download a {
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--text-secondary);
+  transition: color 0.15s;
+}
+.hero-alt-download a:hover {
+  color: var(--primary);
+  text-decoration-color: var(--primary);
+}
+.hero-alt-sep {
+  color: var(--text-secondary);
+  opacity: 0.4;
+}
+
+.hero-brew {
+  margin-top: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
