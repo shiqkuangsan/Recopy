@@ -103,9 +103,10 @@ export function useKeyboardNav() {
 
       // --- Card navigation mode (input NOT focused) ---
 
-      // Space: toggle preview
+      // Space: toggle preview (ignore key repeat from holding down)
       if (e.key === " ") {
         e.preventDefault();
+        if (e.repeat) return;
         if (previewOpenRef.current) {
           closePreview();
         } else if (items[selectedIndex]) {
