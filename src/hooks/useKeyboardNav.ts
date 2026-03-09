@@ -19,19 +19,21 @@ export function useKeyboardNav() {
   const isVertical = panelPosition === "left" || panelPosition === "right";
   const previewOpenRef = useRef(false);
 
-  // Compute the first flat-index of each date group for up/down navigation.
-  const groupStartIndices = useMemo(() => {
-    const starts: number[] = [];
+  // Build group info for T/B cross-group navigation (up/down preserves column position).
+  const groupInfo = useMemo(() => {
+    if (isVertical) return null;
+    const groups: { start: number; length: number }[] = [];
     let lastLabel = "";
     items.forEach((item, i) => {
       const label = dateGroupLabel(item.updated_at);
       if (label !== lastLabel) {
-        starts.push(i);
+        groups.push({ start: i, length: 0 });
         lastLabel = label;
       }
+      groups[groups.length - 1].length++;
     });
-    return starts;
-  }, [items]);
+    return groups;
+  }, [items, isVertical]);
 
   const itemsRef = useRef(items);
   useEffect(() => {
@@ -164,14 +166,16 @@ export function useKeyboardNav() {
           if (isVertical) {
             // Linear: move to next card
             setSelectedIndex(Math.min(selectedIndex + 1, items.length - 1));
-          } else {
-            // Jump to the first item of the next date group
-            const curGroup = groupStartIndices.findIndex((start, i) => {
-              const nextStart = groupStartIndices[i + 1] ?? items.length;
-              return selectedIndex >= start && selectedIndex < nextStart;
-            });
-            if (curGroup >= 0 && curGroup < groupStartIndices.length - 1) {
-              setSelectedIndex(groupStartIndices[curGroup + 1]);
+          } else if (groupInfo) {
+            // T/B: jump to next group, preserving column position (clamped)
+            const curGroupIdx = groupInfo.findIndex(
+              (g) => selectedIndex >= g.start && selectedIndex < g.start + g.length,
+            );
+            if (curGroupIdx >= 0 && curGroupIdx < groupInfo.length - 1) {
+              const columnIndex = selectedIndex - groupInfo[curGroupIdx].start;
+              const nextGroup = groupInfo[curGroupIdx + 1];
+              const targetCol = Math.min(columnIndex, nextGroup.length - 1);
+              setSelectedIndex(nextGroup.start + targetCol);
             }
           }
           break;
@@ -185,15 +189,17 @@ export function useKeyboardNav() {
             } else {
               document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
             }
-          } else {
-            // Jump to the first item of the previous date group
-            const curGrp = groupStartIndices.findIndex((start, i) => {
-              const nextStart = groupStartIndices[i + 1] ?? items.length;
-              return selectedIndex >= start && selectedIndex < nextStart;
-            });
-            if (curGrp > 0) {
-              setSelectedIndex(groupStartIndices[curGrp - 1]);
-            } else if (curGrp === 0) {
+          } else if (groupInfo) {
+            // T/B: jump to previous group, preserving column position (clamped)
+            const curGroupIdx = groupInfo.findIndex(
+              (g) => selectedIndex >= g.start && selectedIndex < g.start + g.length,
+            );
+            if (curGroupIdx > 0) {
+              const columnIndex = selectedIndex - groupInfo[curGroupIdx].start;
+              const prevGroup = groupInfo[curGroupIdx - 1];
+              const targetCol = Math.min(columnIndex, prevGroup.length - 1);
+              setSelectedIndex(prevGroup.start + targetCol);
+            } else if (curGroupIdx === 0) {
               // Already at first group — focus search input
               document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
             }
@@ -213,15 +219,7 @@ export function useKeyboardNav() {
         }
       }
     },
-    [
-      items,
-      selectedIndex,
-      setSelectedIndex,
-      groupStartIndices,
-      isVertical,
-      openPreview,
-      closePreview,
-    ],
+    [items, selectedIndex, setSelectedIndex, groupInfo, isVertical, openPreview, closePreview],
   );
 
   useEffect(() => {

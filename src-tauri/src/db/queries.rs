@@ -73,7 +73,7 @@ pub async fn get_items(
     let items = if let Some(ct) = content_type {
         sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(
             "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE content_type = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?",
+             FROM clipboard_items WHERE content_type = ? ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?",
         )
         .bind(ct)
         .bind(limit)
@@ -83,7 +83,7 @@ pub async fn get_items(
     } else {
         sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(
             "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items ORDER BY updated_at DESC LIMIT ? OFFSET ?",
+             FROM clipboard_items ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?",
         )
         .bind(limit)
         .bind(offset)
@@ -225,7 +225,7 @@ pub async fn get_retention_overflow_image_paths(
                    AND id NOT IN (
                        SELECT id FROM clipboard_items
                        WHERE is_favorited = 0
-                       ORDER BY updated_at DESC
+                       ORDER BY updated_at DESC, id DESC
                        LIMIT ?
                    )
                    AND image_path IS NOT NULL",
@@ -313,13 +313,13 @@ pub async fn search_items(
     let sql = if content_type.is_some() {
         format!(
             "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE id IN ({}) AND content_type = ?{} ORDER BY updated_at DESC",
+             FROM clipboard_items WHERE id IN ({}) AND content_type = ?{} ORDER BY updated_at DESC, id DESC",
             placeholders, fav_filter
         )
     } else {
         format!(
             "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE id IN ({}){} ORDER BY updated_at DESC",
+             FROM clipboard_items WHERE id IN ({}){} ORDER BY updated_at DESC, id DESC",
             placeholders, fav_filter
         )
     };
@@ -404,13 +404,13 @@ async fn search_items_like(
     let sql = if let Some(_ct) = content_type {
         format!(
             "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE {} AND content_type = ?{} ORDER BY updated_at DESC LIMIT ?",
+             FROM clipboard_items WHERE {} AND content_type = ?{} ORDER BY updated_at DESC, id DESC LIMIT ?",
             where_clause, fav_filter
         )
     } else {
         format!(
             "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE {}{} ORDER BY updated_at DESC LIMIT ?",
+             FROM clipboard_items WHERE {}{} ORDER BY updated_at DESC, id DESC LIMIT ?",
             where_clause, fav_filter
         )
     };
@@ -504,10 +504,10 @@ pub async fn get_favorited_items(
 ) -> Result<Vec<super::models::ClipboardItem>, sqlx::Error> {
     let sql = if content_type.is_some() {
         "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-         FROM clipboard_items WHERE is_favorited = 1 AND content_type = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?"
+         FROM clipboard_items WHERE is_favorited = 1 AND content_type = ? ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
     } else {
         "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-         FROM clipboard_items WHERE is_favorited = 1 ORDER BY updated_at DESC LIMIT ? OFFSET ?"
+         FROM clipboard_items WHERE is_favorited = 1 ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
     };
 
     let items = if let Some(ct) = content_type {
@@ -685,7 +685,7 @@ pub async fn cleanup_by_retention(
                 "DELETE FROM clipboard_fts WHERE item_id IN (
                     SELECT id FROM clipboard_items
                     WHERE is_favorited = 0
-                    ORDER BY updated_at DESC
+                    ORDER BY updated_at DESC, id DESC
                     LIMIT -1 OFFSET ?
                 )",
             )
@@ -697,7 +697,7 @@ pub async fn cleanup_by_retention(
                 "DELETE FROM item_groups WHERE item_id IN (
                     SELECT id FROM clipboard_items
                     WHERE is_favorited = 0
-                    ORDER BY updated_at DESC
+                    ORDER BY updated_at DESC, id DESC
                     LIMIT -1 OFFSET ?
                 )",
             )
@@ -709,7 +709,7 @@ pub async fn cleanup_by_retention(
                 "DELETE FROM clipboard_items WHERE is_favorited = 0 AND id NOT IN (
                     SELECT id FROM clipboard_items
                     WHERE is_favorited = 0
-                    ORDER BY updated_at DESC
+                    ORDER BY updated_at DESC, id DESC
                     LIMIT ?
                 )",
             )
