@@ -1002,7 +1002,7 @@ mod tests {
         assert_eq!(shortcut, Some("CommandOrControl+Shift+V".to_string()));
 
         let theme = get_setting(&pool, "theme").await.unwrap();
-        assert_eq!(theme, Some("dark".to_string()));
+        assert_eq!(theme, Some("system".to_string()));
 
         // Update setting
         set_setting(&pool, "theme", "light").await.unwrap();

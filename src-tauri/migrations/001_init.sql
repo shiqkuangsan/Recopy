@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS settings (
 INSERT OR IGNORE INTO settings (key, value) VALUES
     ('shortcut', 'CommandOrControl+Shift+V'),
     ('auto_start', 'false'),
-    ('theme', 'system'),
+    ('theme', 'dark'),
     ('language', 'system'),
     ('retention_policy', 'unlimited'),
     ('retention_days', '0'),

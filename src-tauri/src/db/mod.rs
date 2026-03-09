@@ -230,7 +230,7 @@ mod tests {
             .fetch_one(&pool)
             .await
             .unwrap();
-        assert_eq!(theme.0, "dark");
+        assert_eq!(theme.0, "system");
 
         let max_size: (String,) =
             sqlx::query_as("SELECT value FROM settings WHERE key = 'max_item_size_mb'")
