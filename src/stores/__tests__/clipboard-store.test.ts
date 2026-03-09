@@ -59,7 +59,7 @@ describe("useClipboardStore", () => {
 
     expect(mockedInvoke).toHaveBeenCalledWith("get_clipboard_items", {
       contentType: undefined,
-      limit: 200,
+      limit: 500,
       offset: 0,
     });
     expect(useClipboardStore.getState().items).toEqual(items);
@@ -74,7 +74,7 @@ describe("useClipboardStore", () => {
 
     expect(mockedInvoke).toHaveBeenCalledWith("get_clipboard_items", {
       contentType: "image",
-      limit: 200,
+      limit: 500,
       offset: 0,
     });
   });
@@ -88,7 +88,7 @@ describe("useClipboardStore", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("search_clipboard_items", {
       query: "Hello",
       contentType: undefined,
-      limit: 200,
+      limit: 500,
       favoritesOnly: false,
     });
     expect(useClipboardStore.getState().items).toEqual(items);
@@ -134,7 +134,7 @@ describe("useClipboardStore", () => {
     expect(useClipboardStore.getState().items).toEqual(pinItems);
     expect(mockedInvoke).toHaveBeenCalledWith("get_favorited_items", {
       contentType: undefined,
-      limit: 200,
+      limit: 500,
       offset: 0,
     });
   });

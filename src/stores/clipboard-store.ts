@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import type { ClipboardItem, FilterType, ViewMode } from "../lib/types";
 
+const DEFAULT_PAGE_SIZE = 500;
+
 interface ClipboardState {
   items: ClipboardItem[];
   loading: boolean;
@@ -79,7 +81,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
         const contentType: string | undefined = filterType === "all" ? undefined : filterType;
         const items = await invoke<ClipboardItem[]>("get_clipboard_items", {
           contentType,
-          limit: 200,
+          limit: DEFAULT_PAGE_SIZE,
           offset: 0,
         });
         if (!isLatestRequest(requestToken)) return;
@@ -100,7 +102,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
         const items = await invoke<ClipboardItem[]>("search_clipboard_items", {
           query,
           contentType,
-          limit: 200,
+          limit: DEFAULT_PAGE_SIZE,
           favoritesOnly: viewMode === "pins",
         });
         if (!isLatestRequest(requestToken)) return;
@@ -147,7 +149,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
         const contentType: string | undefined = filterType === "all" ? undefined : filterType;
         const items = await invoke<ClipboardItem[]>("get_favorited_items", {
           contentType,
-          limit: 200,
+          limit: DEFAULT_PAGE_SIZE,
           offset: 0,
         });
         if (!isLatestRequest(requestToken)) return;
