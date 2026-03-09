@@ -1,0 +1,49 @@
+{
+  "hooks": {
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/notify-openclaw.sh"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt|permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/notify-openclaw.sh"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/notify-openclaw.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/notify-openclaw.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
