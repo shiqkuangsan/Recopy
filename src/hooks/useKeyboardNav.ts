@@ -106,7 +106,11 @@ export function useKeyboardNav() {
 
       // --- Input focused: only intercept keys that exit input ---
       if (isInInput) {
-        if (e.key === "ArrowDown" || e.key === "Escape") {
+        if (
+          e.key === "Escape" ||
+          (e.key === "ArrowDown" && panelPosition !== "top") ||
+          (e.key === "ArrowUp" && panelPosition === "top")
+        ) {
           e.preventDefault();
           (target as HTMLElement).blur();
           return;
@@ -186,15 +190,22 @@ export function useKeyboardNav() {
             // Linear: move to next card
             setSelectedIndex(Math.min(selectedIndex + 1, items.length - 1));
           } else if (groupInfo) {
-            // T/B: jump to next group, preserving column position (clamped)
+            // T/B: jump to visually lower group, preserving column position.
+            // Top mode (flex-col-reverse): visually down = previous group (lower index).
+            // Bottom mode: visually down = next group (higher index).
+            const isReversed = panelPosition === "top";
             const curGroupIdx = groupInfo.findIndex(
               (g) => selectedIndex >= g.start && selectedIndex < g.start + g.length,
             );
-            if (curGroupIdx >= 0 && curGroupIdx < groupInfo.length - 1) {
+            const targetGroupIdx = isReversed ? curGroupIdx - 1 : curGroupIdx + 1;
+            if (targetGroupIdx >= 0 && targetGroupIdx < groupInfo.length) {
               const columnIndex = selectedIndex - groupInfo[curGroupIdx].start;
-              const nextGroup = groupInfo[curGroupIdx + 1];
-              const targetCol = Math.min(columnIndex, nextGroup.length - 1);
-              setSelectedIndex(nextGroup.start + targetCol);
+              const targetGroup = groupInfo[targetGroupIdx];
+              const targetCol = Math.min(columnIndex, targetGroup.length - 1);
+              setSelectedIndex(targetGroup.start + targetCol);
+            } else if (isReversed && targetGroupIdx < 0) {
+              // Top mode: reached visual bottom (Today) — focus search input
+              document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
             }
           }
           break;
@@ -209,17 +220,21 @@ export function useKeyboardNav() {
               document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
             }
           } else if (groupInfo) {
-            // T/B: jump to previous group, preserving column position (clamped)
+            // T/B: jump to visually upper group, preserving column position.
+            // Top mode: visually up = next group (higher index).
+            // Bottom mode: visually up = previous group (lower index).
+            const isReversed = panelPosition === "top";
             const curGroupIdx = groupInfo.findIndex(
               (g) => selectedIndex >= g.start && selectedIndex < g.start + g.length,
             );
-            if (curGroupIdx > 0) {
+            const targetGroupIdx = isReversed ? curGroupIdx + 1 : curGroupIdx - 1;
+            if (targetGroupIdx >= 0 && targetGroupIdx < groupInfo.length) {
               const columnIndex = selectedIndex - groupInfo[curGroupIdx].start;
-              const prevGroup = groupInfo[curGroupIdx - 1];
-              const targetCol = Math.min(columnIndex, prevGroup.length - 1);
-              setSelectedIndex(prevGroup.start + targetCol);
-            } else if (curGroupIdx === 0) {
-              // Already at first group — focus search input
+              const targetGroup = groupInfo[targetGroupIdx];
+              const targetCol = Math.min(columnIndex, targetGroup.length - 1);
+              setSelectedIndex(targetGroup.start + targetCol);
+            } else if (targetGroupIdx < 0) {
+              // Reached visual top — focus search input
               document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
             }
           }
@@ -238,7 +253,16 @@ export function useKeyboardNav() {
         }
       }
     },
-    [items, selectedIndex, setSelectedIndex, groupInfo, isVertical, openPreview, closePreview],
+    [
+      items,
+      selectedIndex,
+      setSelectedIndex,
+      groupInfo,
+      isVertical,
+      panelPosition,
+      openPreview,
+      closePreview,
+    ],
   );
 
   useEffect(() => {
