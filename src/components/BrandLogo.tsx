@@ -226,7 +226,7 @@ export function BrandLogo() {
 
       <span
         className={[
-          "relative z-10 inline-block text-base font-bold tracking-tight transition-transform duration-200",
+          "relative z-10 inline-block text-base font-bold tracking-tight transition-all duration-300 hover:tracking-wide hover:opacity-100",
           pulse && !ascensionMode ? "scale-105" : "scale-100",
           textColorClass,
         ]
