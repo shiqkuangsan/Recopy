@@ -258,16 +258,84 @@ async fn write_to_clipboard(
 fn simulate_paste() {
     #[cfg(target_os = "macos")]
     {
-        // Small delay to let clipboard settle
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        let _ = Command::new("osascript")
-            .arg("-e")
-            .arg("tell application \"System Events\" to keystroke \"v\" using command down")
-            .output();
+        simulate_paste_cgevent();
     }
     #[cfg(target_os = "windows")]
     {
         crate::platform::simulate_paste_keys();
+    }
+}
+
+/// Simulate Cmd+V using macOS CGEvent API (CoreGraphics).
+/// Much faster than osascript: no process spawn, no interpreter overhead.
+/// Requires Accessibility permission (already granted for global shortcuts).
+#[cfg(target_os = "macos")]
+fn simulate_paste_cgevent() {
+    use std::ffi::c_void;
+
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGEventCreateKeyboardEvent(
+            source: *const c_void,
+            virtual_key: u16,
+            key_down: bool,
+        ) -> *mut c_void;
+        fn CGEventPost(tap: u32, event: *const c_void);
+        fn CGEventSetFlags(event: *mut c_void, flags: u64);
+    }
+
+    extern "C" {
+        fn CFRelease(cf: *const c_void);
+    }
+
+    const VK_COMMAND: u16 = 0x37;
+    const VK_ANSI_V: u16 = 0x09;
+    const CG_HID_EVENT_TAP: u32 = 0;
+    const CG_EVENT_FLAG_MASK_COMMAND: u64 = 1 << 20; // 0x00100000
+
+    unsafe {
+        // Full modifier sequence: Cmd↓ → V↓ → V↑ → Cmd↑
+        let cmd_down = CGEventCreateKeyboardEvent(std::ptr::null(), VK_COMMAND, true);
+        if cmd_down.is_null() {
+            log::warn!("CGEvent: failed to create cmd-down event");
+            return;
+        }
+
+        let v_down = CGEventCreateKeyboardEvent(std::ptr::null(), VK_ANSI_V, true);
+        if v_down.is_null() {
+            CFRelease(cmd_down);
+            log::warn!("CGEvent: failed to create key-down event");
+            return;
+        }
+        CGEventSetFlags(v_down, CG_EVENT_FLAG_MASK_COMMAND);
+
+        let v_up = CGEventCreateKeyboardEvent(std::ptr::null(), VK_ANSI_V, false);
+        if v_up.is_null() {
+            CFRelease(cmd_down);
+            CFRelease(v_down);
+            log::warn!("CGEvent: failed to create key-up event");
+            return;
+        }
+        CGEventSetFlags(v_up, CG_EVENT_FLAG_MASK_COMMAND);
+
+        let cmd_up = CGEventCreateKeyboardEvent(std::ptr::null(), VK_COMMAND, false);
+        if cmd_up.is_null() {
+            CFRelease(cmd_down);
+            CFRelease(v_down);
+            CFRelease(v_up);
+            log::warn!("CGEvent: failed to create cmd-up event");
+            return;
+        }
+
+        CGEventPost(CG_HID_EVENT_TAP, cmd_down);
+        CGEventPost(CG_HID_EVENT_TAP, v_down);
+        CGEventPost(CG_HID_EVENT_TAP, v_up);
+        CGEventPost(CG_HID_EVENT_TAP, cmd_up);
+
+        CFRelease(cmd_down);
+        CFRelease(v_down);
+        CFRelease(v_up);
+        CFRelease(cmd_up);
     }
 }
 

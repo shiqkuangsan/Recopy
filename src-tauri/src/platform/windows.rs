@@ -699,7 +699,19 @@ fn point_in_window(x: i32, y: i32, hwnd: isize) -> bool {
 // ---------------------------------------------------------------------------
 
 pub fn simulate_paste_keys() {
-    std::thread::sleep(std::time::Duration::from_millis(50));
+    // Wait for foreground window to settle after SetForegroundWindow handoff.
+    // In activated mode, Recopy was foreground — poll until it's no longer foreground
+    // so SendInput reaches the correct target. Max wait: 10ms (5 × 2ms).
+    let main = MAIN_HWND.load(Ordering::SeqCst);
+    if main != 0 {
+        for _ in 0..5 {
+            if unsafe { win32::GetForegroundWindow() } != main {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+    }
+
     let inputs = [
         win32::KeyboardInputRaw::new(0x11, 0), // Ctrl down
         win32::KeyboardInputRaw::new(win32::VK_V as u16, 0), // V down
