@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Early exit: skip everything when not in OpenClaw mode
+if [[ "${OPENCLAW_NOTIFY:-}" != "1" ]]; then
+  exit 0
+fi
+
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-}"
 TARGET_CHAT="${OPENCLAW_TG_TARGET:-5074597793}"
 CHANNEL="${OPENCLAW_CHANNEL:-telegram}"
@@ -135,9 +140,7 @@ print(json.dumps({
 }, ensure_ascii=False))
 PY
 
-# Send Telegram/OpenClaw message (non-blocking, only when OPENCLAW_NOTIFY=1)
-if [[ "${OPENCLAW_NOTIFY:-}" == "1" ]]; then
-  openclaw message send --channel "$CHANNEL" --account "$ACCOUNT_ID" --target "$TARGET_CHAT" --message "$text" >/dev/null 2>&1 || true
-fi
+# Send Telegram/OpenClaw message
+openclaw message send --channel "$CHANNEL" --account "$ACCOUNT_ID" --target "$TARGET_CHAT" --message "$text" >/dev/null 2>&1 || true
 
 exit 0
