@@ -4,6 +4,16 @@
       "source": "/download/:platform",
       "destination": "https://recopy.pages.dev/download/:platform",
       "statusCode": 302
+    },
+    {
+      "source": "/update/latest",
+      "destination": "https://recopy.pages.dev/update/latest",
+      "statusCode": 302
+    },
+    {
+      "source": "/update/asset/:path*",
+      "destination": "https://recopy.pages.dev/update/asset/:path*",
+      "statusCode": 302
     }
   ]
 }
