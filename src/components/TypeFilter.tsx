@@ -23,13 +23,20 @@ export function TypeFilter({ iconOnly = false }: TypeFilterProps) {
   const { t } = useTranslation();
   const filterType = useClipboardStore((s) => s.filterType);
   const setFilterType = useClipboardStore((s) => s.setFilterType);
+  const setSelectedIndex = useClipboardStore((s) => s.setSelectedIndex);
 
   const buttons = FILTERS.map((f) => {
     const Icon = f.icon;
     const btn = (
       <button
         key={f.value}
-        {...createPressActionHandlers<HTMLButtonElement>(() => setFilterType(f.value))}
+        {...createPressActionHandlers<HTMLButtonElement>(() => {
+          if (filterType === f.value) {
+            setSelectedIndex(0);
+          } else {
+            setFilterType(f.value);
+          }
+        })}
         className={`${iconOnly ? "p-1.5" : "px-2 py-1"} text-sm rounded-md transition-colors cursor-pointer focus:outline-none
           ${
             filterType === f.value

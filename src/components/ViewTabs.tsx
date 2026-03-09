@@ -13,14 +13,19 @@ export function ViewTabs() {
   const { t } = useTranslation();
   const viewMode = useClipboardStore((s) => s.viewMode);
   const setViewMode = useClipboardStore((s) => s.setViewMode);
+  const setSelectedIndex = useClipboardStore((s) => s.setSelectedIndex);
 
   return (
     <div className="flex gap-0.5">
       {TABS.map((tab) => {
         const Icon = tab.icon;
-        const pressHandlers = createPressActionHandlers<HTMLButtonElement>(() =>
-          setViewMode(tab.value),
-        );
+        const pressHandlers = createPressActionHandlers<HTMLButtonElement>(() => {
+          if (viewMode === tab.value) {
+            setSelectedIndex(0);
+          } else {
+            setViewMode(tab.value);
+          }
+        });
         return (
           <button
             key={tab.value}

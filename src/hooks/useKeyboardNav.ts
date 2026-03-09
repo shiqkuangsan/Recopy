@@ -78,6 +78,25 @@ export function useKeyboardNav() {
         return;
       }
 
+      // Cmd+ArrowUp: global "go to top" — select first item in all modes
+      if (e.key === "ArrowUp" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setSelectedIndex(0);
+        return;
+      }
+
+      // Cmd+ArrowLeft (T/B only): go to first item of current group
+      if (e.key === "ArrowLeft" && (e.metaKey || e.ctrlKey) && !isVertical && groupInfo) {
+        e.preventDefault();
+        const curGroupIdx = groupInfo.findIndex(
+          (g) => selectedIndex >= g.start && selectedIndex < g.start + g.length,
+        );
+        if (curGroupIdx >= 0) {
+          setSelectedIndex(groupInfo[curGroupIdx].start);
+        }
+        return;
+      }
+
       // Cmd+, to open settings
       if (e.key === "," && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
