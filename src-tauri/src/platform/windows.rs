@@ -30,8 +30,11 @@ mod win32 {
 
     // Hook / messages
     pub const WH_KEYBOARD_LL: i32 = 13;
+    pub const WH_MOUSE_LL: i32 = 14;
     pub const WM_KEYDOWN: u32 = 0x0100;
     pub const WM_KEYUP: u32 = 0x0101;
+    pub const WM_LBUTTONDOWN: u32 = 0x0201;
+    pub const WM_RBUTTONDOWN: u32 = 0x0204;
     pub const WM_SYSKEYDOWN: u32 = 0x0104;
     pub const WM_SYSKEYUP: u32 = 0x0105;
     pub const WM_QUIT: u32 = 0x0012;
@@ -57,6 +60,19 @@ mod win32 {
     pub const VK_F: u32 = 0x46;
     pub const VK_V: u32 = 0x56;
     pub const VK_OEM_COMMA: u32 = 0xBC;
+
+    // WM_NCHITTEST constants
+    pub const WM_NCHITTEST: u32 = 0x0084;
+    pub const HTCLIENT: isize = 1;
+    pub const HTLEFT: isize = 10;
+    pub const HTRIGHT: isize = 11;
+    pub const HTTOP: isize = 12;
+    pub const HTTOPLEFT: isize = 13;
+    pub const HTTOPRIGHT: isize = 14;
+    pub const HTBOTTOM: isize = 15;
+    pub const HTBOTTOMLEFT: isize = 16;
+    pub const HTBOTTOMRIGHT: isize = 17;
+    pub const GWLP_WNDPROC: i32 = -4;
 
     // SendInput constants
     pub const INPUT_KEYBOARD: u32 = 1;
@@ -115,6 +131,25 @@ mod win32 {
         pub pt_y: i32,
     }
 
+    /// MSLLHOOKSTRUCT — passed via LPARAM in WH_MOUSE_LL callback.
+    #[repr(C)]
+    pub struct MSLLHOOKSTRUCT {
+        pub pt_x: i32,
+        pub pt_y: i32,
+        pub mouse_data: u32,
+        pub flags: u32,
+        pub time: u32,
+        pub dw_extra_info: usize,
+    }
+
+    #[repr(C)]
+    pub struct RECT {
+        pub left: i32,
+        pub top: i32,
+        pub right: i32,
+        pub bottom: i32,
+    }
+
     unsafe extern "system" {
         pub fn ShowWindow(hwnd: HWND, n_cmd_show: i32) -> i32;
         pub fn SetWindowPos(
@@ -127,6 +162,7 @@ mod win32 {
             flags: u32,
         ) -> i32;
         pub fn IsWindowVisible(hwnd: HWND) -> i32;
+        pub fn GetWindowRect(hwnd: HWND, rect: *mut RECT) -> i32;
         pub fn GetForegroundWindow() -> HWND;
         pub fn SetForegroundWindow(hwnd: HWND) -> i32;
         pub fn SetWindowsHookExW(
@@ -144,6 +180,14 @@ mod win32 {
         pub fn GetWindowThreadProcessId(hwnd: HWND, pid: *mut u32) -> u32;
         pub fn GetMessageW(msg: *mut MSG, hwnd: HWND, filter_min: u32, filter_max: u32) -> i32;
         pub fn PostThreadMessageW(thread_id: u32, msg: u32, wparam: WPARAM, lparam: LPARAM) -> i32;
+        pub fn SetWindowLongPtrW(hwnd: HWND, index: i32, new_long: isize) -> isize;
+        pub fn CallWindowProcW(
+            prev: isize,
+            hwnd: HWND,
+            msg: u32,
+            wparam: WPARAM,
+            lparam: LPARAM,
+        ) -> LRESULT;
     }
 }
 
@@ -157,8 +201,17 @@ static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
 /// Handle of the installed WH_KEYBOARD_LL hook (0 = no hook).
 static HOOK_HANDLE: AtomicIsize = AtomicIsize::new(0);
 
+/// Handle of the installed WH_MOUSE_LL hook (0 = no hook).
+static MOUSE_HOOK_HANDLE: AtomicIsize = AtomicIsize::new(0);
+
 /// HWND of the previous foreground window (saved before showing Recopy).
 static PREV_FOREGROUND: AtomicIsize = AtomicIsize::new(0);
+
+/// Original WndProc for the main window (before NCHITTEST subclass).
+static ORIG_WNDPROC: AtomicIsize = AtomicIsize::new(0);
+
+/// Panel position for NCHITTEST filtering: 0=none, 1=bottom, 2=top.
+static PANEL_RESIZE_MODE: AtomicU32 = AtomicU32::new(0);
 
 /// HWND of Recopy's main window (cached for the hook callback).
 static MAIN_HWND: AtomicIsize = AtomicIsize::new(0);
@@ -198,7 +251,8 @@ fn is_hook_active() -> bool {
 }
 
 /// Check if the current foreground window belongs to the Recopy process.
-fn is_recopy_foreground() -> bool {
+#[allow(dead_code)]
+pub fn is_recopy_foreground() -> bool {
     unsafe {
         let fg = win32::GetForegroundWindow();
         if fg == 0 {
@@ -254,10 +308,13 @@ pub fn platform_show_window(app: &tauri::AppHandle, _panel_position: &str) {
 
 pub fn platform_hide_window(app: &tauri::AppHandle) {
     remove_keyboard_hook();
-    // Only restore the previous foreground window if Recopy currently owns it.
-    // If the user Alt-Tab'd away (triggering close_on_blur), the current
-    // foreground is already their chosen target — don't override it.
-    let should_restore = is_recopy_foreground();
+    // Only restore the previous foreground if the main panel itself is the
+    // current foreground. If another Recopy window (settings) has focus, don't
+    // override it — otherwise restore_foreground pushes settings behind other apps.
+    // In floating mode (non-activating), main is never foreground → no restore needed.
+    let main_hwnd = MAIN_HWND.load(Ordering::SeqCst);
+    let fg = unsafe { win32::GetForegroundWindow() };
+    let should_restore = main_hwnd != 0 && fg == main_hwnd;
     if let Some(window) = app.get_webview_window("main") {
         if let Some(hwnd) = get_hwnd(&window) {
             unsafe {
@@ -313,13 +370,76 @@ pub fn on_window_focused() {
 }
 
 // ---------------------------------------------------------------------------
+// NCHITTEST subclass — restrict resize to vertical edges only (top/bottom mode)
+// ---------------------------------------------------------------------------
+
+/// Install a WndProc subclass that filters WM_NCHITTEST results so only
+/// vertical resize edges work (no left/right/corner resize cursors).
+pub fn install_nchittest_hook(hwnd: isize, panel_position: &str) {
+    let mode = match panel_position {
+        "bottom" => 1u32,
+        "top" => 2u32,
+        _ => {
+            PANEL_RESIZE_MODE.store(0, Ordering::SeqCst);
+            return;
+        }
+    };
+    PANEL_RESIZE_MODE.store(mode, Ordering::SeqCst);
+    // Only subclass once — avoid storing our own WndProc as the original
+    if ORIG_WNDPROC.load(Ordering::SeqCst) != 0 {
+        return;
+    }
+    unsafe {
+        let prev = win32::SetWindowLongPtrW(hwnd, win32::GWLP_WNDPROC, nchittest_wndproc as isize);
+        if prev != 0 {
+            ORIG_WNDPROC.store(prev, Ordering::SeqCst);
+        }
+    }
+}
+
+unsafe extern "system" fn nchittest_wndproc(
+    hwnd: win32::HWND,
+    msg: u32,
+    wparam: win32::WPARAM,
+    lparam: win32::LPARAM,
+) -> win32::LRESULT {
+    let orig = ORIG_WNDPROC.load(Ordering::SeqCst);
+    let result = win32::CallWindowProcW(orig, hwnd, msg, wparam, lparam);
+
+    if msg == win32::WM_NCHITTEST {
+        let mode = PANEL_RESIZE_MODE.load(Ordering::SeqCst);
+        // bottom mode (1): only HTTOP allowed (drag top edge up to grow)
+        // top mode (2): only HTBOTTOM allowed (drag bottom edge down to grow)
+        let allowed = if mode == 1 {
+            win32::HTTOP
+        } else {
+            win32::HTBOTTOM
+        };
+        match result {
+            win32::HTLEFT
+            | win32::HTRIGHT
+            | win32::HTTOPLEFT
+            | win32::HTTOPRIGHT
+            | win32::HTBOTTOMLEFT
+            | win32::HTBOTTOMRIGHT => return win32::HTCLIENT,
+            r if (r == win32::HTTOP || r == win32::HTBOTTOM) && r != allowed => {
+                return win32::HTCLIENT
+            }
+            _ => {}
+        }
+    }
+
+    result
+}
+
+// ---------------------------------------------------------------------------
 // Keyboard hook
 // ---------------------------------------------------------------------------
 
-/// Spawn a dedicated thread with a Win32 message pump and install the hook there.
-/// WH_KEYBOARD_LL requires a message loop on the installing thread — tokio worker
-/// threads don't have one, so we must use a dedicated std::thread.
-/// Blocks until the hook is confirmed installed (or fails).
+/// Spawn a dedicated thread with a Win32 message pump and install hooks there.
+/// Both WH_KEYBOARD_LL and WH_MOUSE_LL require a message loop on the installing
+/// thread — tokio worker threads don't have one, so we use a dedicated std::thread.
+/// Blocks until hooks are confirmed installed (or fail).
 fn install_keyboard_hook() {
     if is_hook_active() {
         return;
@@ -328,17 +448,25 @@ fn install_keyboard_hook() {
     std::thread::spawn(move || unsafe {
         let thread_id = win32::GetCurrentThreadId();
         let hmod = win32::GetModuleHandleW(std::ptr::null());
-        let hook =
+        let kb_hook =
             win32::SetWindowsHookExW(win32::WH_KEYBOARD_LL, Some(keyboard_hook_proc), hmod, 0);
-        if hook == 0 {
+        if kb_hook == 0 {
             let _ = tx.send(false);
             return;
         }
-        HOOK_HANDLE.store(hook, Ordering::SeqCst);
+        HOOK_HANDLE.store(kb_hook, Ordering::SeqCst);
+
+        // Mouse hook for click-outside-to-close (non-activating window never gets blur)
+        let mouse_hook =
+            win32::SetWindowsHookExW(win32::WH_MOUSE_LL, Some(mouse_hook_proc), hmod, 0);
+        if mouse_hook != 0 {
+            MOUSE_HOOK_HANDLE.store(mouse_hook, Ordering::SeqCst);
+        }
+
         HOOK_THREAD_ID.store(thread_id, Ordering::SeqCst);
         let _ = tx.send(true);
 
-        // Message pump — keeps the hook alive.
+        // Message pump — keeps the hooks alive.
         // GetMessage returns 0 on WM_QUIT, ending the loop.
         let mut msg: win32::MSG = std::mem::zeroed();
         while win32::GetMessageW(&mut msg, 0, 0, 0) > 0 {}
@@ -348,13 +476,21 @@ fn install_keyboard_hook() {
         if h != 0 {
             win32::UnhookWindowsHookEx(h);
         }
+        let mh = MOUSE_HOOK_HANDLE.swap(0, Ordering::SeqCst);
+        if mh != 0 {
+            win32::UnhookWindowsHookEx(mh);
+        }
         HOOK_THREAD_ID.store(0, Ordering::SeqCst);
         CTRL_DOWN.store(false, Ordering::SeqCst);
         SHIFT_DOWN.store(false, Ordering::SeqCst);
     });
     // Wait for hook installation before returning — ensures is_hook_active()
     // is accurate immediately after this call.
-    let _ = rx.recv();
+    match rx.recv() {
+        Ok(true) => {}
+        Ok(false) => log::warn!("Failed to install keyboard hook"),
+        Err(_) => log::warn!("Hook thread terminated unexpectedly"),
+    }
 }
 
 /// Unhook immediately (synchronous) and signal the message-pump thread to exit.
@@ -363,6 +499,12 @@ fn remove_keyboard_hook() {
     if handle != 0 {
         unsafe {
             win32::UnhookWindowsHookEx(handle);
+        }
+    }
+    let mh = MOUSE_HOOK_HANDLE.swap(0, Ordering::SeqCst);
+    if mh != 0 {
+        unsafe {
+            win32::UnhookWindowsHookEx(mh);
         }
     }
     let tid = HOOK_THREAD_ID.swap(0, Ordering::SeqCst);
@@ -449,10 +591,14 @@ unsafe extern "system" fn keyboard_hook_proc(
         win32::VK_F if ctrl => {
             // Ctrl+F → activate the window so the SearchBar can receive
             // real keyboard input, then forward the event.
-            // Unhook immediately + post WM_QUIT to exit message pump.
+            // Unhook both keyboard and mouse hooks + post WM_QUIT to exit message pump.
             let h = HOOK_HANDLE.swap(0, Ordering::SeqCst);
             if h != 0 {
                 win32::UnhookWindowsHookEx(h);
+            }
+            let mh = MOUSE_HOOK_HANDLE.swap(0, Ordering::SeqCst);
+            if mh != 0 {
+                win32::UnhookWindowsHookEx(mh);
             }
             let tid = HOOK_THREAD_ID.swap(0, Ordering::SeqCst);
             if tid != 0 {
@@ -491,6 +637,61 @@ unsafe extern "system" fn keyboard_hook_proc(
     }
 
     win32::CallNextHookEx(0, code, wparam, lparam)
+}
+
+// ---------------------------------------------------------------------------
+// Mouse hook — click-outside-to-close for non-activating window
+// ---------------------------------------------------------------------------
+
+/// Low-level mouse hook. Detects clicks outside all Recopy windows and emits
+/// `platform-click-outside` so the main panel can be hidden (analogous to
+/// NSPanel's resignsKey on macOS).
+unsafe extern "system" fn mouse_hook_proc(
+    code: i32,
+    wparam: win32::WPARAM,
+    lparam: win32::LPARAM,
+) -> win32::LRESULT {
+    if code >= 0 {
+        let msg = wparam as u32;
+        if msg == win32::WM_LBUTTONDOWN || msg == win32::WM_RBUTTONDOWN {
+            let ms = &*(lparam as *const win32::MSLLHOOKSTRUCT);
+            let x = ms.pt_x;
+            let y = ms.pt_y;
+
+            let main = MAIN_HWND.load(Ordering::SeqCst);
+            if main != 0 && win32::IsWindowVisible(main) != 0 && !point_in_window(x, y, main) {
+                // Also check preview window
+                let mut on_recopy_window = false;
+                if let Some(app) = APP_HANDLE.get() {
+                    if let Some(preview) = app.get_webview_window("preview") {
+                        if let Some(phwnd) = get_hwnd(&preview) {
+                            if win32::IsWindowVisible(phwnd) != 0 && point_in_window(x, y, phwnd) {
+                                on_recopy_window = true;
+                            }
+                        }
+                    }
+                }
+
+                if !on_recopy_window {
+                    if let Some(app) = APP_HANDLE.get() {
+                        let _ = app.emit("platform-click-outside", ());
+                    }
+                }
+            }
+        }
+    }
+    win32::CallNextHookEx(0, code, wparam, lparam)
+}
+
+fn point_in_window(x: i32, y: i32, hwnd: isize) -> bool {
+    unsafe {
+        let mut rect: win32::RECT = std::mem::zeroed();
+        if win32::GetWindowRect(hwnd, &mut rect) != 0 {
+            x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom
+        } else {
+            false
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -565,23 +766,17 @@ pub fn platform_show_preview(app: &tauri::AppHandle) {
 }
 
 pub fn platform_hide_preview(app: &tauri::AppHandle) {
-    if is_hook_active() {
-        // Floating mode: just hide, no focus dance needed
-        if let Some(window) = app.get_webview_window("preview") {
-            if let Some(hwnd) = get_hwnd(&window) {
-                unsafe {
-                    win32::ShowWindow(hwnd, win32::SW_HIDE);
-                }
+    PREVIEW_FOCUS_GUARD.store(false, Ordering::SeqCst);
+    if let Some(window) = app.get_webview_window("preview") {
+        PREVIEW_PROGRAMMATIC_HIDE.store(true, Ordering::SeqCst);
+        // Always use Win32 hide — preview may have been shown via
+        // SW_SHOWNOACTIVATE (floating mode), so Tauri alone won't hide it.
+        if let Some(hwnd) = get_hwnd(&window) {
+            unsafe {
+                win32::ShowWindow(hwnd, win32::SW_HIDE);
             }
-            let _ = window.hide();
         }
-    } else {
-        // Activated mode: standard hide with guard
-        PREVIEW_FOCUS_GUARD.store(false, Ordering::SeqCst);
-        if let Some(window) = app.get_webview_window("preview") {
-            PREVIEW_PROGRAMMATIC_HIDE.store(true, Ordering::SeqCst);
-            let _ = window.hide();
-        }
+        let _ = window.hide();
     }
 }
 

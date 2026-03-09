@@ -284,6 +284,14 @@ pub fn show_main_window(app: &tauri::AppHandle) {
         let _ = window.set_max_size(Some(tauri::Size::Logical(tauri::LogicalSize::new(
             max_w, max_h,
         ))));
+        let resizable = panel_position == "bottom" || panel_position == "top";
+        let _ = window.set_resizable(resizable);
+        #[cfg(target_os = "windows")]
+        if resizable {
+            if let Some(hwnd) = window.hwnd().ok().map(|h| h.0 as isize) {
+                platform::install_nchittest_hook(hwnd, &panel_position);
+            }
+        }
         let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)));
     }
 
@@ -498,7 +506,10 @@ pub fn open_settings_window_impl(app: &tauri::AppHandle) {
         .center()
         .build()
     {
-        Ok(w) => w,
+        Ok(w) => {
+            let _ = w.set_focus();
+            w
+        }
         Err(e) => {
             log::error!("Failed to open settings window: {}", e);
             return;
@@ -619,7 +630,14 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
                         return;
                     }
                     let app_handle = w.app_handle().clone();
+                    let win = w.clone();
                     tauri::async_runtime::spawn(async move {
+                        // Debounce: on Windows 11, resize and other interactions
+                        // cause transient blur. Wait briefly and recheck focus.
+                        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+                        if win.is_focused().unwrap_or(false) {
+                            return;
+                        }
                         let should_hide = if let Some(pool) = app_handle.try_state::<db::DbPool>() {
                             db::queries::get_setting(&pool.0, "close_on_blur")
                                 .await
@@ -667,6 +685,28 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
                 }
             });
         }
+
+        // On Windows: mouse hook emits this when user clicks outside all Recopy
+        // windows (non-activating window never fires Focused(false) on its own).
+        let app_click = app.clone();
+        app.listen("platform-click-outside", move |_| {
+            let app_inner = app_click.clone();
+            tauri::async_runtime::spawn(async move {
+                let should_hide = if let Some(pool) = app_inner.try_state::<db::DbPool>() {
+                    db::queries::get_setting(&pool.0, "close_on_blur")
+                        .await
+                        .ok()
+                        .flatten()
+                        .map(|v| v != "false")
+                        .unwrap_or(true)
+                } else {
+                    true
+                };
+                if should_hide {
+                    hide_main_window(&app_inner);
+                }
+            });
+        });
     }
 }
 
