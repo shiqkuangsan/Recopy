@@ -769,6 +769,10 @@ pub fn platform_cursor_monitor() -> Option<(f64, f64, f64, f64)> {
     }
 }
 
+pub fn platform_menu_bar_height() -> f64 {
+    0.0 // Windows has no macOS-style menu bar
+}
+
 /// Get the DPI scale factor for a monitor (1.0 = 96 DPI = 100%).
 /// Dynamically loads GetDpiForMonitor from Shcore.dll for compatibility.
 fn get_monitor_dpi_scale(hmonitor: isize) -> f64 {

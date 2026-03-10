@@ -83,6 +83,11 @@ pub fn platform_cursor_monitor() -> Option<(f64, f64, f64, f64)> {
     None
 }
 
+#[allow(dead_code)]
+pub fn platform_menu_bar_height() -> f64 {
+    0.0
+}
+
 pub fn platform_resign_before_paste(app: &tauri::AppHandle) {
     platform_hide_window(app);
 }

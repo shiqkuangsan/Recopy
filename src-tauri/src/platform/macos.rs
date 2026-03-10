@@ -367,6 +367,50 @@ pub fn platform_cursor_monitor() -> Option<(f64, f64, f64, f64)> {
     }
 }
 
+/// Get the system menu bar height (accounts for notched Mac displays).
+/// Uses `[[NSApp mainMenu] menuBarHeight]` via raw objc_msgSend.
+pub fn platform_menu_bar_height() -> f64 {
+    use std::ffi::{c_char, c_void};
+
+    extern "C" {
+        fn objc_getClass(name: *const c_char) -> *mut c_void;
+        fn sel_registerName(name: *const c_char) -> *mut c_void;
+        fn objc_msgSend();
+    }
+
+    unsafe {
+        let msg_ptr: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void =
+            std::mem::transmute(objc_msgSend as *const ());
+        let msg_f64: unsafe extern "C" fn(*mut c_void, *mut c_void) -> f64 =
+            std::mem::transmute(objc_msgSend as *const ());
+
+        // [NSApplication sharedApplication]
+        let cls = objc_getClass(b"NSApplication\0".as_ptr() as _);
+        let sel = sel_registerName(b"sharedApplication\0".as_ptr() as _);
+        let app = msg_ptr(cls, sel);
+        if app.is_null() {
+            return 25.0;
+        }
+
+        // [app mainMenu]
+        let sel = sel_registerName(b"mainMenu\0".as_ptr() as _);
+        let menu = msg_ptr(app, sel);
+        if menu.is_null() {
+            return 25.0;
+        }
+
+        // [menu menuBarHeight]
+        let sel = sel_registerName(b"menuBarHeight\0".as_ptr() as _);
+        let height = msg_f64(menu, sel);
+
+        if height > 0.0 {
+            height
+        } else {
+            25.0
+        }
+    }
+}
+
 /// Resign key window status without hiding.
 /// This returns keyboard focus to the previously active app
 /// so that simulate_paste() sends Cmd+V to the correct target.

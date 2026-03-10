@@ -249,14 +249,16 @@ pub fn show_main_window(app: &tauri::AppHandle) {
                 (w, h, mon_x + margin, mon_y, w, 300.0, w, 800.0)
             }
             "left" => {
-                // 38px top offset clears macOS menu bar (up to 37px on notched Macs)
-                let top_inset = 38.0_f64;
+                // Dynamic menu bar height: 25px (standard) or ~37px (notched Mac)
+                let menu_h = platform::platform_menu_bar_height();
+                let top_inset = if menu_h > 0.0 { menu_h + 3.0 } else { 38.0 };
                 let w = 380.0;
                 let h = screen_h - top_inset - margin;
                 (w, h, mon_x + margin, mon_y + top_inset, w, h, w, h)
             }
             "right" => {
-                let top_inset = 38.0_f64;
+                let menu_h = platform::platform_menu_bar_height();
+                let top_inset = if menu_h > 0.0 { menu_h + 3.0 } else { 38.0 };
                 let w = 380.0;
                 let h = screen_h - top_inset - margin;
                 (
