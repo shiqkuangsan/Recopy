@@ -533,6 +533,11 @@ function AboutSettings() {
             link: "https://github.com/shiqkuangsan/Recopy/issues",
           },
           {
+            label: t("settings.about.changelog"),
+            value: "Releases",
+            link: "https://github.com/shiqkuangsan/Recopy/releases",
+          },
+          {
             label: t("settings.about.author"),
             value: "shiqkuangsan",
             link: "https://github.com/shiqkuangsan",

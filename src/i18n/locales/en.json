@@ -114,6 +114,7 @@
       "repository": "Repository",
       "feedback": "Feedback",
       "reportIssue": "Report Issue",
+      "changelog": "Changelog",
       "author": "Author",
       "license": "License",
       "brewAvailable": "Supported"

@@ -114,6 +114,7 @@
       "repository": "源码仓库",
       "feedback": "反馈",
       "reportIssue": "报告问题",
+      "changelog": "更新日志",
       "author": "作者",
       "license": "许可证",
       "brewAvailable": "支持安装"
