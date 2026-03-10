@@ -73,7 +73,9 @@
       "posTop": "Top",
       "posLeft": "Left",
       "posRight": "Right",
-      "pressKeys": "Press keys..."
+      "pressKeys": "Press keys...",
+      "flatModeTB": "Single Row",
+      "flatModeTBDesc": "Disable date grouping, show all items in one row"
     },
     "history": {
       "title": "History",

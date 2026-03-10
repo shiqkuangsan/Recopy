@@ -20,6 +20,7 @@ export interface Settings {
   close_on_blur: string;
   update_check_interval: string;
   panel_position: string;
+  flat_mode_tb: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -34,6 +35,7 @@ const DEFAULT_SETTINGS: Settings = {
   close_on_blur: "true",
   update_check_interval: "weekly",
   panel_position: "bottom",
+  flat_mode_tb: "false",
 };
 
 export interface ShowEventPayload {
@@ -41,6 +43,7 @@ export interface ShowEventPayload {
   language?: string;
   update_check_interval?: string;
   panel_position?: string;
+  flat_mode_tb?: string;
 }
 
 interface SettingsState {
@@ -93,6 +96,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         close_on_blur: raw.close_on_blur ?? DEFAULT_SETTINGS.close_on_blur,
         update_check_interval: raw.update_check_interval ?? DEFAULT_SETTINGS.update_check_interval,
         panel_position: raw.panel_position ?? DEFAULT_SETTINGS.panel_position,
+        flat_mode_tb: raw.flat_mode_tb ?? DEFAULT_SETTINGS.flat_mode_tb,
       };
       set({ settings, loaded: true });
       applyTheme(settings.theme);
@@ -136,7 +140,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
 
   syncSettingsFromEvent: (payload: ShowEventPayload) => {
-    const { theme, language, update_check_interval, panel_position } = payload;
+    const { theme, language, update_check_interval, panel_position, flat_mode_tb } = payload;
     if (theme) {
       applyTheme(theme as Theme);
       set((state) => ({
@@ -157,6 +161,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     if (panel_position) {
       set((state) => ({
         settings: { ...state.settings, panel_position },
+      }));
+    }
+    if (flat_mode_tb) {
+      set((state) => ({
+        settings: { ...state.settings, flat_mode_tb },
       }));
     }
   },

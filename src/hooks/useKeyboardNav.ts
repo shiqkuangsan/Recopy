@@ -16,12 +16,14 @@ export function useKeyboardNav() {
   const selectedIndex = useClipboardStore((s) => s.selectedIndex);
   const setSelectedIndex = useClipboardStore((s) => s.setSelectedIndex);
   const panelPosition = useSettingsStore((s) => s.settings.panel_position);
+  const flatModeTB = useSettingsStore((s) => s.settings.flat_mode_tb) === "true";
   const isVertical = panelPosition === "left" || panelPosition === "right";
   const previewOpenRef = useRef(false);
 
   // Build group info for T/B cross-group navigation (up/down preserves column position).
+  // Null when L/R mode or T/B flat mode (no grouping).
   const groupInfo = useMemo(() => {
-    if (isVertical) return null;
+    if (isVertical || flatModeTB) return null;
     const groups: { start: number; length: number }[] = [];
     let lastLabel = "";
     items.forEach((item, i) => {
@@ -33,7 +35,7 @@ export function useKeyboardNav() {
       groups[groups.length - 1].length++;
     });
     return groups;
-  }, [items, isVertical]);
+  }, [items, isVertical, flatModeTB]);
 
   const itemsRef = useRef(items);
   useEffect(() => {
@@ -85,14 +87,18 @@ export function useKeyboardNav() {
         return;
       }
 
-      // Cmd+ArrowLeft (T/B only): go to first item of current group
-      if (e.key === "ArrowLeft" && (e.metaKey || e.ctrlKey) && !isVertical && groupInfo) {
+      // Cmd+ArrowLeft (T/B only): go to first item of current group (or first item in flat mode)
+      if (e.key === "ArrowLeft" && (e.metaKey || e.ctrlKey) && !isVertical) {
         e.preventDefault();
-        const curGroupIdx = groupInfo.findIndex(
-          (g) => selectedIndex >= g.start && selectedIndex < g.start + g.length,
-        );
-        if (curGroupIdx >= 0) {
-          setSelectedIndex(groupInfo[curGroupIdx].start);
+        if (groupInfo) {
+          const curGroupIdx = groupInfo.findIndex(
+            (g) => selectedIndex >= g.start && selectedIndex < g.start + g.length,
+          );
+          if (curGroupIdx >= 0) {
+            setSelectedIndex(groupInfo[curGroupIdx].start);
+          }
+        } else {
+          setSelectedIndex(0);
         }
         return;
       }
@@ -190,7 +196,7 @@ export function useKeyboardNav() {
             // Linear: move to next card
             setSelectedIndex(Math.min(selectedIndex + 1, items.length - 1));
           } else if (groupInfo) {
-            // T/B: jump to visually lower group, preserving column position.
+            // T/B grouped: jump to visually lower group, preserving column position.
             // Top mode (flex-col-reverse): visually down = previous group (lower index).
             // Bottom mode: visually down = next group (higher index).
             const isReversed = panelPosition === "top";
@@ -207,6 +213,9 @@ export function useKeyboardNav() {
               // Top mode: reached visual bottom (Today) — focus search input
               document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
             }
+          } else if (panelPosition === "top") {
+            // T/B flat: single row, ↓ in top mode → focus search
+            document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
           }
           break;
         }
@@ -220,7 +229,7 @@ export function useKeyboardNav() {
               document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
             }
           } else if (groupInfo) {
-            // T/B: jump to visually upper group, preserving column position.
+            // T/B grouped: jump to visually upper group, preserving column position.
             // Top mode: visually up = next group (higher index).
             // Bottom mode: visually up = previous group (lower index).
             const isReversed = panelPosition === "top";
@@ -237,6 +246,9 @@ export function useKeyboardNav() {
               // Reached visual top — focus search input
               document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
             }
+          } else if (panelPosition !== "top") {
+            // T/B flat: single row, ↑ in bottom mode → focus search
+            document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
           }
           break;
         }
@@ -259,6 +271,7 @@ export function useKeyboardNav() {
       setSelectedIndex,
       groupInfo,
       isVertical,
+      flatModeTB,
       panelPosition,
       openPreview,
       closePreview,

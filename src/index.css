@@ -103,7 +103,7 @@ html[data-theme="dark"] {
 }
 
 .panel-enter {
-  animation: panel-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: panel-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .panel-idle {

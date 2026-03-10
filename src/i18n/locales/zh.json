@@ -73,7 +73,9 @@
       "posTop": "顶部",
       "posLeft": "左侧",
       "posRight": "右侧",
-      "pressKeys": "按下快捷键..."
+      "pressKeys": "按下快捷键...",
+      "flatModeTB": "单行模式",
+      "flatModeTBDesc": "禁用日期分组，所有条目显示在同一行"
     },
     "history": {
       "title": "历史",

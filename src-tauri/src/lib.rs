@@ -194,7 +194,7 @@ pub fn show_main_window(app: &tauri::AppHandle) {
 
     // Read settings from DB before positioning
     let pool = app.state::<db::DbPool>();
-    let (theme, language, update_check_interval, panel_position) =
+    let (theme, language, update_check_interval, panel_position, flat_mode_tb) =
         tauri::async_runtime::block_on(async {
             let t = db::queries::get_setting(&pool.0, "theme")
                 .await
@@ -212,12 +212,17 @@ pub fn show_main_window(app: &tauri::AppHandle) {
                 .await
                 .ok()
                 .flatten();
-            (t, l, u, p)
+            let f = db::queries::get_setting(&pool.0, "flat_mode_tb")
+                .await
+                .ok()
+                .flatten();
+            (t, l, u, p, f)
         });
     let theme = theme.unwrap_or_else(|| "dark".to_string());
     let language = language.unwrap_or_else(|| "system".to_string());
     let update_check_interval = update_check_interval.unwrap_or_else(|| "weekly".to_string());
     let panel_position = panel_position.unwrap_or_else(|| "bottom".to_string());
+    let flat_mode_tb = flat_mode_tb.unwrap_or_else(|| "false".to_string());
 
     // Position window based on panel_position setting
     if let Ok(Some(monitor)) = window.current_monitor() {
@@ -305,6 +310,7 @@ pub fn show_main_window(app: &tauri::AppHandle) {
             "language": language,
             "update_check_interval": update_check_interval,
             "panel_position": panel_position,
+            "flat_mode_tb": flat_mode_tb,
         }),
     );
 }

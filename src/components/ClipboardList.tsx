@@ -1,4 +1,12 @@
-import { useMemo, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
+import {
+  useMemo,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useClipboardStore } from "../stores/clipboard-store";
@@ -99,14 +107,20 @@ export function ClipboardList() {
   const isFetchingMore = useClipboardStore((s) => s.isFetchingMore);
   const fetchMore = useClipboardStore((s) => s.fetchMore);
   const panelPosition = useSettingsStore((s) => s.settings.panel_position);
+  const flatModeTB = useSettingsStore((s) => s.settings.flat_mode_tb) === "true";
   const isVertical = panelPosition === "left" || panelPosition === "right";
+  const shouldGroup = !isVertical && !flatModeTB;
   // Vertical virtualizer scroll container ref
   const verticalParentRef = useRef<HTMLDivElement>(null);
 
-  // GroupRow refs for T/B mode horizontal virtualization (keyed by group index)
+  // GroupRow refs for T/B grouped mode horizontal virtualization (keyed by group index)
   const groupRowRefs = useRef<Map<number, GroupRowHandle>>(new Map());
   // Group container DOM refs for vertical scroll-into-view (keyed by group index)
   const groupDivRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  // Scroll container ref for T/B grouped mode (used to clamp ancestor scroll after scrollIntoView)
+  const groupScrollRef = useRef<HTMLDivElement>(null);
+  // Single GroupRow ref for T/B flat mode
+  const flatRowRef = useRef<GroupRowHandle>(null);
 
   // Sentinel ref for infinite scroll trigger
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -130,11 +144,11 @@ export function ClipboardList() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, fetchMore, isVertical]);
+  }, [hasMore, fetchMore, isVertical, flatModeTB]);
 
-  // Group items by date (used by T/B mode only)
+  // Group items by date (used by T/B grouped mode only)
   const groups = useMemo(() => {
-    if (isVertical) return []; // L/R mode uses flat list, skip grouping
+    if (!shouldGroup) return []; // L/R or T/B flat mode: skip grouping
     const result: DateGroup[] = [];
     let lastLabel = "";
     let currentGroup: DateGroup | null = null;
@@ -150,7 +164,13 @@ export function ClipboardList() {
     });
 
     return result;
-  }, [items, isVertical]);
+  }, [items, shouldGroup]);
+
+  // Flat items for T/B flat mode (single row with all items)
+  const flatItems = useMemo(() => {
+    if (isVertical || shouldGroup) return [];
+    return items.map((item, i) => ({ item, flatIndex: i }));
+  }, [items, isVertical, shouldGroup]);
 
   // Vertical virtualizer for L/R mode
   const verticalVirtualizer = useVirtualizer({
@@ -180,22 +200,38 @@ export function ClipboardList() {
     el.scrollLeft += e.deltaY;
   }, []);
 
-  // Auto-scroll selected card into view (T/B mode only; L/R uses virtualizer)
-  useEffect(() => {
-    if (isVertical || selectedIndex < 0) return;
+  // Auto-scroll selected card into view (T/B grouped mode; L/R uses virtualizer).
+  // useLayoutEffect runs before browser paint, preventing visible jump when the
+  // panel opens with a non-Today selection (e.g. This Week / This Month).
+  useLayoutEffect(() => {
+    if (!shouldGroup || selectedIndex < 0) return;
     // Find which group contains the selected item and scroll within it
     for (let gi = 0; gi < groups.length; gi++) {
       const group = groups[gi];
       const localIdx = group.items.findIndex((entry) => entry.flatIndex === selectedIndex);
       if (localIdx !== -1) {
         // Scroll the group container into the vertical viewport
-        groupDivRefs.current.get(gi)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        groupDivRefs.current.get(gi)?.scrollIntoView({ block: "nearest" });
+        // scrollIntoView can inadvertently scroll ancestor containers (especially
+        // the panel root which has a CSS transform offset during entrance animation).
+        // Reset all ancestors above the intended scroll container to prevent this.
+        let ancestor = groupScrollRef.current?.parentElement;
+        while (ancestor) {
+          ancestor.scrollTop = 0;
+          ancestor = ancestor.parentElement;
+        }
         // Scroll the card into view within the horizontal row
         groupRowRefs.current.get(gi)?.scrollToIndex(localIdx);
         break;
       }
     }
-  }, [selectedIndex, isVertical, groups]);
+  }, [selectedIndex, shouldGroup, groups]);
+
+  // Auto-scroll selected card into view for T/B flat mode
+  useEffect(() => {
+    if (isVertical || shouldGroup || selectedIndex < 0) return;
+    flatRowRef.current?.scrollToIndex(selectedIndex);
+  }, [selectedIndex, isVertical, shouldGroup]);
 
   // Auto-scroll selected item into view for L/R virtualized mode
   useEffect(() => {
@@ -257,13 +293,37 @@ export function ClipboardList() {
     );
   }
 
-  // T/B mode: grouped horizontal rows with per-group horizontal virtualization.
+  // T/B flat mode: single horizontal row without grouping
+  if (!isVertical && flatModeTB) {
+    return (
+      <div className="h-full flex flex-col justify-center relative">
+        <GroupRow
+          ref={flatRowRef}
+          items={flatItems}
+          selectedIndex={selectedIndex}
+          setSelectedIndex={setSelectedIndex}
+          onRowWheel={onRowWheel}
+        />
+        {hasMore && (
+          <div
+            ref={sentinelRef}
+            className="absolute bottom-0 inset-x-0 flex justify-center py-2 pointer-events-none"
+          >
+            {isFetchingMore && <Loader2 className="animate-spin text-muted-foreground" size={20} />}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // T/B grouped mode: horizontal rows with per-group horizontal virtualization.
   // Top mode: reverse group order so "Today" appears at the bottom (closest to workspace).
   // flex-col-reverse also anchors scroll to the bottom, showing newest items first.
   const isReversed = panelPosition === "top";
 
   return (
     <div
+      ref={groupScrollRef}
       className={`h-full overflow-y-auto no-scrollbar ${isReversed ? "flex flex-col-reverse" : "pb-4"}`}
     >
       {/* Spacer at scroll-end for reversed mode (visually at top due to flex-col-reverse) */}

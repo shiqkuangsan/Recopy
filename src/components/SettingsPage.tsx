@@ -188,6 +188,18 @@ function GeneralSettings({
           onChange={(v) => updateSetting("panel_position", v)}
         />
       </SettingRow>
+
+      {(settings.panel_position === "top" || settings.panel_position === "bottom") && (
+        <SettingRow
+          label={t("settings.general.flatModeTB")}
+          description={t("settings.general.flatModeTBDesc")}
+        >
+          <Switch
+            checked={settings.flat_mode_tb === "true"}
+            onCheckedChange={(v) => updateSetting("flat_mode_tb", v ? "true" : "false")}
+          />
+        </SettingRow>
+      )}
     </div>
   );
 }

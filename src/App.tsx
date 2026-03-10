@@ -120,26 +120,31 @@ function MainApp() {
 
   // Listen for show event to replay entrance animation and refresh data.
   // Payload carries settings (theme, language, panel_position) read by Rust from DB.
+  // Animation starts AFTER data fetch + React render + scroll settle to prevent visible jump.
   useEffect(() => {
-    const unlisten = listen<ShowEventPayload>("recopy-show", (event) => {
-      void onPanelShow();
+    const unlisten = listen<ShowEventPayload>("recopy-show", async (event) => {
       syncSettingsFromEvent(event.payload);
+      await onPanelShow();
 
-      const el = panelRef.current;
-      if (el) {
-        // Set animation direction based on panel position
-        const offsets: Record<string, string> = {
-          bottom: "translateY(40px)",
-          top: "translateY(-40px)",
-          left: "translateX(-40px)",
-          right: "translateX(40px)",
-        };
-        const pos = event.payload.panel_position ?? "bottom";
-        el.style.setProperty("--panel-offset", offsets[pos] ?? offsets.bottom);
+      // Wait for React re-render + useLayoutEffect (scroll) to complete before animating.
+      // requestAnimationFrame fires after layout/paint, ensuring scroll has settled.
+      requestAnimationFrame(() => {
+        const el = panelRef.current;
+        if (el) {
+          // Set animation direction based on panel position
+          const offsets: Record<string, string> = {
+            bottom: "translateY(40px)",
+            top: "translateY(-40px)",
+            left: "translateX(-40px)",
+            right: "translateX(40px)",
+          };
+          const pos = event.payload.panel_position ?? "bottom";
+          el.style.setProperty("--panel-offset", offsets[pos] ?? offsets.bottom);
 
-        el.classList.remove("panel-idle");
-        el.classList.add("panel-enter");
-      }
+          el.classList.remove("panel-idle");
+          el.classList.add("panel-enter");
+        }
+      });
     });
     return () => {
       unlisten.then((fn) => fn());
