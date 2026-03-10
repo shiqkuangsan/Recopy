@@ -296,7 +296,7 @@ export function ClipboardList() {
   // T/B flat mode: single horizontal row without grouping
   if (!isVertical && flatModeTB) {
     return (
-      <div className="h-full flex flex-col justify-center relative">
+      <div className="h-full flex items-center relative px-1">
         <GroupRow
           ref={flatRowRef}
           items={flatItems}
