@@ -245,7 +245,7 @@ pub fn show_main_window(app: &tauri::AppHandle) {
         let (win_w, win_h, x, y, min_w, min_h, max_w, max_h) = match panel_position.as_str() {
             "top" => {
                 let w = screen_w - margin * 2.0;
-                let h = 420.0;
+                let h = if flat_mode_tb == "true" { 366.0 } else { 420.0 };
                 // y=0: overlay menu bar (NSPanel level raised to MainMenu+1)
                 (w, h, mon_x + margin, mon_y, w, 300.0, w, 800.0)
             }
@@ -276,7 +276,7 @@ pub fn show_main_window(app: &tauri::AppHandle) {
             _ => {
                 // "bottom" (default)
                 let w = screen_w - margin * 2.0;
-                let h = 380.0;
+                let h = if flat_mode_tb == "true" { 366.0 } else { 380.0 };
                 (
                     w,
                     h,
