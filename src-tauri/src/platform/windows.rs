@@ -168,14 +168,6 @@ mod win32 {
         pub dw_extra_info: usize,
     }
 
-    #[repr(C)]
-    pub struct RECT {
-        pub left: i32,
-        pub top: i32,
-        pub right: i32,
-        pub bottom: i32,
-    }
-
     unsafe extern "system" {
         pub fn ShowWindow(hwnd: HWND, n_cmd_show: i32) -> i32;
         pub fn SetWindowPos(
