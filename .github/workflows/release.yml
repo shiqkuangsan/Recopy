@@ -131,7 +131,7 @@ jobs:
     steps:
       - name: Trigger homebrew-recopy update
         env:
-          GH_TOKEN: ${{ secrets.TAP_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           gh workflow run update-cask.yml \
