@@ -1122,4 +1122,211 @@ mod tests {
         let remaining = get_items(&pool, None, 10, 0).await.unwrap();
         assert_eq!(remaining.len(), 1);
     }
+
+    #[tokio::test]
+    async fn test_cleanup_by_retention_days() {
+        let pool = test_pool().await;
+
+        // Insert 3 items
+        for i in 0..3 {
+            let item = NewClipboardItem {
+                content_type: ContentType::PlainText,
+                plain_text: format!("Old item {}", i),
+                rich_content: None,
+                thumbnail: None,
+                image_path: None,
+                file_path: None,
+                file_name: None,
+                source_app: "".into(),
+                source_app_name: "".into(),
+                content_size: 10,
+                content_hash: format!("days-hash-{}", i),
+            };
+            insert_item(&pool, &item).await.unwrap();
+        }
+
+        // Backdate created_at of all items to 60 days ago
+        sqlx::query("UPDATE clipboard_items SET created_at = datetime('now', '-60 days')")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        // Insert 1 recent item (created_at defaults to now)
+        let recent = NewClipboardItem {
+            content_type: ContentType::PlainText,
+            plain_text: "Recent item".into(),
+            rich_content: None,
+            thumbnail: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            source_app: "".into(),
+            source_app_name: "".into(),
+            content_size: 11,
+            content_hash: "days-hash-recent".into(),
+        };
+        insert_item(&pool, &recent).await.unwrap();
+
+        // Retain items from the last 30 days — the 3 old items should be deleted
+        let deleted = cleanup_by_retention(&pool, "days", 30, 0).await.unwrap();
+        assert_eq!(deleted, 3);
+
+        let remaining = get_items(&pool, None, 10, 0).await.unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].plain_text, "Recent item");
+    }
+
+    #[tokio::test]
+    async fn test_search_empty_query() {
+        let pool = test_pool().await;
+
+        // Insert an item so the DB is not empty
+        let item = NewClipboardItem {
+            content_type: ContentType::PlainText,
+            plain_text: "Some content".into(),
+            rich_content: None,
+            thumbnail: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            source_app: "".into(),
+            source_app_name: "".into(),
+            content_size: 12,
+            content_hash: "empty-q-hash".into(),
+        };
+        insert_item(&pool, &item).await.unwrap();
+
+        // Empty string query should return empty results (search_items_like returns vec![] for empty tokens)
+        let results = search_items(&pool, "", None, 10, false).await.unwrap();
+        assert!(results.is_empty());
+
+        // Whitespace-only query should also return empty results
+        let results = search_items(&pool, "   ", None, 10, false).await.unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_search_special_chars() {
+        let pool = test_pool().await;
+
+        let item = NewClipboardItem {
+            content_type: ContentType::PlainText,
+            plain_text: "Normal text content".into(),
+            rich_content: None,
+            thumbnail: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            source_app: "".into(),
+            source_app_name: "".into(),
+            content_size: 19,
+            content_hash: "special-hash".into(),
+        };
+        insert_item(&pool, &item).await.unwrap();
+
+        // FTS5 special characters should not cause a crash
+        // Quotes are escaped by the search_items function (double-quoting)
+        let results = search_items(&pool, "\"quoted\"", None, 10, false).await;
+        assert!(results.is_ok());
+
+        // Asterisks (FTS5 prefix operator) should not crash
+        let results = search_items(&pool, "text*", None, 10, false).await;
+        assert!(results.is_ok());
+
+        // Parentheses and boolean operators
+        let results = search_items(&pool, "OR AND NOT", None, 10, false).await;
+        assert!(results.is_ok());
+
+        // Braces and brackets
+        let results = search_items(&pool, "{test}[0]", None, 10, false).await;
+        assert!(results.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_search_single_char() {
+        let pool = test_pool().await;
+
+        let item = NewClipboardItem {
+            content_type: ContentType::PlainText,
+            plain_text: "X marks the spot".into(),
+            rich_content: None,
+            thumbnail: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            source_app: "".into(),
+            source_app_name: "".into(),
+            content_size: 16,
+            content_hash: "single-char-hash".into(),
+        };
+        insert_item(&pool, &item).await.unwrap();
+
+        // Single character (< 3 chars) should fall back to LIKE search
+        let results = search_items(&pool, "X", None, 10, false).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].plain_text.contains("X"));
+
+        // Two characters should also use LIKE fallback
+        let results = search_items(&pool, "ma", None, 10, false).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].plain_text.contains("marks"));
+
+        // Single char with no match
+        let results = search_items(&pool, "Z", None, 10, false).await.unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_item_detail_with_rich_content() {
+        let pool = test_pool().await;
+
+        let rich_html = "<p>Hello <strong>World</strong></p>";
+        let item = NewClipboardItem {
+            content_type: ContentType::RichText,
+            plain_text: "Hello World".into(),
+            rich_content: Some(rich_html.as_bytes().to_vec()),
+            thumbnail: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            source_app: "com.test.editor".into(),
+            source_app_name: "TestEditor".into(),
+            content_size: rich_html.len() as i64,
+            content_hash: "rich-hash".into(),
+        };
+
+        let id = insert_item(&pool, &item).await.unwrap();
+
+        let detail = get_item_detail(&pool, &id).await.unwrap();
+        assert!(detail.is_some());
+
+        let (ct, pt, rc, _ip, _fp, _fn, cs) = detail.unwrap();
+        assert_eq!(ct, "rich_text");
+        assert_eq!(pt, "Hello World");
+        assert_eq!(rc, Some(rich_html.to_string()));
+        assert_eq!(cs, rich_html.len() as i64);
+
+        // Test with UTF-8 rich content containing CJK characters
+        let cjk_html = "<p>你好世界 こんにちは 🌍</p>";
+        let cjk_item = NewClipboardItem {
+            content_type: ContentType::RichText,
+            plain_text: "你好世界".into(),
+            rich_content: Some(cjk_html.as_bytes().to_vec()),
+            thumbnail: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            source_app: "".into(),
+            source_app_name: "".into(),
+            content_size: cjk_html.len() as i64,
+            content_hash: "cjk-rich-hash".into(),
+        };
+
+        let cjk_id = insert_item(&pool, &cjk_item).await.unwrap();
+        let cjk_detail = get_item_detail(&pool, &cjk_id).await.unwrap();
+        assert!(cjk_detail.is_some());
+
+        let (_, _, cjk_rc, _, _, _, _) = cjk_detail.unwrap();
+        assert_eq!(cjk_rc, Some(cjk_html.to_string()));
+    }
 }

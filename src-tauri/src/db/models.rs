@@ -110,3 +110,99 @@ pub struct NewClipboardItem {
     pub content_size: i64,
     pub content_hash: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_content_type_as_str() {
+        assert_eq!(ContentType::PlainText.as_str(), "plain_text");
+        assert_eq!(ContentType::RichText.as_str(), "rich_text");
+        assert_eq!(ContentType::Image.as_str(), "image");
+        assert_eq!(ContentType::File.as_str(), "file");
+        assert_eq!(ContentType::Link.as_str(), "link");
+    }
+
+    #[test]
+    fn test_content_type_from_str() {
+        assert_eq!(
+            ContentType::from_str("plain_text"),
+            Some(ContentType::PlainText)
+        );
+        assert_eq!(
+            ContentType::from_str("rich_text"),
+            Some(ContentType::RichText)
+        );
+        assert_eq!(ContentType::from_str("image"), Some(ContentType::Image));
+        assert_eq!(ContentType::from_str("file"), Some(ContentType::File));
+        assert_eq!(ContentType::from_str("link"), Some(ContentType::Link));
+    }
+
+    #[test]
+    fn test_content_type_from_str_invalid() {
+        assert_eq!(ContentType::from_str(""), None);
+        assert_eq!(ContentType::from_str("unknown"), None);
+        assert_eq!(ContentType::from_str("PlainText"), None);
+        assert_eq!(ContentType::from_str("PLAIN_TEXT"), None);
+    }
+
+    #[test]
+    fn test_content_type_roundtrip() {
+        let variants = vec![
+            ContentType::PlainText,
+            ContentType::RichText,
+            ContentType::Image,
+            ContentType::File,
+            ContentType::Link,
+        ];
+
+        for variant in variants {
+            let s = variant.as_str();
+            let recovered = ContentType::from_str(s);
+            assert_eq!(recovered, Some(variant));
+        }
+    }
+
+    #[test]
+    fn test_content_type_serde_roundtrip() {
+        let variants = vec![
+            ContentType::PlainText,
+            ContentType::RichText,
+            ContentType::Image,
+            ContentType::File,
+            ContentType::Link,
+        ];
+
+        for variant in &variants {
+            let json = serde_json::to_string(variant).unwrap();
+            let deserialized: ContentType = serde_json::from_str(&json).unwrap();
+            assert_eq!(&deserialized, variant);
+        }
+    }
+
+    #[test]
+    fn test_content_type_serde_snake_case() {
+        // Verify serde(rename_all = "snake_case") produces expected JSON strings
+        assert_eq!(
+            serde_json::to_string(&ContentType::PlainText).unwrap(),
+            "\"plain_text\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ContentType::RichText).unwrap(),
+            "\"rich_text\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ContentType::Image).unwrap(),
+            "\"image\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ContentType::File).unwrap(),
+            "\"file\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ContentType::Link).unwrap(),
+            "\"link\""
+        );
+    }
+}
