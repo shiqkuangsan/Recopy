@@ -151,8 +151,12 @@ jobs:
       - name: Create Gitee Release
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${GITHUB_REF_NAME}"
+
+          # Fetch release notes from GitHub
+          BODY=$(gh release view "$TAG" -R shiqkuangsan/Recopy --json body -q '.body' 2>/dev/null || echo "Release $TAG")
 
           # Create Release via Gitee API
           RELEASE_ID=$(curl -sf -X POST "https://gitee.com/api/v5/repos/shiqkuangsan/Recopy/releases" \
@@ -161,7 +165,7 @@ jobs:
               --arg token "$GITEE_TOKEN" \
               --arg tag "$TAG" \
               --arg name "Recopy $TAG" \
-              --arg body "Release $TAG — see [GitHub Release](https://github.com/shiqkuangsan/Recopy/releases/tag/$TAG) for full notes." \
+              --arg body "$BODY" \
               '{access_token: $token, tag_name: $tag, name: $name, body: $body, target_commitish: "main"}'
             )" | jq -r '.id')
 
