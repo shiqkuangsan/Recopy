@@ -122,3 +122,18 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.exe
           retention-days: 7
+
+  update-cask:
+    name: Update Homebrew Cask
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger homebrew-recopy update
+        env:
+          GH_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh workflow run update-cask.yml \
+            -R shiqkuangsan/homebrew-recopy \
+            -f version="$VERSION"
