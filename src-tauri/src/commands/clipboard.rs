@@ -267,14 +267,22 @@ fn simulate_paste() {
 }
 
 /// Simulate Cmd+V using macOS CGEvent API (CoreGraphics).
-/// Much faster than osascript: no process spawn, no interpreter overhead.
-/// Requires Accessibility permission (already granted for global shortcuts).
+/// Uses CGEventSource(combinedSessionState) for reliable event delivery,
+/// adds left-Command flag (0x000008) for Emacs-style app compatibility,
+/// and suppresses local keyboard events during paste (matching Maccy/Clipy).
+/// Requires Accessibility permission — checks via CGPreflightPostEventAccess.
 #[cfg(target_os = "macos")]
 fn simulate_paste_cgevent() {
     use std::ffi::c_void;
 
     #[link(name = "CoreGraphics", kind = "framework")]
     extern "C" {
+        fn CGEventSourceCreate(state_id: u32) -> *mut c_void;
+        fn CGEventSourceSetLocalEventsFilterDuringSuppressionState(
+            source: *mut c_void,
+            filter: u32,
+            state: u32,
+        );
         fn CGEventCreateKeyboardEvent(
             source: *const c_void,
             virtual_key: u16,
@@ -282,60 +290,85 @@ fn simulate_paste_cgevent() {
         ) -> *mut c_void;
         fn CGEventPost(tap: u32, event: *const c_void);
         fn CGEventSetFlags(event: *mut c_void, flags: u64);
+        fn CGPreflightPostEventAccess() -> bool;
+        fn CGRequestPostEventAccess() -> bool;
     }
 
     extern "C" {
         fn CFRelease(cf: *const c_void);
     }
 
-    const VK_COMMAND: u16 = 0x37;
     const VK_ANSI_V: u16 = 0x09;
-    const CG_HID_EVENT_TAP: u32 = 0;
+    const CG_SESSION_EVENT_TAP: u32 = 1; // cgAnnotatedSessionEventTap
     const CG_EVENT_FLAG_MASK_COMMAND: u64 = 1 << 20; // 0x00100000
+                                                     // Left-Command physical key flag — required by some apps (e.g. Emacs).
+                                                     // See: https://github.com/TermiT/Flycut/pull/18
+    const NX_DEVICELCMDKEYMASK: u64 = 0x000008;
+    const CMD_FLAGS: u64 = CG_EVENT_FLAG_MASK_COMMAND | NX_DEVICELCMDKEYMASK;
+
+    // CGEventSourceStateID: combinedSessionState = 0
+    const COMBINED_SESSION_STATE: u32 = 0;
+    // Event filter: permit local mouse events + system-defined events
+    const PERMIT_LOCAL_MOUSE_AND_SYSTEM: u32 = 0x01 | 0x04; // permitLocalMouseEvents | permitSystemDefinedEvents
+                                                            // Suppression state: eventSuppressionStateSuppressionInterval = 1
+    const SUPPRESSION_INTERVAL: u32 = 1;
 
     unsafe {
-        // Full modifier sequence: Cmd↓ → V↓ → V↑ → Cmd↑
-        let cmd_down = CGEventCreateKeyboardEvent(std::ptr::null(), VK_COMMAND, true);
-        if cmd_down.is_null() {
-            log::warn!("CGEvent: failed to create cmd-down event");
-            return;
+        // Pre-check PostEvent permission (macOS 10.15+)
+        if !CGPreflightPostEventAccess() {
+            log::warn!("CGEvent: PostEvent access not granted — requesting permission");
+            if !CGRequestPostEventAccess() {
+                log::error!(
+                    "CGEvent: PostEvent access denied — user must enable Accessibility in System Settings"
+                );
+                return;
+            }
         }
 
-        let v_down = CGEventCreateKeyboardEvent(std::ptr::null(), VK_ANSI_V, true);
+        // Create event source with combined session state for reliable delivery
+        let source = CGEventSourceCreate(COMBINED_SESSION_STATE);
+        if source.is_null() {
+            log::warn!("CGEvent: failed to create event source, falling back to null source");
+        } else {
+            // Suppress local keyboard events during paste to avoid interference
+            CGEventSourceSetLocalEventsFilterDuringSuppressionState(
+                source,
+                PERMIT_LOCAL_MOUSE_AND_SYSTEM,
+                SUPPRESSION_INTERVAL,
+            );
+        }
+
+        // Simplified sequence: V↓ with Cmd flag → V↑ with Cmd flag
+        // The flag approach is how Maccy/Clipy/CopyQ all do it — no separate Cmd key events needed
+        let v_down = CGEventCreateKeyboardEvent(source, VK_ANSI_V, true);
         if v_down.is_null() {
-            CFRelease(cmd_down);
+            if !source.is_null() {
+                CFRelease(source);
+            }
             log::warn!("CGEvent: failed to create key-down event");
             return;
         }
-        CGEventSetFlags(v_down, CG_EVENT_FLAG_MASK_COMMAND);
+        CGEventSetFlags(v_down, CMD_FLAGS);
 
-        let v_up = CGEventCreateKeyboardEvent(std::ptr::null(), VK_ANSI_V, false);
+        let v_up = CGEventCreateKeyboardEvent(source, VK_ANSI_V, false);
         if v_up.is_null() {
-            CFRelease(cmd_down);
             CFRelease(v_down);
+            if !source.is_null() {
+                CFRelease(source);
+            }
             log::warn!("CGEvent: failed to create key-up event");
             return;
         }
-        CGEventSetFlags(v_up, CG_EVENT_FLAG_MASK_COMMAND);
+        CGEventSetFlags(v_up, CMD_FLAGS);
 
-        let cmd_up = CGEventCreateKeyboardEvent(std::ptr::null(), VK_COMMAND, false);
-        if cmd_up.is_null() {
-            CFRelease(cmd_down);
-            CFRelease(v_down);
-            CFRelease(v_up);
-            log::warn!("CGEvent: failed to create cmd-up event");
-            return;
-        }
+        CGEventPost(CG_SESSION_EVENT_TAP, v_down);
+        CGEventPost(CG_SESSION_EVENT_TAP, v_up);
 
-        CGEventPost(CG_HID_EVENT_TAP, cmd_down);
-        CGEventPost(CG_HID_EVENT_TAP, v_down);
-        CGEventPost(CG_HID_EVENT_TAP, v_up);
-        CGEventPost(CG_HID_EVENT_TAP, cmd_up);
-
-        CFRelease(cmd_down);
         CFRelease(v_down);
         CFRelease(v_up);
-        CFRelease(cmd_up);
+        if !source.is_null() {
+            CFRelease(source);
+        }
     }
 }
 
