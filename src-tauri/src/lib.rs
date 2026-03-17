@@ -373,8 +373,7 @@ pub fn show_preview_window_impl(
     // Position adjacent to the main panel
     let gap = 8.0;
     // Menu bar / notch safe area
-    let menu_h = platform::platform_menu_bar_height();
-    let top_inset = if menu_h > 0.0 { menu_h } else { 37.0 };
+    let top_inset = platform::platform_preview_top_inset();
     let positioned = (|| -> Option<()> {
         let monitor = window.current_monitor().ok()??;
         let scale = monitor.scale_factor();
