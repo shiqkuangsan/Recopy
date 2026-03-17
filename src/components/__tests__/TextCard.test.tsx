@@ -37,9 +37,9 @@ describe("TextCard", () => {
     const { container } = render(
       <TextCard item={mockItem({ is_favorited: true })} selected={false} onClick={vi.fn()} />,
     );
-    // Star icon should be present (lucide renders svg)
-    const svg = container.querySelector("svg.text-yellow-500");
-    expect(svg).toBeInTheDocument();
+    // Star icon should be present inside a clickable button
+    const btn = container.querySelector("button.text-yellow-500");
+    expect(btn).toBeInTheDocument();
   });
 
   it("applies selected styles", () => {

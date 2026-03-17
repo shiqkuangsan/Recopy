@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 import type { ClipboardItem } from "../lib/types";
 import { relativeTime } from "../lib/time";
 import { createPressActionHandlers } from "../lib/press-action";
-import { Star, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
+import { FavoriteStar } from "./FavoriteStar";
 
 interface RichTextCardProps {
   item: ClipboardItem;
@@ -27,9 +28,7 @@ export function RichTextCard({ item, selected, onClick }: RichTextCardProps) {
         ${selected ? "border-primary bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >
       <div className="flex items-center gap-1.5 text-muted-foreground pr-5">
-        {item.is_favorited && (
-          <Star className="text-yellow-500 shrink-0" size={14} fill="currentColor" />
-        )}
+        <FavoriteStar itemId={item.id} isFavorited={item.is_favorited} />
         <FileText size={13} />
         <span className="text-sm">{t("card.richText")}</span>
       </div>

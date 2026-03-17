@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 import type { ClipboardItem } from "../lib/types";
 import { relativeTime, formatSize } from "../lib/time";
 import { createPressActionHandlers } from "../lib/press-action";
-import { Star, ImageIcon } from "lucide-react";
+import { ImageIcon } from "lucide-react";
+import { FavoriteStar } from "./FavoriteStar";
 import { useThumbnail } from "../hooks/useThumbnail";
 
 interface ImageCardProps {
@@ -27,9 +28,7 @@ export function ImageCard({ item, selected, onClick }: ImageCardProps) {
         ${selected ? "border-primary bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >
       <div className="flex items-center gap-1.5 text-muted-foreground pr-5">
-        {item.is_favorited && (
-          <Star className="text-yellow-500 shrink-0" size={14} fill="currentColor" />
-        )}
+        <FavoriteStar itemId={item.id} isFavorited={item.is_favorited} />
         <ImageIcon size={13} />
         <span className="text-sm">{t("card.image")}</span>
         <span className="text-sm ml-auto">{formatSize(item.content_size)}</span>
