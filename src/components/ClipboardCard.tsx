@@ -3,6 +3,7 @@ import { copyToClipboard } from "../lib/paste";
 import { X } from "lucide-react";
 import { useCopyHud } from "./CopyHud";
 import { useClipboardStore } from "../stores/clipboard-store";
+import { FavoriteStar } from "./FavoriteStar";
 import { TextCard } from "./TextCard";
 import { RichTextCard } from "./RichTextCard";
 import { ImageCard } from "./ImageCard";
@@ -45,14 +46,15 @@ export function ClipboardCard({ item, selected, onClick }: ClipboardCardProps) {
     <ItemContextMenu item={item}>
       <div className="group relative h-full" onDoubleClick={handleDoubleClick}>
         {card}
+        <FavoriteStar itemId={item.id} isFavorited={item.is_favorited} />
         <button
-          className="absolute top-1 right-1 z-20 hidden group-hover:flex items-center justify-center w-5 h-5 rounded-full bg-black/50 hover:bg-destructive text-white transition-colors"
+          className="absolute top-1.5 right-2 z-20 hidden group-hover:flex items-center justify-center text-white/70 hover:text-destructive transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             deleteItem(item.id);
           }}
         >
-          <X size={12} />
+          <X size={14} />
         </button>
       </div>
     </ItemContextMenu>

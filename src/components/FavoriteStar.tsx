@@ -8,8 +8,6 @@ interface FavoriteStarProps {
 }
 
 export function FavoriteStar({ itemId, isFavorited }: FavoriteStarProps) {
-  if (!isFavorited) return null;
-
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -26,13 +24,36 @@ export function FavoriteStar({ itemId, isFavorited }: FavoriteStarProps) {
     }
   };
 
+  if (isFavorited) {
+    return (
+      <>
+        {/* Non-hover: star at right-2 */}
+        <button
+          onClick={handleClick}
+          className="absolute top-1.5 right-2 z-20 flex group-hover:hidden items-center justify-center text-yellow-500 hover:opacity-50 transition-opacity cursor-pointer"
+          aria-label="Remove from favorites"
+        >
+          <Star size={14} fill="currentColor" />
+        </button>
+        {/* Hover: star shifts left to make room for X */}
+        <button
+          onClick={handleClick}
+          className="absolute top-1.5 right-8 z-20 hidden group-hover:flex items-center justify-center text-yellow-500 hover:opacity-50 transition-opacity cursor-pointer"
+          aria-label="Remove from favorites"
+        >
+          <Star size={14} fill="currentColor" />
+        </button>
+      </>
+    );
+  }
+
   return (
     <button
       onClick={handleClick}
-      className="text-yellow-500 shrink-0 hover:opacity-50 transition-opacity cursor-pointer"
-      aria-label="Remove from favorites"
+      className="absolute top-1.5 right-8 z-20 hidden group-hover:flex items-center justify-center text-white/70 hover:text-yellow-500 transition-colors cursor-pointer"
+      aria-label="Add to favorites"
     >
-      <Star size={14} fill="currentColor" />
+      <Star size={14} />
     </button>
   );
 }

@@ -4,7 +4,6 @@ import { invoke } from "@tauri-apps/api/core";
 import type { ClipboardItem } from "../lib/types";
 import { relativeTime } from "../lib/time";
 import { Globe } from "lucide-react";
-import { FavoriteStar } from "./FavoriteStar";
 
 interface LinkCardProps {
   item: ClipboardItem;
@@ -73,8 +72,7 @@ export function LinkCard({ item, selected, onClick }: LinkCardProps) {
       className={`relative flex flex-col gap-1.5 rounded-lg border p-2.5 cursor-pointer transition-colors h-full overflow-hidden
         ${selected ? "border-primary bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >
-      <div className="flex items-center gap-1.5 text-muted-foreground pr-5">
-        <FavoriteStar itemId={item.id} isFavorited={item.is_favorited} />
+      <div className="flex items-center gap-1.5 text-muted-foreground pr-8">
         <Globe size={13} />
         <span className="text-sm">{t("card.link")}</span>
       </div>

@@ -33,13 +33,12 @@ describe("TextCard", () => {
     expect(pre.textContent!.length).toBeLessThan(400);
   });
 
-  it("shows favorite star when is_favorited", () => {
+  it("does not render favorite star (managed by ClipboardCard)", () => {
     const { container } = render(
       <TextCard item={mockItem({ is_favorited: true })} selected={false} onClick={vi.fn()} />,
     );
-    // Star icon should be present inside a clickable button
-    const btn = container.querySelector("button.text-yellow-500");
-    expect(btn).toBeInTheDocument();
+    const svg = container.querySelector("svg.lucide-star");
+    expect(svg).not.toBeInTheDocument();
   });
 
   it("applies selected styles", () => {

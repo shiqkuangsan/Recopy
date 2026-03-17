@@ -3,7 +3,6 @@ import type { ClipboardItem } from "../lib/types";
 import { relativeTime, formatSize } from "../lib/time";
 import { createPressActionHandlers } from "../lib/press-action";
 import { ImageIcon } from "lucide-react";
-import { FavoriteStar } from "./FavoriteStar";
 import { useThumbnail } from "../hooks/useThumbnail";
 
 interface ImageCardProps {
@@ -27,8 +26,7 @@ export function ImageCard({ item, selected, onClick }: ImageCardProps) {
       className={`relative flex flex-col gap-1.5 rounded-lg border p-2.5 cursor-pointer transition-colors h-full overflow-hidden
         ${selected ? "border-primary bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >
-      <div className="flex items-center gap-1.5 text-muted-foreground pr-5">
-        <FavoriteStar itemId={item.id} isFavorited={item.is_favorited} />
+      <div className="flex items-center gap-1.5 text-muted-foreground pr-8">
         <ImageIcon size={13} />
         <span className="text-sm">{t("card.image")}</span>
         <span className="text-sm ml-auto">{formatSize(item.content_size)}</span>
