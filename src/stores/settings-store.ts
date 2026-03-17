@@ -46,10 +46,12 @@ export interface ShowEventPayload {
   update_check_interval?: string;
   panel_position?: string;
   flat_mode_tb?: string;
+  menu_bar_height?: number;
 }
 
 interface SettingsState {
   settings: Settings;
+  menuBarHeight: number;
   loaded: boolean;
 
   loadSettings: () => Promise<void>;
@@ -81,6 +83,7 @@ function applyLanguage(language: string) {
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   settings: { ...DEFAULT_SETTINGS },
+  menuBarHeight: 0,
   loaded: false,
 
   loadSettings: async () => {
@@ -150,7 +153,14 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
 
   syncSettingsFromEvent: (payload: ShowEventPayload) => {
-    const { theme, language, update_check_interval, panel_position, flat_mode_tb } = payload;
+    const {
+      theme,
+      language,
+      update_check_interval,
+      panel_position,
+      flat_mode_tb,
+      menu_bar_height,
+    } = payload;
     if (theme) {
       applyTheme(theme as Theme);
       set((state) => ({
@@ -177,6 +187,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       set((state) => ({
         settings: { ...state.settings, flat_mode_tb },
       }));
+    }
+    if (menu_bar_height != null) {
+      set({ menuBarHeight: menu_bar_height });
     }
   },
 

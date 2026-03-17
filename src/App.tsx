@@ -152,6 +152,7 @@ function MainApp() {
   }, [onPanelShow, syncSettingsFromEvent]);
 
   const panelPosition = useSettingsStore((s) => s.settings.panel_position);
+  const menuBarHeight = useSettingsStore((s) => s.menuBarHeight);
   const isVertical = panelPosition === "left" || panelPosition === "right";
   const isTop = panelPosition === "top";
 
@@ -215,7 +216,10 @@ function MainApp() {
         )}
 
         {/* Content */}
-        <div className={`flex-1 min-h-0 pb-1 ${isTop ? "pt-2" : ""}`}>
+        <div
+          className="flex-1 min-h-0 pb-1"
+          style={isTop && menuBarHeight > 0 ? { paddingTop: menuBarHeight } : undefined}
+        >
           <ClipboardList />
         </div>
       </div>

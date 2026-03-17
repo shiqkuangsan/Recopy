@@ -313,6 +313,7 @@ pub fn show_main_window(app: &tauri::AppHandle) {
     commands::clipboard::update_window_effects_for_theme(app, &theme);
 
     platform::platform_show_window(app, &panel_position);
+    let menu_bar_height = platform::platform_menu_bar_height();
     let _ = app.emit(
         "recopy-show",
         serde_json::json!({
@@ -321,6 +322,7 @@ pub fn show_main_window(app: &tauri::AppHandle) {
             "update_check_interval": update_check_interval,
             "panel_position": panel_position,
             "flat_mode_tb": flat_mode_tb,
+            "menu_bar_height": menu_bar_height,
         }),
     );
 }
