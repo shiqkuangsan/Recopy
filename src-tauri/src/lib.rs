@@ -370,6 +370,9 @@ pub fn show_preview_window_impl(
 
     // Position adjacent to the main panel
     let gap = 8.0;
+    // Menu bar / notch safe area
+    let menu_h = platform::platform_menu_bar_height();
+    let top_inset = if menu_h > 0.0 { menu_h } else { 37.0 };
     let positioned = (|| -> Option<()> {
         let monitor = window.current_monitor().ok()??;
         let scale = monitor.scale_factor();
@@ -386,22 +389,31 @@ pub fn show_preview_window_impl(
         let panel_w = main_size.width as f64 / scale;
         let panel_h = main_size.height as f64 / scale;
 
+        // Safe top boundary: below menu bar / notch
+        let safe_top = mon_y + top_inset;
+
         let (x, y) = match panel_position {
             "top" => {
                 // Below the panel, centered horizontally
                 (mon_x + (screen_w - width) / 2.0, panel_y + panel_h + gap)
             }
             "left" => {
-                // Right of the panel, centered vertically
-                (panel_x + panel_w + gap, mon_y + (screen_h - height) / 2.0)
+                // Right of the panel, centered vertically within safe area
+                let visible_h = screen_h - top_inset;
+                let cy = safe_top + (visible_h - height) / 2.0;
+                (panel_x + panel_w + gap, cy.max(safe_top))
             }
             "right" => {
-                // Left of the panel, centered vertically
-                (panel_x - width - gap, mon_y + (screen_h - height) / 2.0)
+                // Left of the panel, centered vertically within safe area
+                let visible_h = screen_h - top_inset;
+                let cy = safe_top + (visible_h - height) / 2.0;
+                (panel_x - width - gap, cy.max(safe_top))
             }
             _ => {
                 // "bottom": above the panel, centered horizontally
-                (mon_x + (screen_w - width) / 2.0, panel_y - height - gap)
+                // Clamp so the top edge doesn't go above menu bar / notch
+                let y = (panel_y - height - gap).max(safe_top);
+                (mon_x + (screen_w - width) / 2.0, y)
             }
         };
 

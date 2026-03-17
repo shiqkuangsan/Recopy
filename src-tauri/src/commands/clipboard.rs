@@ -640,6 +640,9 @@ pub async fn show_preview_window(
 
     // Calculate available space for preview based on panel position
     let gap = 24.0; // 8px gap + 16px margin
+                    // Menu bar / notch height: preview must not extend above the menu bar
+    let menu_h = crate::platform::platform_menu_bar_height();
+    let top_safe = if menu_h > 0.0 { menu_h } else { 37.0 };
     let (available_w, available_h) = (|| -> Option<(f64, f64)> {
         let preview_win = app.get_webview_window("preview")?;
         let monitor = preview_win.current_monitor().ok()??;
@@ -664,15 +667,16 @@ pub async fn show_preview_window(
             }
             "left" => {
                 let avail_w = (mon_x + screen_w) - (panel_x + panel_w) - gap;
-                Some((avail_w, screen_h - gap))
+                Some((avail_w, screen_h - top_safe - 8.0))
             }
             "right" => {
                 let avail_w = panel_x - mon_x - gap;
-                Some((avail_w, screen_h - gap))
+                Some((avail_w, screen_h - top_safe - 8.0))
             }
             _ => {
-                // "bottom": space above panel
-                let avail_h = panel_y - mon_y - gap;
+                // "bottom": space above panel, minus menu bar / notch area
+                // 4px breathing room from menu bar + 8px gap to panel
+                let avail_h = panel_y - (mon_y + top_safe + 4.0) - 8.0;
                 Some((screen_w, avail_h))
             }
         }
