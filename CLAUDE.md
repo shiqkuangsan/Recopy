@@ -24,7 +24,7 @@ pnpm tauri build            # Production build (DMG on macOS, NSIS on Windows)
 
 ## Architecture
 
-Tauri v2 desktop app: **React 19 frontend** communicating with **Rust backend** via IPC commands.
+Tauri v2 **cross-platform** desktop app: **React 19 frontend** communicating with **Rust backend** via IPC commands. Targets **macOS** and **Windows** — all features must consider both platforms (keyboard shortcuts, platform APIs, window behavior, etc.).
 
 ### Frontend → Backend Communication
 
