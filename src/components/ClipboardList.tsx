@@ -13,6 +13,7 @@ import { useClipboardStore } from "../stores/clipboard-store";
 import { useSettingsStore } from "../stores/settings-store";
 import { ClipboardCard } from "./ClipboardCard";
 import { dateGroupLabel } from "../lib/time";
+import { getQuickPasteTargets } from "../lib/quick-paste";
 import { Clipboard, Loader2 } from "lucide-react";
 
 import type { ClipboardItem } from "../lib/types";
@@ -32,6 +33,7 @@ interface GroupRowProps {
   items: { item: ClipboardItem; flatIndex: number }[];
   selectedIndex: number;
   setSelectedIndex: (index: number) => void;
+  quickIndexByFlatIndex: Map<number, number>;
   onRowWheel: (e: React.WheelEvent<HTMLDivElement>) => void;
 }
 
@@ -41,7 +43,7 @@ const CARD_HEIGHT = 260;
 const HORIZONTAL_ESTIMATE = CARD_WIDTH + CARD_GAP; // 312
 
 const GroupRow = forwardRef<GroupRowHandle, GroupRowProps>(
-  ({ items, selectedIndex, setSelectedIndex, onRowWheel }, ref) => {
+  ({ items, selectedIndex, setSelectedIndex, quickIndexByFlatIndex, onRowWheel }, ref) => {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const virtualizer = useVirtualizer({
@@ -83,6 +85,7 @@ const GroupRow = forwardRef<GroupRowHandle, GroupRowProps>(
                   item={item}
                   selected={flatIndex === selectedIndex}
                   onClick={() => setSelectedIndex(flatIndex)}
+                  quickIndex={quickIndexByFlatIndex.get(flatIndex)}
                 />
               </div>
             );
@@ -171,6 +174,11 @@ export function ClipboardList() {
     if (isVertical || shouldGroup) return [];
     return items.map((item, i) => ({ item, flatIndex: i }));
   }, [items, isVertical, shouldGroup]);
+
+  const quickIndexByFlatIndex = useMemo(() => {
+    const targets = getQuickPasteTargets(items, selectedIndex, shouldGroup);
+    return new Map(targets.map((target) => [target.flatIndex, target.quickIndex]));
+  }, [items, selectedIndex, shouldGroup]);
 
   // Vertical virtualizer for L/R mode
   const verticalVirtualizer = useVirtualizer({
@@ -278,6 +286,7 @@ export function ClipboardList() {
                     item={item}
                     selected={virtualRow.index === selectedIndex}
                     onClick={() => setSelectedIndex(virtualRow.index)}
+                    quickIndex={quickIndexByFlatIndex.get(virtualRow.index)}
                   />
                 </div>
               </div>
@@ -302,6 +311,7 @@ export function ClipboardList() {
           items={flatItems}
           selectedIndex={selectedIndex}
           setSelectedIndex={setSelectedIndex}
+          quickIndexByFlatIndex={quickIndexByFlatIndex}
           onRowWheel={onRowWheel}
         />
         {hasMore && (
@@ -359,6 +369,7 @@ export function ClipboardList() {
             items={group.items}
             selectedIndex={selectedIndex}
             setSelectedIndex={setSelectedIndex}
+            quickIndexByFlatIndex={quickIndexByFlatIndex}
             onRowWheel={onRowWheel}
           />
         </div>

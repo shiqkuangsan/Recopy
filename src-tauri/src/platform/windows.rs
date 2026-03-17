@@ -47,6 +47,15 @@ mod win32 {
     pub const VK_CONTROL: u32 = 0x11;
     pub const VK_ESCAPE: u32 = 0x1B;
     pub const VK_SPACE: u32 = 0x20;
+    pub const VK_1: u32 = 0x31;
+    pub const VK_2: u32 = 0x32;
+    pub const VK_3: u32 = 0x33;
+    pub const VK_4: u32 = 0x34;
+    pub const VK_5: u32 = 0x35;
+    pub const VK_6: u32 = 0x36;
+    pub const VK_7: u32 = 0x37;
+    pub const VK_8: u32 = 0x38;
+    pub const VK_9: u32 = 0x39;
     pub const VK_LEFT: u32 = 0x25;
     pub const VK_UP: u32 = 0x26;
     pub const VK_RIGHT: u32 = 0x27;
@@ -56,6 +65,15 @@ mod win32 {
     pub const VK_RSHIFT: u32 = 0xA1;
     pub const VK_LCONTROL: u32 = 0xA2;
     pub const VK_RCONTROL: u32 = 0xA3;
+    pub const VK_NUMPAD1: u32 = 0x61;
+    pub const VK_NUMPAD2: u32 = 0x62;
+    pub const VK_NUMPAD3: u32 = 0x63;
+    pub const VK_NUMPAD4: u32 = 0x64;
+    pub const VK_NUMPAD5: u32 = 0x65;
+    pub const VK_NUMPAD6: u32 = 0x66;
+    pub const VK_NUMPAD7: u32 = 0x67;
+    pub const VK_NUMPAD8: u32 = 0x68;
+    pub const VK_NUMPAD9: u32 = 0x69;
     pub const VK_C: u32 = 0x43;
     pub const VK_F: u32 = 0x46;
     pub const VK_V: u32 = 0x56;
@@ -253,6 +271,19 @@ static PREVIEW_FOCUS_GUARD: AtomicBool = AtomicBool::new(false);
 
 /// Set before programmatically hiding preview, prevents blur → close-all.
 static PREVIEW_PROGRAMMATIC_HIDE: AtomicBool = AtomicBool::new(false);
+
+fn emit_platform_key_event(event_name: &str, key: &str, ctrl: bool, shift: bool) {
+    if let Some(app) = APP_HANDLE.get() {
+        let _ = app.emit(
+            event_name,
+            serde_json::json!({
+                "key": key,
+                "ctrlKey": ctrl,
+                "shiftKey": shift,
+            }),
+        );
+    }
+}
 
 // ---------------------------------------------------------------------------
 // HWND helper
@@ -567,11 +598,27 @@ unsafe extern "system" fn keyboard_hook_proc(
 
     let kbd = &*(lparam as *const win32::KBDLLHOOKSTRUCT);
     let vk = kbd.vk_code;
+    let fg = win32::GetForegroundWindow();
+    let mut fg_pid: u32 = 0;
+    win32::GetWindowThreadProcessId(fg, &mut fg_pid);
+    let recopy_not_foreground = fg_pid != win32::GetCurrentProcessId();
 
     // --- Track modifier state (handles both left/right and generic VK codes) ---
     match vk {
         win32::VK_CONTROL | win32::VK_LCONTROL | win32::VK_RCONTROL => {
             CTRL_DOWN.store(is_down, Ordering::SeqCst);
+            if recopy_not_foreground {
+                emit_platform_key_event(
+                    if is_down {
+                        "platform-keydown"
+                    } else {
+                        "platform-keyup"
+                    },
+                    "Control",
+                    is_down,
+                    SHIFT_DOWN.load(Ordering::SeqCst),
+                );
+            }
             return win32::CallNextHookEx(0, code, wparam, lparam);
         }
         win32::VK_SHIFT | win32::VK_LSHIFT | win32::VK_RSHIFT => {
@@ -588,10 +635,7 @@ unsafe extern "system" fn keyboard_hook_proc(
 
     // Safety-check: only intercept when the foreground window does NOT
     // belong to Recopy (e.g. settings window open → let keys through).
-    let fg = win32::GetForegroundWindow();
-    let mut fg_pid: u32 = 0;
-    win32::GetWindowThreadProcessId(fg, &mut fg_pid);
-    if fg_pid == win32::GetCurrentProcessId() {
+    if !recopy_not_foreground {
         return win32::CallNextHookEx(0, code, wparam, lparam);
     }
 
@@ -610,6 +654,15 @@ unsafe extern "system" fn keyboard_hook_proc(
         win32::VK_TAB => Some("Tab"),
         win32::VK_DELETE => Some("Delete"),
         win32::VK_BACK => Some("Backspace"),
+        win32::VK_1 | win32::VK_NUMPAD1 if ctrl => Some("1"),
+        win32::VK_2 | win32::VK_NUMPAD2 if ctrl => Some("2"),
+        win32::VK_3 | win32::VK_NUMPAD3 if ctrl => Some("3"),
+        win32::VK_4 | win32::VK_NUMPAD4 if ctrl => Some("4"),
+        win32::VK_5 | win32::VK_NUMPAD5 if ctrl => Some("5"),
+        win32::VK_6 | win32::VK_NUMPAD6 if ctrl => Some("6"),
+        win32::VK_7 | win32::VK_NUMPAD7 if ctrl => Some("7"),
+        win32::VK_8 | win32::VK_NUMPAD8 if ctrl => Some("8"),
+        win32::VK_9 | win32::VK_NUMPAD9 if ctrl => Some("9"),
         win32::VK_C if ctrl => Some("c"),
         win32::VK_OEM_COMMA if ctrl => Some(","),
         win32::VK_F if ctrl => {
@@ -635,28 +688,14 @@ unsafe extern "system" fn keyboard_hook_proc(
             if main != 0 {
                 win32::SetForegroundWindow(main);
             }
-            if let Some(app) = APP_HANDLE.get() {
-                let _ = app.emit(
-                    "platform-keydown",
-                    serde_json::json!({"key":"f","ctrlKey":true,"shiftKey":false}),
-                );
-            }
+            emit_platform_key_event("platform-keydown", "f", true, false);
             return 1; // consumed
         }
         _ => None,
     };
 
     if let Some(key_name) = key {
-        if let Some(app) = APP_HANDLE.get() {
-            let _ = app.emit(
-                "platform-keydown",
-                serde_json::json!({
-                    "key": key_name,
-                    "ctrlKey": ctrl,
-                    "shiftKey": shift,
-                }),
-            );
-        }
+        emit_platform_key_event("platform-keydown", key_name, ctrl, shift);
         return 1; // consumed – don't forward to previous app
     }
 

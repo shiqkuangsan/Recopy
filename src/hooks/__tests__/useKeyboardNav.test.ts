@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { ClipboardItem } from "../../lib/types";
 
 // Must mock matchMedia before importing stores (module-level code uses it)
@@ -31,8 +32,10 @@ const { useKeyboardNav, previewState } = await import("../useKeyboardNav");
 const { pasteItem, copyToClipboard } = await import("../../lib/paste");
 
 const mockedInvoke = vi.mocked(invoke);
+const mockedListen = vi.mocked(listen);
 const mockedPasteItem = vi.mocked(pasteItem);
 const mockedCopyToClipboard = vi.mocked(copyToClipboard);
+const tauriEventHandlers = new Map<string, (event: { payload: unknown }) => void>();
 
 const mockItem = (overrides: Partial<ClipboardItem> = {}): ClipboardItem => ({
   id: "test-id-1",
@@ -57,6 +60,15 @@ function fireKey(key: string, opts: Partial<KeyboardEventInit> = {}, target?: HT
   (target ?? document).dispatchEvent(event);
 }
 
+function fireKeyUp(key: string, opts: Partial<KeyboardEventInit> = {}, target?: HTMLElement) {
+  const event = new KeyboardEvent("keyup", {
+    key,
+    bubbles: true,
+    ...opts,
+  });
+  (target ?? document).dispatchEvent(event);
+}
+
 function setupItems(items: ClipboardItem[], selectedIndex = 0) {
   useClipboardStore.setState({ items, selectedIndex });
 }
@@ -71,11 +83,25 @@ function setupSettings(overrides: Partial<{ panel_position: string; flat_mode_tb
   });
 }
 
+function emitTauriEvent<T>(eventName: string, payload: T) {
+  tauriEventHandlers.get(eventName)?.({ payload });
+}
+
 describe("useKeyboardNav", () => {
   let hookResult: ReturnType<typeof renderHook>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    tauriEventHandlers.clear();
+    mockedListen.mockImplementation(((
+      eventName: string,
+      handler: (event: { payload: unknown }) => void,
+    ) => {
+      tauriEventHandlers.set(eventName, handler);
+      return Promise.resolve(() => {
+        tauriEventHandlers.delete(eventName);
+      });
+    }) as typeof listen);
     useClipboardStore.setState({
       items: [],
       loading: false,
@@ -85,7 +111,7 @@ describe("useKeyboardNav", () => {
       selectedIndex: 0,
       hasMore: true,
       isFetchingMore: false,
-    });
+    } as never);
     setupSettings();
     previewState.open = false;
     hookResult = renderHook(() => useKeyboardNav());
@@ -223,6 +249,24 @@ describe("useKeyboardNav", () => {
       fireKey("ArrowLeft", { metaKey: true });
 
       expect(useClipboardStore.getState().selectedIndex).toBe(1);
+    });
+  });
+
+  describe("modifier-held state", () => {
+    it("should set modifierHeld on Meta keydown and clear it on keyup", () => {
+      fireKey("Meta", { metaKey: true });
+      expect((useClipboardStore.getState() as Record<string, unknown>).modifierHeld).toBe(true);
+
+      fireKeyUp("Meta");
+      expect((useClipboardStore.getState() as Record<string, unknown>).modifierHeld).toBe(false);
+    });
+
+    it("should reset modifierHeld on window blur", () => {
+      useClipboardStore.setState({ modifierHeld: true } as never);
+
+      window.dispatchEvent(new Event("blur"));
+
+      expect((useClipboardStore.getState() as Record<string, unknown>).modifierHeld).toBe(false);
     });
   });
 
@@ -780,6 +824,93 @@ describe("useKeyboardNav", () => {
       await vi.waitFor(() => {
         expect(showSpy).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe("Cmd/Ctrl+1..9 — quick paste", () => {
+    const now = new Date();
+    const todayStr = now.toISOString().replace("T", " ").slice(0, 19);
+    const oldStr = "2020-01-01 10:00:00";
+
+    it("should paste from the selected group in grouped mode", () => {
+      const items = [
+        mockItem({ id: "today-0", updated_at: todayStr }),
+        mockItem({ id: "today-1", updated_at: todayStr }),
+        mockItem({ id: "today-2", updated_at: todayStr }),
+        mockItem({ id: "old-0", updated_at: oldStr }),
+        mockItem({ id: "old-1", updated_at: oldStr }),
+      ];
+      setupItems(items, 3);
+      setupSettings({ panel_position: "bottom", flat_mode_tb: "false" });
+      hookResult.rerender();
+
+      fireKey("2", { metaKey: true });
+
+      expect(mockedPasteItem).toHaveBeenCalledWith(items[4]);
+    });
+
+    it("should paste from the first nine items in flat mode", () => {
+      const items = Array.from({ length: 10 }, (_, i) => mockItem({ id: `flat-${i}` }));
+      setupItems(items, 7);
+      setupSettings({ panel_position: "left", flat_mode_tb: "false" });
+      hookResult.rerender();
+
+      fireKey("3", { metaKey: true });
+
+      expect(mockedPasteItem).toHaveBeenCalledWith(items[2]);
+    });
+
+    it("should support Ctrl+number shortcuts", () => {
+      const items = Array.from({ length: 4 }, (_, i) => mockItem({ id: `ctrl-${i}` }));
+      setupItems(items, 0);
+      setupSettings({ panel_position: "bottom", flat_mode_tb: "true" });
+      hookResult.rerender();
+
+      fireKey("4", { ctrlKey: true });
+
+      expect(mockedPasteItem).toHaveBeenCalledWith(items[3]);
+    });
+
+    it("should ignore out-of-range quick paste indices", () => {
+      const items = [mockItem({ id: "only-one" })];
+      setupItems(items, 0);
+      setupSettings({ panel_position: "bottom", flat_mode_tb: "true" });
+      hookResult.rerender();
+
+      fireKey("9", { metaKey: true });
+
+      expect(mockedPasteItem).not.toHaveBeenCalled();
+    });
+
+    it("should handle Windows platform Ctrl keydown and keyup events", () => {
+      emitTauriEvent("platform-keydown", {
+        key: "Control",
+        ctrlKey: true,
+        shiftKey: false,
+      });
+      expect((useClipboardStore.getState() as Record<string, unknown>).modifierHeld).toBe(true);
+
+      emitTauriEvent("platform-keyup", {
+        key: "Control",
+        ctrlKey: false,
+        shiftKey: false,
+      });
+      expect((useClipboardStore.getState() as Record<string, unknown>).modifierHeld).toBe(false);
+    });
+
+    it("should handle Windows platform Ctrl+number quick paste events", () => {
+      const items = Array.from({ length: 5 }, (_, i) => mockItem({ id: `win-${i}` }));
+      setupItems(items, 0);
+      setupSettings({ panel_position: "left", flat_mode_tb: "false" });
+      hookResult.rerender();
+
+      emitTauriEvent("platform-keydown", {
+        key: "5",
+        ctrlKey: true,
+        shiftKey: false,
+      });
+
+      expect(mockedPasteItem).toHaveBeenCalledWith(items[4]);
     });
   });
 

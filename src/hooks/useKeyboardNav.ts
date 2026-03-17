@@ -6,6 +6,7 @@ import { useSettingsStore } from "../stores/settings-store";
 import { useCopyHud } from "../components/CopyHud";
 import { pasteItem, copyToClipboard } from "../lib/paste";
 import { dateGroupLabel } from "../lib/time";
+import { getQuickPasteTargets } from "../lib/quick-paste";
 
 // Module-level preview state for cross-component access.
 // Set in openPreview/closePreview, reset on recopy-hide.
@@ -15,9 +16,11 @@ export function useKeyboardNav() {
   const items = useClipboardStore((s) => s.items);
   const selectedIndex = useClipboardStore((s) => s.selectedIndex);
   const setSelectedIndex = useClipboardStore((s) => s.setSelectedIndex);
+  const setModifierHeld = useClipboardStore((s) => s.setModifierHeld);
   const panelPosition = useSettingsStore((s) => s.settings.panel_position);
   const flatModeTB = useSettingsStore((s) => s.settings.flat_mode_tb) === "true";
   const isVertical = panelPosition === "left" || panelPosition === "right";
+  const shouldGroup = !isVertical && !flatModeTB;
   const previewOpenRef = useRef(false);
 
   // Build group info for T/B cross-group navigation (up/down preserves column position).
@@ -42,6 +45,11 @@ export function useKeyboardNav() {
     itemsRef.current = items;
   }, [items]);
 
+  const quickPasteTargets = useMemo(
+    () => getQuickPasteTargets(items, selectedIndex, shouldGroup),
+    [items, selectedIndex, shouldGroup],
+  );
+
   const openPreview = useCallback((id: string) => {
     previewOpenRef.current = true;
     previewState.open = true;
@@ -63,6 +71,9 @@ export function useKeyboardNav() {
       // Skip all keyboard shortcuts during IME composition (e.g. Chinese input)
       if (e.isComposing || e.keyCode === 229) return;
 
+      const modifierHeld = e.metaKey || e.ctrlKey;
+      setModifierHeld(modifierHeld);
+
       const target = e.target as HTMLElement;
       const isInInput = target.tagName === "INPUT";
 
@@ -77,6 +88,16 @@ export function useKeyboardNav() {
         e.preventDefault();
         const input = document.querySelector<HTMLInputElement>('input[type="text"]');
         input?.focus();
+        return;
+      }
+
+      // Cmd/Ctrl+1..9: quick paste
+      if (modifierHeld && e.key >= "1" && e.key <= "9") {
+        e.preventDefault();
+        const targetItem = quickPasteTargets[Number(e.key) - 1]?.item;
+        if (targetItem) {
+          pasteItem(targetItem);
+        }
         return;
       }
 
@@ -269,19 +290,41 @@ export function useKeyboardNav() {
       items,
       selectedIndex,
       setSelectedIndex,
+      setModifierHeld,
       groupInfo,
       isVertical,
       flatModeTB,
       panelPosition,
+      quickPasteTargets,
       openPreview,
       closePreview,
     ],
   );
 
+  const handleKeyUp = useCallback(
+    (e: KeyboardEvent) => {
+      setModifierHeld(e.metaKey || e.ctrlKey);
+    },
+    [setModifierHeld],
+  );
+
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+    document.addEventListener("keyup", handleKeyUp);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [handleKeyDown, handleKeyUp]);
+
+  useEffect(() => {
+    const resetModifierHeld = () => setModifierHeld(false);
+    window.addEventListener("blur", resetModifierHeld);
+    return () => {
+      window.removeEventListener("blur", resetModifierHeld);
+      setModifierHeld(false);
+    };
+  }, [setModifierHeld]);
 
   // Auto-update preview when selection or underlying item changes
   const selectedItemId = items[selectedIndex]?.id;
@@ -298,13 +341,15 @@ export function useKeyboardNav() {
     const unlisten = listen("recopy-hide", () => {
       previewOpenRef.current = false;
       previewState.open = false;
+      setModifierHeld(false);
     });
     return () => {
       unlisten.then((fn) => fn());
       previewOpenRef.current = false;
       previewState.open = false;
+      setModifierHeld(false);
     };
-  }, []);
+  }, [setModifierHeld]);
 
   // Windows non-activating mode: keyboard hook forwards navigation keys as
   // platform-keydown events. Dispatch them as synthetic KeyboardEvents so the
@@ -315,6 +360,25 @@ export function useKeyboardNav() {
       (event) => {
         document.dispatchEvent(
           new KeyboardEvent("keydown", {
+            key: event.payload.key,
+            ctrlKey: event.payload.ctrlKey,
+            shiftKey: event.payload.shiftKey,
+            bubbles: true,
+          }),
+        );
+      },
+    );
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  useEffect(() => {
+    const unlisten = listen<{ key: string; ctrlKey: boolean; shiftKey: boolean }>(
+      "platform-keyup",
+      (event) => {
+        document.dispatchEvent(
+          new KeyboardEvent("keyup", {
             key: event.payload.key,
             ctrlKey: event.payload.ctrlKey,
             shiftKey: event.payload.shiftKey,

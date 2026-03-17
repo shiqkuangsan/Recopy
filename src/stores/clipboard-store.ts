@@ -11,6 +11,7 @@ interface ClipboardState {
   filterType: FilterType;
   viewMode: ViewMode;
   selectedIndex: number;
+  modifierHeld: boolean;
   hasMore: boolean;
   isFetchingMore: boolean;
 
@@ -19,6 +20,7 @@ interface ClipboardState {
   setFilterType: (filter: FilterType) => void;
   setViewMode: (mode: ViewMode) => void;
   setSelectedIndex: (index: number) => void;
+  setModifierHeld: (held: boolean) => void;
   fetchItems: () => Promise<void>;
   searchItems: (query: string) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
@@ -44,6 +46,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
     filterType: "all",
     viewMode: "history",
     selectedIndex: 0,
+    modifierHeld: false,
     hasMore: true,
     isFetchingMore: false,
 
@@ -77,6 +80,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
     },
 
     setSelectedIndex: (index: number) => set({ selectedIndex: index }),
+    setModifierHeld: (held: boolean) => set({ modifierHeld: held }),
 
     fetchItems: async () => {
       const requestToken = nextRequestToken();
