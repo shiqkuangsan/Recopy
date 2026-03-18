@@ -104,6 +104,7 @@ export function ClipboardList() {
   const { t } = useTranslation();
   const items = useClipboardStore((s) => s.items);
   const selectedIndex = useClipboardStore((s) => s.selectedIndex);
+  const panelShowVersion = useClipboardStore((s) => s.panelShowVersion);
   const setSelectedIndex = useClipboardStore((s) => s.setSelectedIndex);
   const loading = useClipboardStore((s) => s.loading);
   const hasMore = useClipboardStore((s) => s.hasMore);
@@ -179,6 +180,8 @@ export function ClipboardList() {
     const targets = getQuickPasteTargets(items, selectedIndex, shouldGroup);
     return new Map(targets.map((target) => [target.flatIndex, target.quickIndex]));
   }, [items, selectedIndex, shouldGroup]);
+  const selectedItemId = items[selectedIndex]?.id ?? null;
+  const lastGroupedAutoScrollKeyRef = useRef<string | null>(null);
 
   // Vertical virtualizer for L/R mode
   const verticalVirtualizer = useVirtualizer({
@@ -212,7 +215,11 @@ export function ClipboardList() {
   // useLayoutEffect runs before browser paint, preventing visible jump when the
   // panel opens with a non-Today selection (e.g. This Week / This Month).
   useLayoutEffect(() => {
-    if (!shouldGroup || selectedIndex < 0) return;
+    if (!shouldGroup || selectedIndex < 0 || !selectedItemId) return;
+    const autoScrollKey = `${panelShowVersion}:${selectedItemId}`;
+    if (lastGroupedAutoScrollKeyRef.current === autoScrollKey) return;
+    lastGroupedAutoScrollKeyRef.current = autoScrollKey;
+
     // Find which group contains the selected item and scroll within it
     for (let gi = 0; gi < groups.length; gi++) {
       const group = groups[gi];
@@ -233,7 +240,13 @@ export function ClipboardList() {
         break;
       }
     }
-  }, [selectedIndex, shouldGroup, groups]);
+  }, [panelShowVersion, selectedIndex, selectedItemId, shouldGroup, groups]);
+
+  useEffect(() => {
+    if (!shouldGroup || !selectedItemId) {
+      lastGroupedAutoScrollKeyRef.current = null;
+    }
+  }, [shouldGroup, selectedItemId]);
 
   // Auto-scroll selected card into view for T/B flat mode
   useLayoutEffect(() => {

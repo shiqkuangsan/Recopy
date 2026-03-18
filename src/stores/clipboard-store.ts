@@ -11,6 +11,7 @@ interface ClipboardState {
   filterType: FilterType;
   viewMode: ViewMode;
   selectedIndex: number;
+  panelShowVersion: number;
   modifierHeld: boolean;
   hasMore: boolean;
   isFetchingMore: boolean;
@@ -46,6 +47,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
     filterType: "all",
     viewMode: "history",
     selectedIndex: 0,
+    panelShowVersion: 0,
     modifierHeld: false,
     hasMore: true,
     isFetchingMore: false,
@@ -220,6 +222,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
 
     onPanelShow: async () => {
       // Preserve all UI state: viewMode, filterType, searchQuery, selectedIndex, scroll position.
+      set((state) => ({ panelShowVersion: state.panelShowVersion + 1 }));
       const { searchQuery, viewMode } = get();
       if (viewMode === "pins") {
         await get().fetchFavorites();
