@@ -220,6 +220,8 @@ if (typeof window !== "undefined") {
     const { settings } = useSettingsStore.getState();
     if (settings.theme === "system") {
       applyTheme("system");
+      // Sync native window effects for all windows
+      invoke("sync_system_theme").catch(() => {});
     }
   });
 

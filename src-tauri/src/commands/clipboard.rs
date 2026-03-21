@@ -687,8 +687,22 @@ pub async fn show_preview_window(
     // Store in state so PreviewPage can poll via get_current_preview
     *preview_state.0.lock().unwrap() = Some(detail);
 
+    // Resolve window theme: None for system, Some for explicit
+    let window_theme = {
+        let theme_str = queries::get_setting(&db.0, "theme")
+            .await
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "system".to_string());
+        match theme_str.as_str() {
+            "light" => Some(tauri::Theme::Light),
+            "dark" => Some(tauri::Theme::Dark),
+            _ => None,
+        }
+    };
+
     // Show window with adaptive size and position
-    crate::show_preview_window_impl(&app, width, height, &panel_position);
+    crate::show_preview_window_impl(&app, width, height, &panel_position, window_theme);
 
     Ok(())
 }
@@ -992,8 +1006,18 @@ pub fn show_copy_hud(app: AppHandle) {
 
 /// Open the settings window.
 #[tauri::command]
-pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {
-    crate::open_settings_window_impl(&app);
+pub async fn open_settings_window(app: AppHandle, db: State<'_, DbPool>) -> Result<(), String> {
+    let theme_setting = crate::db::queries::get_setting(&db.0, "theme")
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| "system".to_string());
+    let window_theme = match theme_setting.as_str() {
+        "light" => Some(tauri::Theme::Light),
+        "dark" => Some(tauri::Theme::Dark),
+        _ => None,
+    };
+    crate::open_settings_window_impl(&app, window_theme);
     Ok(())
 }
 
@@ -1156,6 +1180,8 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     use tauri::utils::config::WindowEffectsConfig;
     use tauri::window::{Effect, EffectState};
 
+    let is_system = !matches!(theme, "light" | "dark");
+
     let is_light = match theme {
         "light" => true,
         "dark" => false,
@@ -1176,6 +1202,17 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
         }
     };
 
+    // When theme is "system", use None so WebView's prefers-color-scheme
+    // follows the OS and fires change events automatically.
+    // When theme is explicit "light"/"dark", lock the window theme.
+    let window_theme = if is_system {
+        None
+    } else if is_light {
+        Some(tauri::Theme::Light)
+    } else {
+        Some(tauri::Theme::Dark)
+    };
+
     if let Some(main_window) = app.get_webview_window("main") {
         let effect = if is_light {
             Effect::Sidebar
@@ -1189,15 +1226,22 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
             color: None,
         };
         let _ = main_window.set_effects(effects);
-
-        // Set window NSAppearance so visual effect material renders in correct mode
-        let window_theme = if is_light {
-            Some(tauri::Theme::Light)
-        } else {
-            Some(tauri::Theme::Dark)
-        };
         let _ = main_window.set_theme(window_theme);
     }
+
+    // Also update settings and preview window themes if open
+    if let Some(settings_window) = app.get_webview_window("settings") {
+        let _ = settings_window.set_theme(window_theme);
+    }
+    if let Some(preview_window) = app.get_webview_window("preview") {
+        let _ = preview_window.set_theme(window_theme);
+    }
+}
+
+/// Sync all window themes when system theme changes (called from frontend).
+#[tauri::command]
+pub fn sync_system_theme(app: AppHandle) {
+    update_window_effects_for_theme(&app, "system");
 }
 
 /// Open a URL in the default browser.

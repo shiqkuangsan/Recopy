@@ -79,6 +79,7 @@ pub fn run() {
             clip_cmd::show_copy_hud,
             clip_cmd::get_storage_size,
             clip_cmd::set_tray_visible,
+            clip_cmd::sync_system_theme,
         ])
         .setup(|app| {
             // Hide dock icon (tao overrides LSUIElement at startup, so must set programmatically)
@@ -343,6 +344,7 @@ pub fn show_preview_window_impl(
     width: f64,
     height: f64,
     panel_position: &str,
+    window_theme: Option<tauri::Theme>,
 ) {
     let Some(window) = app.get_webview_window("preview") else {
         return;
@@ -351,12 +353,8 @@ pub fn show_preview_window_impl(
     // Resize to match content (Tauri handles thread dispatch internally)
     let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(width, height)));
 
-    // Match theme with main window
-    if let Some(main_win) = app.get_webview_window("main") {
-        if let Ok(theme) = main_win.theme() {
-            let _ = window.set_theme(Some(theme));
-        }
-    }
+    // Apply theme: None = follow system, Some = locked
+    let _ = window.set_theme(window_theme);
 
     // Set CSS animation transform-origin to scale toward the panel edge
     let origin = match panel_position {
@@ -525,14 +523,27 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn open_settings_window(app: &tauri::AppHandle) {
-    // Delegate to the shared helper used by both tray menu and Tauri command
-    crate::open_settings_window_impl(app);
+    // Tray menu path (synchronous, not inside tokio runtime — block_on is safe)
+    let window_theme = {
+        let pool = app.state::<db::DbPool>();
+        let theme_str = tauri::async_runtime::block_on(db::queries::get_setting(&pool.0, "theme"))
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "system".to_string());
+        match theme_str.as_str() {
+            "light" => Some(tauri::Theme::Light),
+            "dark" => Some(tauri::Theme::Dark),
+            _ => None,
+        }
+    };
+    crate::open_settings_window_impl(app, window_theme);
 }
 
 /// Shared settings window creation logic.
+/// `window_theme`: None = follow system, Some = locked light/dark.
 /// Re-registers global shortcut on window close to guard against
 /// the shortcut recorder leaving it unregistered.
-pub fn open_settings_window_impl(app: &tauri::AppHandle) {
+pub fn open_settings_window_impl(app: &tauri::AppHandle, window_theme: Option<tauri::Theme>) {
     // If settings window already exists, just show it
     if let Some(window) = app.get_webview_window("settings") {
         let _ = window.show();
@@ -550,6 +561,7 @@ pub fn open_settings_window_impl(app: &tauri::AppHandle) {
         .build()
     {
         Ok(w) => {
+            let _ = w.set_theme(window_theme);
             let _ = w.set_focus();
             w
         }
