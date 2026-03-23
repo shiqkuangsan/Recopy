@@ -117,6 +117,7 @@
       "title": "About",
       "homepage": "Homepage",
       "repository": "Repository",
+      "mirror": "Mirror",
       "feedback": "Feedback",
       "reportIssue": "Report Issue",
       "changelog": "Changelog",

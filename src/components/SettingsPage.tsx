@@ -572,6 +572,11 @@ function AboutSettings() {
             link: "https://github.com/shiqkuangsan/Recopy",
           },
           {
+            label: t("settings.about.mirror"),
+            value: "Gitee",
+            link: "https://gitee.com/shiqkuangsan/Recopy",
+          },
+          {
             label: t("settings.about.feedback"),
             value: t("settings.about.reportIssue"),
             link: "https://github.com/shiqkuangsan/Recopy/issues",

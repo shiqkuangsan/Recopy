@@ -117,6 +117,7 @@
       "title": "关于",
       "homepage": "官网",
       "repository": "源码仓库",
+      "mirror": "国内镜像",
       "feedback": "反馈",
       "reportIssue": "报告问题",
       "changelog": "更新日志",
