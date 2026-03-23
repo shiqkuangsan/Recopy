@@ -214,16 +214,20 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
 }));
 
-// Listen for system theme changes when theme is "system"
+// Listen for system theme changes via Tauri's native theme event
 if (typeof window !== "undefined") {
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-    const { settings } = useSettingsStore.getState();
-    if (settings.theme === "system") {
-      applyTheme("system");
-      // Sync native window effects for all windows
-      invoke("sync_system_theme").catch(() => {});
-    }
-  });
+  import("@tauri-apps/api/window")
+    .then(({ getCurrentWindow }) => {
+      getCurrentWindow().onThemeChanged(({ payload: theme }) => {
+        const { settings } = useSettingsStore.getState();
+        if (settings.theme === "system") {
+          const dataTheme = theme === "light" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", dataTheme);
+          invoke("sync_system_theme").catch(() => {});
+        }
+      });
+    })
+    .catch(() => {}); // Ignored in test environment (no Tauri runtime)
 
   // Listen for system language changes when language is "system"
   window.addEventListener("languagechange", () => {
