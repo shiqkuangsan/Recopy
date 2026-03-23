@@ -216,10 +216,28 @@ for file in /tmp/gitee-sync/*; do
 done
 ```
 
-4. Clean up:
+4. Push `latest.json` to GitHub `updater` branch (Gitee mirror sync will propagate it):
 
 ```bash
-rm -rf /tmp/gitee-sync
+cd /tmp
+rm -rf github-updater
+git init github-updater
+cd github-updater
+cp /tmp/gitee-sync/latest.json .
+git add latest.json
+git -c user.name="release" -c user.email="release@recopy.app" \
+  commit -m "update latest.json for $TAG"
+git branch -M updater
+git remote add origin "https://github.com/shiqkuangsan/Recopy.git"
+git push -f origin updater
+```
+
+Note: The `latest.json` pushed here contains **Gitee download URLs** (from step 2). Gitee mirror sync will copy this branch as-is, so the Gitee updater endpoint `raw/updater/latest.json` will point to Gitee release assets. The GitHub endpoint uses its own `latest.json` from release assets (with GitHub URLs).
+
+5. Clean up:
+
+```bash
+rm -rf /tmp/gitee-sync /tmp/github-updater
 ```
 
 Report upload progress for each file. If any upload fails, report which file failed but continue with the rest.
