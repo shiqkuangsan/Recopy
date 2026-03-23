@@ -187,7 +187,7 @@ cd /tmp/gitee-sync
 sed -i '' 's|https://github.com/shiqkuangsan/Recopy/releases/download/|https://gitee.com/shiqkuangsan/Recopy/releases/download/|g' latest.json
 ```
 
-3. Create Gitee Release and upload assets:
+3. Create Gitee Release and upload all assets (including `latest.json`):
 
 ```bash
 # Get release notes from GitHub
@@ -204,11 +204,10 @@ RELEASE_ID=$(curl -sf -X POST "https://gitee.com/api/v5/repos/shiqkuangsan/Recop
     '{access_token: $token, tag_name: $tag, name: $name, body: $body, target_commitish: "main"}'
   )" | jq -r '.id')
 
-# Upload all assets except latest.json
+# Upload all assets (including latest.json)
 for file in /tmp/gitee-sync/*; do
   [ -f "$file" ] || continue
   fname=$(basename "$file")
-  [ "$fname" = "latest.json" ] && continue
   curl -sf -X POST \
     "https://gitee.com/api/v5/repos/shiqkuangsan/Recopy/releases/${RELEASE_ID}/attach_files" \
     -F "access_token=${GITEE_TOKEN}" \
@@ -217,29 +216,11 @@ for file in /tmp/gitee-sync/*; do
 done
 ```
 
-4. Push `latest.json` to Gitee `updater` branch:
+4. Clean up:
 
 ```bash
-cd /tmp
-rm -rf gitee-updater
-git init gitee-updater
-cd gitee-updater
-cp /tmp/gitee-sync/latest.json .
-git add latest.json
-git -c user.name="release" -c user.email="release@recopy.app" \
-  commit -m "update latest.json for $TAG"
-git branch -M updater
-git remote add origin "https://shiqkuangsan:${GITEE_TOKEN}@gitee.com/shiqkuangsan/Recopy.git"
-git push -f origin updater
+rm -rf /tmp/gitee-sync
 ```
-
-5. Clean up:
-
-```bash
-rm -rf /tmp/gitee-sync /tmp/gitee-updater
-```
-
-6. Verify: fetch `https://gitee.com/shiqkuangsan/Recopy/raw/updater/latest.json` and confirm version matches.
 
 Report upload progress for each file. If any upload fails, report which file failed but continue with the rest.
 
