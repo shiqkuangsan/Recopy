@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Check, Settings } from "lucide-react";
+import { platform } from "@tauri-apps/plugin-os";
 import { BrandLogo } from "./components/BrandLogo";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "./components/ui/button";
@@ -240,16 +241,31 @@ function SettingsApp() {
 function HudApp() {
   const { t } = useTranslation();
   const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const isMac = platform() === "macos";
 
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
 
+  // macOS: native hudWindow provides frosted glass — keep transparent
+  // Windows: no native effect — self-drawn frosted background as fallback
   return (
     <div className="h-screen w-screen flex items-center justify-center">
-      <div className="flex flex-col items-center justify-center">
-        <Check className="text-foreground/70 drop-shadow-lg" size={52} strokeWidth={2.5} />
-        <span className="text-foreground/70 text-xl font-semibold mt-2 drop-shadow-lg">
+      <div
+        className={`flex flex-col items-center justify-center ${
+          isMac
+            ? ""
+            : "w-full h-full mx-2 my-2 rounded-2xl bg-black/50 dark:bg-black/60 backdrop-blur-xl"
+        }`}
+      >
+        <Check
+          className={`${isMac ? "text-foreground/70" : "text-white/90"} drop-shadow-lg`}
+          size={52}
+          strokeWidth={2.5}
+        />
+        <span
+          className={`${isMac ? "text-foreground/70" : "text-white/90"} text-xl font-semibold mt-2 drop-shadow-lg`}
+        >
           {t("context.copied")}
         </span>
       </div>
