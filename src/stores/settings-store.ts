@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   enable as enableAutostart,
   disable as disableAutostart,
+  isEnabled as isAutostartEnabled,
 } from "@tauri-apps/plugin-autostart";
 import i18n from "../i18n";
 
@@ -116,6 +117,27 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
 
   updateSetting: async (key: keyof Settings, value: string) => {
+    // auto_start: call system plugin FIRST, only persist on success.
+    // Prevents UI showing "enabled" when system registration failed.
+    if (key === "auto_start") {
+      try {
+        if (value === "true") {
+          await enableAutostart();
+          const verified = await isAutostartEnabled();
+          if (!verified) {
+            console.warn("Autostart: enable succeeded but isEnabled() returned false");
+          }
+        } else {
+          await disableAutostart();
+        }
+        await invoke("set_setting", { key, value });
+        set((state) => ({ settings: { ...state.settings, [key]: value } }));
+      } catch (err) {
+        console.error("Failed to toggle autostart:", err);
+      }
+      return;
+    }
+
     try {
       await invoke("set_setting", { key, value });
       set((state) => ({
@@ -128,17 +150,6 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       }
       if (key === "language") {
         applyLanguage(value);
-      }
-      if (key === "auto_start") {
-        try {
-          if (value === "true") {
-            await enableAutostart();
-          } else {
-            await disableAutostart();
-          }
-        } catch (err) {
-          console.error("Failed to toggle autostart:", err);
-        }
       }
       if (key === "show_tray_icon") {
         try {
