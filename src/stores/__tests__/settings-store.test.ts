@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS: Settings = {
   update_check_interval: "weekly",
   panel_position: "bottom",
   flat_mode_tb: "false",
+  show_tray_icon: "true",
 };
 
 describe("useSettingsStore", () => {
