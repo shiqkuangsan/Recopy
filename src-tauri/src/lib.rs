@@ -94,6 +94,31 @@ pub fn run() {
                     .expect("Failed to initialize database");
             });
 
+            // Windows autostart self-healing: re-register on every launch if DB says enabled.
+            // Compensates for known upstream issue (plugins-workspace#771) where the registry
+            // entry is silently deleted after the first boot.
+            #[cfg(target_os = "windows")]
+            {
+                use tauri_plugin_autostart::ManagerExt;
+                if let Some(pool) = app.handle().try_state::<db::DbPool>() {
+                    let auto_start = tauri::async_runtime::block_on(async {
+                        db::queries::get_setting(&pool.0, "auto_start")
+                            .await
+                            .ok()
+                            .flatten()
+                            .unwrap_or_else(|| "false".to_string())
+                    });
+                    if auto_start == "true" {
+                        match app.autostart_manager().enable() {
+                            Ok(_) => log::info!(
+                                "Windows autostart: registry entry re-registered on startup"
+                            ),
+                            Err(e) => log::warn!("Windows autostart self-healing failed: {}", e),
+                        }
+                    }
+                }
+            }
+
             // Initialize preview state for Quick Look feature
             app.manage(db::models::PreviewState(std::sync::Mutex::new(None)));
             app.manage(db::models::PreviewClosing(

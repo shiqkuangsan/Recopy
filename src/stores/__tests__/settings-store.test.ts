@@ -20,6 +20,7 @@ Object.defineProperty(window, "matchMedia", {
 vi.mock("@tauri-apps/plugin-autostart", () => ({
   enable: vi.fn(() => Promise.resolve()),
   disable: vi.fn(() => Promise.resolve()),
+  isEnabled: vi.fn(() => Promise.resolve(true)),
 }));
 
 // Import store AFTER matchMedia is mocked
@@ -179,6 +180,11 @@ describe("useSettingsStore", () => {
       await useSettingsStore.getState().updateSetting("auto_start", "true");
 
       expect(enable).toHaveBeenCalled();
+      expect(mockedInvoke).toHaveBeenCalledWith("set_setting", {
+        key: "auto_start",
+        value: "true",
+      });
+      expect(useSettingsStore.getState().settings.auto_start).toBe("true");
     });
 
     it("should disable autostart when auto_start set to false", async () => {
@@ -188,6 +194,20 @@ describe("useSettingsStore", () => {
       await useSettingsStore.getState().updateSetting("auto_start", "false");
 
       expect(disable).toHaveBeenCalled();
+      expect(useSettingsStore.getState().settings.auto_start).toBe("false");
+    });
+
+    it("should not update DB or UI when autostart plugin fails", async () => {
+      const { enable } = await import("@tauri-apps/plugin-autostart");
+      vi.mocked(enable).mockRejectedValueOnce(new Error("registry error"));
+
+      await useSettingsStore.getState().updateSetting("auto_start", "true");
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("set_setting", {
+        key: "auto_start",
+        value: "true",
+      });
+      expect(useSettingsStore.getState().settings.auto_start).toBe("false");
     });
 
     it("should not throw when invoke rejects", async () => {
