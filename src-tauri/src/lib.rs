@@ -109,7 +109,7 @@ pub fn run() {
                             .unwrap_or_else(|| "false".to_string())
                     });
                     if auto_start == "true" {
-                        match app.autostart_manager().enable() {
+                        match app.handle().autostart_manager().enable() {
                             Ok(_) => log::info!(
                                 "Windows autostart: registry entry re-registered on startup"
                             ),
