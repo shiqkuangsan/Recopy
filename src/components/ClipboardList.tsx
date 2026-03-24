@@ -201,24 +201,41 @@ export function ClipboardList() {
     overscan: 5,
   });
 
-  // Convert pure-deltaY wheel events (mouse wheel) to horizontal scroll on card rows.
-  // Trackpad gestures produce deltaX and are handled natively — we only intercept pure deltaY.
+  // Convert vertical wheel events to horizontal scroll on card rows.
+  // Uses axis-intent detection to handle mixed-axis input from Windows Precision
+  // Touchpads and high-resolution mice that produce simultaneous deltaX + deltaY.
   // At horizontal boundaries, let the event bubble for outer vertical scrolling.
   const EDGE_EPSILON = 1;
+  const LINE_HEIGHT = 40; // px per line for deltaMode=1
+  const PAGE_HEIGHT = 800; // px per page for deltaMode=2
   const onRowWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     if (el.scrollWidth <= el.clientWidth) return; // nothing to scroll
-    if (e.deltaX !== 0 || e.shiftKey) return; // trackpad / shift+wheel → native
-    if (e.deltaY === 0) return;
+    if (e.ctrlKey || e.shiftKey) return; // zoom or shift+wheel → native
+
+    // Normalize deltas to pixels based on deltaMode
+    let dy = e.deltaY;
+    let dx = e.deltaX;
+    if (e.deltaMode === 1) {
+      dy *= LINE_HEIGHT;
+      dx *= LINE_HEIGHT;
+    } else if (e.deltaMode === 2) {
+      dy *= PAGE_HEIGHT;
+      dx *= PAGE_HEIGHT;
+    }
+
+    // Axis-intent: if horizontal component dominates, let native handle it (trackpad swipe)
+    if (Math.abs(dx) > Math.abs(dy)) return;
+    if (dy === 0) return;
 
     const atLeft = el.scrollLeft <= EDGE_EPSILON;
     const atRight = el.scrollLeft + el.clientWidth >= el.scrollWidth - EDGE_EPSILON;
 
     // At boundary and scrolling further in that direction → let vertical scroll bubble
-    if ((atLeft && e.deltaY < 0) || (atRight && e.deltaY > 0)) return;
+    if ((atLeft && dy < 0) || (atRight && dy > 0)) return;
 
     e.preventDefault();
-    el.scrollLeft += e.deltaY;
+    el.scrollLeft += dy;
   }, []);
   const onFlatRowScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
