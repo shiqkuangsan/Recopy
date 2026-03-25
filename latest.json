@@ -1,0 +1,31 @@
+{
+  "version": "1.5.1",
+  "notes": "## Downloads\n\n| Platform | File |\n|----------|------|\n| macOS (Apple Silicon) | `Recopy_x.x.x_aarch64.dmg` |\n| macOS (Intel) | `Recopy_x.x.x_x64.dmg` |\n| Windows (64-bit) | `Recopy_x.x.x_x64-setup.exe` |\n\n> **macOS note:** The app is not notarized yet. On first launch, right-click the app → Open, then confirm. See [Installation Guide](https://github.com/shiqkuangsan/Recopy/blob/main/docs/macos-unsigned-app.md).\n\n## What's New\n\n<!-- Replace with actual changelog before publishing -->",
+  "pub_date": "2026-03-25T15:12:28.450Z",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SGF5ZTZTdGRGRTAxNEhhQlpIa3R3YldjemYybkN3UGxWbmwrQTdHek5JS09JSEM2dEpCU1N0U05aL2JWNytiM0xtbjdyekZiQ3NiU0FoRVRqZ0cvS3dBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NDUxMjY3CWZpbGU6UmVjb3B5LmFwcC50YXIuZ3oKd2NuRGNZNEZlMDNIbG1RSTJXcGwrMkZMQzdwakZ2RTRUamRrR1BLUDJvTkkreGNiNWx2K2ZidGpuU08rOThrTmRuL2FDSnE0ckt2UTdNNGw3ZlRQQmc9PQo=",
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.5.1/Recopy_aarch64.app.tar.gz"
+    },
+    "darwin-aarch64-app": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SGF5ZTZTdGRGRTAxNEhhQlpIa3R3YldjemYybkN3UGxWbmwrQTdHek5JS09JSEM2dEpCU1N0U05aL2JWNytiM0xtbjdyekZiQ3NiU0FoRVRqZ0cvS3dBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NDUxMjY3CWZpbGU6UmVjb3B5LmFwcC50YXIuZ3oKd2NuRGNZNEZlMDNIbG1RSTJXcGwrMkZMQzdwakZ2RTRUamRrR1BLUDJvTkkreGNiNWx2K2ZidGpuU08rOThrTmRuL2FDSnE0ckt2UTdNNGw3ZlRQQmc9PQo=",
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.5.1/Recopy_aarch64.app.tar.gz"
+    },
+    "darwin-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SGVsT2RudldzNHFTL2FGU1lQaitKdW44ZUZ1NXZoRDZXMzNQK1hoNWh1NGV0VGxybXFTM250eDE1RjZYSnowaThwOHc1OGtFaWN5M2VYOU91dS9Ec3dVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NDUxMzAzCWZpbGU6UmVjb3B5LmFwcC50YXIuZ3oKUnJEUmc2UzkvOFB6c2F6eS9KY1Iralh1LzRtN012NytNc0xDdXBRdXRKNXA5SWxUSnBQbDczcmVrS1lIOTU4ek10THdpNnNKZGNLdjBGcUxDSWgrQWc9PQo=",
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.5.1/Recopy_x64.app.tar.gz"
+    },
+    "darwin-x86_64-app": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SGVsT2RudldzNHFTL2FGU1lQaitKdW44ZUZ1NXZoRDZXMzNQK1hoNWh1NGV0VGxybXFTM250eDE1RjZYSnowaThwOHc1OGtFaWN5M2VYOU91dS9Ec3dVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NDUxMzAzCWZpbGU6UmVjb3B5LmFwcC50YXIuZ3oKUnJEUmc2UzkvOFB6c2F6eS9KY1Iralh1LzRtN012NytNc0xDdXBRdXRKNXA5SWxUSnBQbDczcmVrS1lIOTU4ek10THdpNnNKZGNLdjBGcUxDSWgrQWc9PQo=",
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.5.1/Recopy_x64.app.tar.gz"
+    },
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SFhKcVFXZ2pwcTJwSExLRitsU0llWjRyTDJvQ0ZoeHBoWjc1UzdMWDEwazVOUTBEYjFTYzZ4V09RSE1VMnkxQVpDY0hPdnhFd2xsU01HdnhwRkRjb3c0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NDUxNTQ1CWZpbGU6UmVjb3B5XzEuNS4xX3g2NC1zZXR1cC5leGUKVllMckdscU5lUWVKcUh1Qi85MVExVzMyV3VGME9jVXBWSFIrRzRWY0tkakVhcUNHYk5LajUwM1BJdmtJUU5Tejl4aGFUVlczd0sxYmE0QXRlNHFUREE9PQo=",
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.5.1/Recopy_1.5.1_x64-setup.exe"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SFhKcVFXZ2pwcTJwSExLRitsU0llWjRyTDJvQ0ZoeHBoWjc1UzdMWDEwazVOUTBEYjFTYzZ4V09RSE1VMnkxQVpDY0hPdnhFd2xsU01HdnhwRkRjb3c0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc0NDUxNTQ1CWZpbGU6UmVjb3B5XzEuNS4xX3g2NC1zZXR1cC5leGUKVllMckdscU5lUWVKcUh1Qi85MVExVzMyV3VGME9jVXBWSFIrRzRWY0tkakVhcUNHYk5LajUwM1BJdmtJUU5Tejl4aGFUVlczd0sxYmE0QXRlNHFUREE9PQo=",
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.5.1/Recopy_1.5.1_x64-setup.exe"
+    }
+  }
+}
