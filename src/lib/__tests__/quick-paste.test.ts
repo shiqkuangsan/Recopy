@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   QUICK_PASTE_LIMIT,
   getFlatQuickPasteTargets,
@@ -21,6 +21,17 @@ const mockItem = (overrides: Partial<ClipboardItem> = {}): ClipboardItem => ({
 });
 
 describe("quick-paste helpers", () => {
+  beforeEach(() => {
+    // Freeze system time so dateGroupLabel bucketing is deterministic
+    // and tests don't drift as real-world time passes.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-17T12:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("uses the selected item's group in grouped mode", () => {
     const items = [
       mockItem({ id: "today-0", updated_at: "2026-03-17 10:00:00" }),
