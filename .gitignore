@@ -34,5 +34,6 @@ tsconfig.tsbuildinfo
 
 # Local task tracking
 todos/
+.catpaw/
 CLAUDE.local.md
 CLAUDE.local.md.bak

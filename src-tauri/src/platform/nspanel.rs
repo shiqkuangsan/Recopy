@@ -431,3 +431,38 @@ impl From<CollectionBehavior> for u64 {
         behavior.0
     }
 }
+
+pub fn visible_main_panel_collection_behavior() -> CollectionBehavior {
+    CollectionBehavior::new()
+        .can_join_all_spaces()
+        .stationary()
+        .full_screen_auxiliary()
+        .ignores_cycle()
+}
+
+pub fn hidden_main_panel_collection_behavior() -> CollectionBehavior {
+    CollectionBehavior::new()
+        .stationary()
+        .full_screen_auxiliary()
+        .ignores_cycle()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{hidden_main_panel_collection_behavior, visible_main_panel_collection_behavior};
+
+    #[test]
+    fn hidden_main_panel_does_not_move_to_active_space() {
+        let behavior: u64 = hidden_main_panel_collection_behavior().into();
+
+        assert_eq!(behavior & (1 << 1), 0);
+    }
+
+    #[test]
+    fn visible_main_panel_can_join_all_spaces_without_moving_spaces() {
+        let behavior: u64 = visible_main_panel_collection_behavior().into();
+
+        assert_ne!(behavior & (1 << 0), 0);
+        assert_eq!(behavior & (1 << 1), 0);
+    }
+}

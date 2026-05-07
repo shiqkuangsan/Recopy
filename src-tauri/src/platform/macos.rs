@@ -36,19 +36,7 @@ pub fn init_platform(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>>
     // Width is locked via min/max size constraints set in show_main_window().
     panel.set_style_mask(StyleMask::empty().nonactivating_panel().resizable().into());
 
-    // Collection behavior for hidden state:
-    // - Stationary: don't participate in Exposé
-    // - MoveToActiveSpace: follow user to current Space
-    // - FullScreenAuxiliary: can appear alongside fullscreen apps
-    // - IgnoresCycle: don't show in Cmd+Tab
-    panel.set_collection_behavior(
-        CollectionBehavior::new()
-            .stationary()
-            .move_to_active_space()
-            .full_screen_auxiliary()
-            .ignores_cycle()
-            .into(),
-    );
+    panel.set_collection_behavior(nspanel::hidden_main_panel_collection_behavior().into());
 
     // We control hiding via blur events, not via app deactivation
     panel.set_hides_on_deactivate(false);
@@ -74,15 +62,7 @@ pub fn platform_show_window(app: &tauri::AppHandle, panel_position: &str) {
             };
             panel.set_level(level);
 
-            // When showing: join all spaces so panel appears on current Space
-            panel.set_collection_behavior(
-                CollectionBehavior::new()
-                    .can_join_all_spaces()
-                    .stationary()
-                    .full_screen_auxiliary()
-                    .ignores_cycle()
-                    .into(),
-            );
+            panel.set_collection_behavior(nspanel::visible_main_panel_collection_behavior().into());
 
             panel.show_and_make_key();
         }
@@ -97,15 +77,7 @@ pub fn platform_hide_window(app: &tauri::AppHandle) {
         if let Ok(panel) = app_inner.get_panel("main") {
             panel.hide();
 
-            // When hidden: move to active space for next show
-            panel.set_collection_behavior(
-                CollectionBehavior::new()
-                    .move_to_active_space()
-                    .stationary()
-                    .full_screen_auxiliary()
-                    .ignores_cycle()
-                    .into(),
-            );
+            panel.set_collection_behavior(nspanel::hidden_main_panel_collection_behavior().into());
         }
     });
 }
