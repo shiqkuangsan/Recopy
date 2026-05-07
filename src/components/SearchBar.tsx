@@ -45,7 +45,10 @@ export function SearchBar() {
 
   return (
     <div className="relative flex items-center w-64">
-      <Search size={14} className="absolute left-2.5 text-muted-foreground pointer-events-none" />
+      <Search
+        size={14}
+        className="absolute left-2.5 text-zinc-700 dark:text-zinc-300 pointer-events-none"
+      />
       <Input
         ref={inputRef}
         type="text"
@@ -59,14 +62,14 @@ export function SearchBar() {
           triggerSearch(e.currentTarget.value);
         }}
         placeholder={t("search.placeholder")}
-        className="bg-input/60 border-border/50 rounded-lg py-1.5 pl-8 pr-7 h-auto text-sm"
+        className="bg-input/60 border-border/50 rounded-lg py-1.5 pl-8 pr-7 h-auto text-sm text-zinc-950 dark:text-zinc-50 placeholder:text-zinc-600 dark:placeholder:text-zinc-300"
       />
       {searchQuery.trim() && (
         <Button
           variant="ghost"
           size="icon-xs"
           onClick={handleClear}
-          className="absolute right-2 text-muted-foreground hover:text-foreground"
+          className="absolute right-2 text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white"
         >
           <X size={12} />
         </Button>

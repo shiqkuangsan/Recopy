@@ -186,7 +186,7 @@ function MainApp() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => invoke("open_settings_window")}
-                className="ml-1 text-muted-foreground hover:text-foreground hover:bg-overlay"
+                className="ml-1 text-zinc-700 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white hover:bg-overlay"
               >
                 <Settings size={16} />
               </Button>
@@ -209,7 +209,7 @@ function MainApp() {
               variant="ghost"
               size="icon-sm"
               onClick={() => invoke("open_settings_window")}
-              className="absolute right-4 text-muted-foreground hover:text-foreground hover:bg-overlay"
+              className="absolute right-4 text-zinc-700 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white hover:bg-overlay"
             >
               <Settings size={16} />
             </Button>

@@ -34,7 +34,7 @@ export function ViewTabs() {
               ${
                 viewMode === tab.value
                   ? "text-foreground bg-overlay"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-zinc-700 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white"
               }`}
           >
             <Icon size={13} />
