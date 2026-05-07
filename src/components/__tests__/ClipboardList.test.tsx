@@ -47,11 +47,7 @@ vi.mock("../ClipboardCard", () => ({
     selected: boolean;
     onClick: () => void;
   }) => (
-    <div
-      data-testid={`card-${item.id}`}
-      data-selected={selected}
-      onClick={onClick}
-    >
+    <div data-testid={`card-${item.id}`} data-selected={selected} onClick={onClick}>
       {item.content_type === "rich_text" && (
         <div data-testid={`scrollable-${item.id}`} style={{ overflowY: "auto" }}>
           scrollable content
