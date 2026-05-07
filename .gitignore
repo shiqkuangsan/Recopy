@@ -36,3 +36,6 @@ tsconfig.tsbuildinfo
 .catpaw/
 CLAUDE.local.md
 CLAUDE.local.md.bak
+
+# Local worktrees
+.worktrees/
