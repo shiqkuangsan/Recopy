@@ -131,7 +131,7 @@ Persisted to SQLite `settings` table. Frontend manages via `settings-store.ts`, 
 - **Platform code**: Gated with `#[cfg(target_os = "macos")]` and separate `platform/` modules
 - **Virtual scrolling**: `@tanstack/react-virtual` for clipboard list performance
 - **IME support**: SearchBar handles `compositionstart`/`compositionend` to avoid triggering search during Chinese input
-- **CatPaw Protocol**: 开发流程遵循猫爪协议（定义在 `~/.claude/CLAUDE.md`）——含 plan 触发/豁免条件、todos/ 结构、验证门控、lessons 沉淀、内阁协作等规约
+- **CatPaw**: 开发流程遵循新版 CatPaw runtime（`~/.catpaw/runtime-policy.md`）。本项目 artifacts 入口为 `.catpaw/index.md`；legacy `todos/` 已迁移/删除，不再写入。
 
 ## CI
 

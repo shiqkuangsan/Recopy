@@ -32,7 +32,10 @@ tsconfig.tsbuildinfo
 # Cloudflare
 .wrangler/
 
-# Local task tracking
-todos/
+# Local CatPaw artifacts
+.catpaw/
 CLAUDE.local.md
 CLAUDE.local.md.bak
+
+# Local worktrees
+.worktrees/

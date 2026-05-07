@@ -39,6 +39,21 @@ describe("SearchBar", () => {
     expect(screen.getByPlaceholderText("Search clipboard history...")).toBeInTheDocument();
   });
 
+  it("uses opaque high-contrast chrome colors", () => {
+    const { container } = render(<SearchBar />);
+
+    expect(screen.getByPlaceholderText("Search clipboard history...")).toHaveClass(
+      "text-zinc-950",
+      "dark:text-zinc-50",
+      "placeholder:text-zinc-600",
+      "dark:placeholder:text-zinc-300",
+    );
+    expect(container.querySelector(".lucide-search")).toHaveClass(
+      "text-zinc-700",
+      "dark:text-zinc-300",
+    );
+  });
+
   it("should update search query on input change", () => {
     render(<SearchBar />);
     const input = screen.getByPlaceholderText("Search clipboard history...");

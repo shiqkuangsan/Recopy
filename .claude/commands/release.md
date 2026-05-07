@@ -264,7 +264,7 @@ Generate 3 tiers of announcement copy in both languages (6 total), using **X/Twi
 - Download link: https://github.com/shiqkuangsan/Recopy/releases/tag/vX.Y.Z
 - GitHub link: https://github.com/shiqkuangsan/Recopy (formal section only)
 
-Save the generated copy to `todos/temp/release/announcements.X.Y.Z.md`.
+Save the generated copy to `.catpaw/temp/release/announcements.X.Y.Z.md`.
 
 ## Step 10: Final Summary
 
@@ -279,7 +279,7 @@ Present a summary table:
 | CI build          | ✅ all jobs                     |
 | Release notes     | ✅ filled                       |
 | Gitee sync        | ✅ / skipped                    |
-| Announcement copy | ✅ saved to todos/temp/release/ |
+| Announcement copy | ✅ saved to .catpaw/temp/release/ |
 
 Remind user: go to GitHub Releases page and click **Publish release** when ready.
 

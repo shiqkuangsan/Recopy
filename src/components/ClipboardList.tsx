@@ -44,6 +44,21 @@ const CARD_HEIGHT = 260;
 const HORIZONTAL_ESTIMATE = CARD_WIDTH + CARD_GAP; // 312
 const HORIZONTAL_FETCH_THRESHOLD = 24;
 
+function hasVerticallyScrollableChild(target: EventTarget | null, boundary: HTMLElement) {
+  let node = target instanceof HTMLElement ? target : null;
+
+  while (node && node !== boundary) {
+    const overflowY = window.getComputedStyle(node).overflowY;
+    const canScrollY = overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay";
+    if (canScrollY && node.scrollHeight > node.clientHeight) {
+      return true;
+    }
+    node = node.parentElement;
+  }
+
+  return false;
+}
+
 const GroupRow = forwardRef<GroupRowHandle, GroupRowProps>(
   (
     { items, selectedIndex, setSelectedIndex, quickIndexByFlatIndex, onRowWheel, onScroll },
@@ -208,35 +223,44 @@ export function ClipboardList() {
   const EDGE_EPSILON = 1;
   const LINE_HEIGHT = 40; // px per line for deltaMode=1
   const PAGE_HEIGHT = 800; // px per page for deltaMode=2
-  const onRowWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    if (el.scrollWidth <= el.clientWidth) return; // nothing to scroll
-    if (e.ctrlKey || e.shiftKey) return; // zoom or shift+wheel → native
+  const onRowWheel = useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      if (el.scrollWidth <= el.clientWidth) return; // nothing to scroll
+      if (e.ctrlKey || e.shiftKey) return; // zoom or shift+wheel → native
 
-    // Normalize deltas to pixels based on deltaMode
-    let dy = e.deltaY;
-    let dx = e.deltaX;
-    if (e.deltaMode === 1) {
-      dy *= LINE_HEIGHT;
-      dx *= LINE_HEIGHT;
-    } else if (e.deltaMode === 2) {
-      dy *= PAGE_HEIGHT;
-      dx *= PAGE_HEIGHT;
-    }
+      // Normalize deltas to pixels based on deltaMode
+      let dy = e.deltaY;
+      let dx = e.deltaX;
+      if (e.deltaMode === 1) {
+        dy *= LINE_HEIGHT;
+        dx *= LINE_HEIGHT;
+      } else if (e.deltaMode === 2) {
+        dy *= PAGE_HEIGHT;
+        dx *= PAGE_HEIGHT;
+      }
 
-    // Axis-intent: if horizontal component dominates, let native handle it (trackpad swipe)
-    if (Math.abs(dx) > Math.abs(dy)) return;
-    if (dy === 0) return;
+      // Axis-intent: if horizontal component dominates, let native handle it (trackpad swipe)
+      if (Math.abs(dx) > Math.abs(dy)) return;
+      if (dy === 0) return;
 
-    const atLeft = el.scrollLeft <= EDGE_EPSILON;
-    const atRight = el.scrollLeft + el.clientWidth >= el.scrollWidth - EDGE_EPSILON;
+      // In grouped mode vertical wheel belongs to the outer date-group scroller.
+      if (shouldGroup) return;
 
-    // At boundary and scrolling further in that direction → let vertical scroll bubble
-    if ((atLeft && dy < 0) || (atRight && dy > 0)) return;
+      // Let card content with its own vertical scroller consume vertical wheel.
+      if (hasVerticallyScrollableChild(e.target, el)) return;
 
-    e.preventDefault();
-    el.scrollLeft += dy;
-  }, []);
+      const atLeft = el.scrollLeft <= EDGE_EPSILON;
+      const atRight = el.scrollLeft + el.clientWidth >= el.scrollWidth - EDGE_EPSILON;
+
+      // At boundary and scrolling further in that direction → let vertical scroll bubble
+      if ((atLeft && dy < 0) || (atRight && dy > 0)) return;
+
+      e.preventDefault();
+      el.scrollLeft += dy;
+    },
+    [shouldGroup],
+  );
   const onFlatRowScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       if (isVertical || shouldGroup || !hasMore || isFetchingMore) return;

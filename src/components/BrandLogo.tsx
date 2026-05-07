@@ -145,7 +145,7 @@ export function BrandLogo() {
   }
 
   // Color per layer: pink → purple → violet → ivory
-  let textColorClass = "text-foreground/80";
+  let textColorClass = "text-zinc-800 dark:text-zinc-100";
   if (ascensionMode) {
     textColorClass = "text-zinc-100";
   } else if (ultimateMode) {
