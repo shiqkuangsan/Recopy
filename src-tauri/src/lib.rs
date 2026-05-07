@@ -9,6 +9,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Flag to skip the next clipboard change event (set before self-initiated writes).
 static SKIP_NEXT_CLIPBOARD_CHANGE: AtomicBool = AtomicBool::new(false);
+const AUTOSTART_HIDDEN_ARG: &str = "--hidden";
+
+fn should_show_main_window_for_second_instance(args: &[String]) -> bool {
+    !args
+        .iter()
+        .skip(1)
+        .any(|arg| arg == AUTOSTART_HIDDEN_ARG || arg == "--minimized")
+}
 
 /// Set the skip flag before writing to clipboard (called from commands).
 pub fn set_skip_next_clipboard_change() {
@@ -37,10 +45,12 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
+            Some(vec![AUTOSTART_HIDDEN_ARG]),
         ))
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            show_main_window(app);
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if should_show_main_window_for_second_instance(&args) {
+                show_main_window(app);
+            }
         }))
         .plugin(tauri_plugin_os::init());
 
@@ -112,6 +122,29 @@ pub fn run() {
                         match app.autolaunch().enable() {
                             Ok(_) => log::info!("Autostart self-healing: registry re-registered"),
                             Err(e) => log::warn!("Autostart self-healing failed: {}", e),
+                        }
+                    }
+                }
+            }
+
+            // macOS autostart healing: refresh existing LaunchAgent so it carries
+            // AUTOSTART_HIDDEN_ARG. Without the marker, a launchd re-run can hit
+            // single-instance and make the hidden panel flash.
+            #[cfg(target_os = "macos")]
+            {
+                if let Some(pool) = app.handle().try_state::<db::DbPool>() {
+                    let auto_start = tauri::async_runtime::block_on(async {
+                        db::queries::get_setting(&pool.0, "auto_start")
+                            .await
+                            .ok()
+                            .flatten()
+                            .unwrap_or_else(|| "false".to_string())
+                    });
+                    if auto_start == "true" {
+                        use tauri_plugin_autostart::ManagerExt;
+                        match app.autolaunch().enable() {
+                            Ok(_) => log::info!("Autostart LaunchAgent refreshed"),
+                            Err(e) => log::warn!("Autostart LaunchAgent refresh failed: {}", e),
                         }
                     }
                 }
@@ -984,4 +1017,28 @@ async fn extract_clipboard_content(
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| value.to_string()).collect()
+    }
+
+    #[test]
+    fn second_instance_hidden_autostart_should_not_show_main_window() {
+        assert!(!should_show_main_window_for_second_instance(&args(&[
+            "/Applications/Recopy.app/Contents/MacOS/recopy",
+            "--hidden",
+        ])));
+    }
+
+    #[test]
+    fn second_instance_user_launch_should_show_main_window() {
+        assert!(should_show_main_window_for_second_instance(&args(&[
+            "/Applications/Recopy.app/Contents/MacOS/recopy",
+        ])));
+    }
 }
