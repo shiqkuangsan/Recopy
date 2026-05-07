@@ -47,14 +47,18 @@ vi.mock("../ClipboardCard", () => ({
     selected: boolean;
     onClick: () => void;
   }) => (
-    <button
-      type="button"
+    <div
       data-testid={`card-${item.id}`}
       data-selected={selected}
       onClick={onClick}
     >
+      {item.content_type === "rich_text" && (
+        <div data-testid={`scrollable-${item.id}`} style={{ overflowY: "auto" }}>
+          scrollable content
+        </div>
+      )}
       {item.plain_text}
-    </button>
+    </div>
   ),
 }));
 
@@ -283,5 +287,99 @@ describe("ClipboardList", () => {
     fireEvent.scroll(row!);
 
     expect(fetchMoreSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not convert wheel events from a vertically scrollable card child into row scrolling", () => {
+    useSettingsStore.setState({
+      settings: { ...DEFAULT_SETTINGS, panel_position: "bottom", flat_mode_tb: "true" },
+      menuBarHeight: 0,
+      loaded: true,
+    });
+    useClipboardStore.setState({
+      items: [
+        mockItem({
+          id: "rich-1",
+          content_type: "rich_text",
+          plain_text: "rich text",
+        }),
+        mockItem({ id: "item-2", plain_text: "item-2" }),
+        mockItem({ id: "item-3", plain_text: "item-3" }),
+      ],
+    });
+
+    const view = render(<ClipboardList />);
+    const row = view.container.querySelector(".overflow-x-auto") as HTMLDivElement | null;
+    const scrollable = view.getByTestId("scrollable-rich-1");
+
+    expect(row).not.toBeNull();
+
+    Object.defineProperty(row!, "clientWidth", {
+      configurable: true,
+      value: 320,
+    });
+    Object.defineProperty(row!, "scrollWidth", {
+      configurable: true,
+      value: 960,
+    });
+    Object.defineProperty(row!, "scrollLeft", {
+      configurable: true,
+      writable: true,
+      value: 120,
+    });
+    Object.defineProperty(scrollable, "clientHeight", {
+      configurable: true,
+      value: 80,
+    });
+    Object.defineProperty(scrollable, "scrollHeight", {
+      configurable: true,
+      value: 240,
+    });
+    Object.defineProperty(scrollable, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 40,
+    });
+
+    fireEvent.wheel(scrollable, { deltaY: 32, deltaX: 0 });
+
+    expect(row!.scrollLeft).toBe(120);
+  });
+
+  it("lets grouped vertical wheel events bubble instead of converting them to row scrolling", () => {
+    useSettingsStore.setState({
+      settings: { ...DEFAULT_SETTINGS, panel_position: "bottom", flat_mode_tb: "false" },
+      menuBarHeight: 0,
+      loaded: true,
+    });
+    useClipboardStore.setState({
+      items: [
+        mockItem({ id: "today-a", plain_text: "today-a", updated_at: "2026-03-18 10:00:00" }),
+        mockItem({ id: "today-b", plain_text: "today-b", updated_at: "2026-03-18 09:00:00" }),
+        mockItem({ id: "week-a", plain_text: "week-a", updated_at: "2026-03-16 10:00:00" }),
+      ],
+    });
+
+    const view = render(<ClipboardList />);
+    const row = view.container.querySelector(".overflow-x-auto") as HTMLDivElement | null;
+
+    expect(row).not.toBeNull();
+
+    Object.defineProperty(row!, "clientWidth", {
+      configurable: true,
+      value: 320,
+    });
+    Object.defineProperty(row!, "scrollWidth", {
+      configurable: true,
+      value: 960,
+    });
+    Object.defineProperty(row!, "scrollLeft", {
+      configurable: true,
+      writable: true,
+      value: 120,
+    });
+
+    fireEvent.wheel(row!, { deltaY: 32, deltaX: 0 });
+
+    expect(row!.scrollLeft).toBe(120);
   });
 });
