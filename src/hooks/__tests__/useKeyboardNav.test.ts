@@ -149,7 +149,11 @@ describe("useKeyboardNav", () => {
   });
 
   describe("Tab key", () => {
-    it("should prevent default on Tab", () => {
+    it("should switch from history to pins and prevent default on Tab", () => {
+      mockedInvoke.mockResolvedValueOnce([]);
+      useClipboardStore.setState({ viewMode: "history" });
+      hookResult.rerender();
+
       const event = new KeyboardEvent("keydown", {
         key: "Tab",
         bubbles: true,
@@ -158,6 +162,37 @@ describe("useKeyboardNav", () => {
       document.dispatchEvent(event);
 
       expect(event.defaultPrevented).toBe(true);
+      expect(useClipboardStore.getState().viewMode).toBe("pins");
+      expect(mockedInvoke).toHaveBeenCalledWith("get_favorited_items", {
+        contentType: undefined,
+        limit: 500,
+        offset: 0,
+      });
+    });
+
+    it("should switch from pins to history on Tab", () => {
+      mockedInvoke.mockResolvedValueOnce([]);
+      useClipboardStore.setState({ viewMode: "pins" });
+      hookResult.rerender();
+
+      fireKey("Tab");
+
+      expect(useClipboardStore.getState().viewMode).toBe("history");
+      expect(mockedInvoke).toHaveBeenCalledWith("get_clipboard_items", {
+        contentType: undefined,
+        limit: 500,
+        offset: 0,
+      });
+    });
+
+    it("should reset selection when switching views with Tab", () => {
+      mockedInvoke.mockResolvedValueOnce([]);
+      useClipboardStore.setState({ viewMode: "history", selectedIndex: 3 });
+      hookResult.rerender();
+
+      fireKey("Tab");
+
+      expect(useClipboardStore.getState().selectedIndex).toBe(0);
     });
   });
 
@@ -349,6 +384,23 @@ describe("useKeyboardNav", () => {
       fireKey("ArrowRight", {}, input);
 
       expect(useClipboardStore.getState().selectedIndex).toBe(0);
+    });
+
+    it("should switch views on Tab without moving focus when input focused", () => {
+      mockedInvoke.mockResolvedValueOnce([]);
+      useClipboardStore.setState({ viewMode: "history" });
+      hookResult.rerender();
+
+      const event = new KeyboardEvent("keydown", {
+        key: "Tab",
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(useClipboardStore.getState().viewMode).toBe("pins");
+      expect(document.activeElement).toBe(input);
     });
   });
 

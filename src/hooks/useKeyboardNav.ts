@@ -15,7 +15,9 @@ export const previewState = { open: false };
 export function useKeyboardNav() {
   const items = useClipboardStore((s) => s.items);
   const selectedIndex = useClipboardStore((s) => s.selectedIndex);
+  const viewMode = useClipboardStore((s) => s.viewMode);
   const setSelectedIndex = useClipboardStore((s) => s.setSelectedIndex);
+  const setViewMode = useClipboardStore((s) => s.setViewMode);
   const setModifierHeld = useClipboardStore((s) => s.setModifierHeld);
   const panelPosition = useSettingsStore((s) => s.settings.panel_position);
   const flatModeTB = useSettingsStore((s) => s.settings.flat_mode_tb) === "true";
@@ -80,6 +82,7 @@ export function useKeyboardNav() {
       // Prevent Tab from cycling focus between UI elements
       if (e.key === "Tab") {
         e.preventDefault();
+        setViewMode(viewMode === "history" ? "pins" : "history");
         return;
       }
 
@@ -289,7 +292,9 @@ export function useKeyboardNav() {
     [
       items,
       selectedIndex,
+      viewMode,
       setSelectedIndex,
+      setViewMode,
       setModifierHeld,
       groupInfo,
       isVertical,
