@@ -1,3 +1,14 @@
+export function getDocumentBackgroundColor({
+  isMac,
+  page,
+}: {
+  isMac: boolean;
+  page: string | null;
+}) {
+  if (isMac) return "transparent";
+  return page === "hud" ? "#09090B" : "transparent";
+}
+
 export function getMainWindowShellClassName(isMac: boolean) {
   return `h-screen w-screen flex flex-col ${isMac ? "" : "bg-transparent"}`;
 }
