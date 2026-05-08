@@ -19,15 +19,16 @@ interface CopyHudViewProps {
 
 export function CopyHudView({ isMac }: CopyHudViewProps) {
   const { t } = useTranslation();
+  const rootClassName = `h-screen w-screen flex items-center justify-center overflow-hidden ${
+    isMac ? "" : "bg-zinc-950 text-white"
+  }`;
+  const surfaceClassName = `flex flex-col items-center justify-center ${
+    isMac ? "" : "h-full w-full"
+  }`;
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center overflow-hidden">
-      <div
-        data-testid="copy-hud-surface"
-        className={`flex flex-col items-center justify-center ${
-          isMac ? "" : "h-full w-full rounded-[28px] bg-zinc-950 text-white"
-        }`}
-      >
+    <div data-testid="copy-hud-root" className={rootClassName}>
+      <div data-testid="copy-hud-surface" className={surfaceClassName}>
         <Check
           className={`${isMac ? "text-foreground/70" : "text-white/90"} drop-shadow-lg`}
           size={52}

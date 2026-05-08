@@ -3,18 +3,29 @@ import { describe, expect, it } from "vitest";
 import { CopyHudView } from "../CopyHud";
 
 describe("CopyHudView", () => {
-  it("renders a full-window Windows surface without a transparent margin gap", () => {
+  it("renders Windows HUD as a solid full-window surface", () => {
     render(<CopyHudView isMac={false} />);
 
+    const root = screen.getByTestId("copy-hud-root");
     const surface = screen.getByTestId("copy-hud-surface");
-    expect(surface).toHaveClass("h-full", "w-full", "rounded-[28px]", "bg-zinc-950");
-    expect(surface).not.toHaveClass("mx-2", "my-2", "ring-1", "backdrop-blur-xl");
+    expect(root).toHaveClass("bg-zinc-950", "text-white");
+    expect(surface).toHaveClass("h-full", "w-full");
+    expect(surface).not.toHaveClass(
+      "rounded-[28px]",
+      "bg-zinc-950",
+      "mx-2",
+      "my-2",
+      "ring-1",
+      "backdrop-blur-xl",
+    );
   });
 
   it("keeps macOS surface transparent for the native hudWindow effect", () => {
     render(<CopyHudView isMac />);
 
+    const root = screen.getByTestId("copy-hud-root");
     const surface = screen.getByTestId("copy-hud-surface");
+    expect(root).not.toHaveClass("bg-zinc-950");
     expect(surface).not.toHaveClass("bg-zinc-950", "ring-1");
   });
 });
