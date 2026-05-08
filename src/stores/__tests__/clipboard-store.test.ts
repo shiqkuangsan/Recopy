@@ -168,6 +168,27 @@ describe("useClipboardStore", () => {
     );
   });
 
+  it("should select the latest item on panel show when configured", async () => {
+    const oldItems = [
+      mockItem({ id: "old-a", plain_text: "old-a" }),
+      mockItem({ id: "old-b", plain_text: "old-b" }),
+      mockItem({ id: "old-c", plain_text: "old-c" }),
+    ];
+    const refreshedItems = [mockItem({ id: "new-top", plain_text: "new-top" }), ...oldItems];
+    mockedInvoke.mockResolvedValueOnce(refreshedItems);
+    useClipboardStore.setState({
+      items: oldItems,
+      selectedIndex: 1,
+      viewMode: "history",
+      searchQuery: "",
+    });
+
+    await useClipboardStore.getState().onPanelShow("latest");
+
+    expect(useClipboardStore.getState().selectedIndex).toBe(0);
+    expect(useClipboardStore.getState().items[0]?.id).toBe("new-top");
+  });
+
   it("should ignore stale results from older requests", async () => {
     const historyDeferred = deferred<ClipboardItem[]>();
     const pinsDeferred = deferred<ClipboardItem[]>();

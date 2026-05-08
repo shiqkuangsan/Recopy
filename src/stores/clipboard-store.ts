@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { ClipboardItem, FilterType, ViewMode } from "../lib/types";
 
 const DEFAULT_PAGE_SIZE = 500;
+type PanelOpenSelection = "preserve" | "latest";
 
 interface ClipboardState {
   items: ClipboardItem[];
@@ -28,7 +29,7 @@ interface ClipboardState {
   refreshOnChange: () => Promise<void>;
   fetchFavorites: () => Promise<void>;
   fetchMore: () => Promise<void>;
-  onPanelShow: () => Promise<void>;
+  onPanelShow: (selectionMode?: PanelOpenSelection) => Promise<void>;
 }
 
 interface SelectionSnapshot {
@@ -73,6 +74,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
     options: {
       hasMore: boolean;
       selectionSnapshot?: SelectionSnapshot | null;
+      selectFirst?: boolean;
     },
   ) => {
     set((state) => ({
@@ -80,13 +82,14 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
       loading: false,
       hasMore: options.hasMore,
       isFetchingMore: false,
-      selectedIndex:
-        options.selectionSnapshot != null
+      selectedIndex: options.selectFirst
+        ? 0
+        : options.selectionSnapshot != null
           ? resolveSelectedIndex(items, options.selectionSnapshot)
           : clampSelectedIndex(state.selectedIndex, items),
     }));
   };
-  const loadHistoryPage = async (preserveSelection = false) => {
+  const loadHistoryPage = async (preserveSelection = false, selectFirst = false) => {
     const requestToken = nextRequestToken();
     const selectionSnapshot = preserveSelection ? takeSelectionSnapshot() : null;
     set({ loading: true });
@@ -102,6 +105,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
       applyLoadedItems(items, {
         hasMore: items.length >= DEFAULT_PAGE_SIZE,
         selectionSnapshot,
+        selectFirst,
       });
     } catch (e) {
       console.error("Failed to fetch items:", e);
@@ -109,7 +113,11 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
       set({ loading: false, isFetchingMore: false });
     }
   };
-  const loadSearchResults = async (query: string, preserveSelection = false) => {
+  const loadSearchResults = async (
+    query: string,
+    preserveSelection = false,
+    selectFirst = false,
+  ) => {
     const requestToken = nextRequestToken();
     const selectionSnapshot = preserveSelection ? takeSelectionSnapshot() : null;
     set({ loading: true });
@@ -126,6 +134,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
       applyLoadedItems(items, {
         hasMore: false,
         selectionSnapshot,
+        selectFirst,
       });
     } catch (e) {
       console.error("Failed to search items:", e);
@@ -133,7 +142,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
       set({ loading: false, isFetchingMore: false });
     }
   };
-  const loadFavoritesPage = async (preserveSelection = false) => {
+  const loadFavoritesPage = async (preserveSelection = false, selectFirst = false) => {
     const requestToken = nextRequestToken();
     const selectionSnapshot = preserveSelection ? takeSelectionSnapshot() : null;
     set({ loading: true });
@@ -149,6 +158,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
       applyLoadedItems(items, {
         hasMore: false,
         selectionSnapshot,
+        selectFirst,
       });
     } catch (e) {
       console.error("Failed to fetch favorites:", e);
@@ -267,18 +277,20 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
       }
     },
 
-    onPanelShow: async () => {
-      // Preserve all UI state: viewMode, filterType, searchQuery, selectedIndex, scroll position.
+    onPanelShow: async (selectionMode = "preserve") => {
+      // Preserve current list scope. Selection can either keep the previous item or reset to latest.
       set((state) => ({ panelShowVersion: state.panelShowVersion + 1 }));
       const { searchQuery, viewMode } = get();
+      const preserveSelection = selectionMode !== "latest";
+      const selectFirst = selectionMode === "latest";
       if (viewMode === "pins") {
-        await loadFavoritesPage(true);
+        await loadFavoritesPage(preserveSelection, selectFirst);
       } else {
         const trimmedQuery = searchQuery.trim();
         if (trimmedQuery) {
-          await loadSearchResults(trimmedQuery, true);
+          await loadSearchResults(trimmedQuery, preserveSelection, selectFirst);
         } else {
-          await loadHistoryPage(true);
+          await loadHistoryPage(preserveSelection, selectFirst);
         }
       }
     },

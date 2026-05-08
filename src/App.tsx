@@ -126,7 +126,10 @@ function MainApp() {
   useEffect(() => {
     const unlisten = listen<ShowEventPayload>("recopy-show", async (event) => {
       syncSettingsFromEvent(event.payload);
-      await onPanelShow();
+      const panelOpenSelection =
+        event.payload.panel_open_selection ??
+        useSettingsStore.getState().settings.panel_open_selection;
+      await onPanelShow(panelOpenSelection);
 
       // Wait for React re-render + useLayoutEffect (scroll) to complete before animating.
       // requestAnimationFrame fires after layout/paint, ensuring scroll has settled.

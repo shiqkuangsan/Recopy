@@ -43,6 +43,8 @@ const DEFAULT_SETTINGS: Settings = {
   update_check_interval: "weekly",
   panel_position: "bottom",
   flat_mode_tb: "false",
+  panel_open_selection: "preserve",
+  show_tray_icon: "true",
 };
 
 describe("useSettingsStore", () => {
@@ -76,6 +78,8 @@ describe("useSettingsStore", () => {
         update_check_interval: "daily",
         panel_position: "left",
         flat_mode_tb: "true",
+        panel_open_selection: "latest",
+        show_tray_icon: "false",
       };
       mockedInvoke.mockResolvedValueOnce(raw);
 
@@ -89,6 +93,8 @@ describe("useSettingsStore", () => {
       expect(state.settings.language).toBe("zh");
       expect(state.settings.panel_position).toBe("left");
       expect(state.settings.flat_mode_tb).toBe("true");
+      expect(state.settings.panel_open_selection).toBe("latest");
+      expect(state.settings.show_tray_icon).toBe("false");
     });
 
     it("should fall back to defaults for missing keys", async () => {
@@ -314,6 +320,13 @@ describe("useSettingsStore", () => {
       useSettingsStore.getState().syncSettingsFromEvent(payload);
 
       expect(useSettingsStore.getState().settings.flat_mode_tb).toBe("true");
+    });
+
+    it("should sync panel_open_selection from event payload", () => {
+      const payload: ShowEventPayload = { panel_open_selection: "latest" };
+      useSettingsStore.getState().syncSettingsFromEvent(payload);
+
+      expect(useSettingsStore.getState().settings.panel_open_selection).toBe("latest");
     });
 
     it("should not modify unrelated settings", () => {

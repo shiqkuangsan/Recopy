@@ -254,35 +254,46 @@ pub fn show_main_window(app: &tauri::AppHandle) {
 
     // Read settings from DB before positioning
     let pool = app.state::<db::DbPool>();
-    let (theme, language, update_check_interval, panel_position, flat_mode_tb) =
-        tauri::async_runtime::block_on(async {
-            let t = db::queries::get_setting(&pool.0, "theme")
-                .await
-                .ok()
-                .flatten();
-            let l = db::queries::get_setting(&pool.0, "language")
-                .await
-                .ok()
-                .flatten();
-            let u = db::queries::get_setting(&pool.0, "update_check_interval")
-                .await
-                .ok()
-                .flatten();
-            let p = db::queries::get_setting(&pool.0, "panel_position")
-                .await
-                .ok()
-                .flatten();
-            let f = db::queries::get_setting(&pool.0, "flat_mode_tb")
-                .await
-                .ok()
-                .flatten();
-            (t, l, u, p, f)
-        });
+    let (
+        theme,
+        language,
+        update_check_interval,
+        panel_position,
+        flat_mode_tb,
+        panel_open_selection,
+    ) = tauri::async_runtime::block_on(async {
+        let t = db::queries::get_setting(&pool.0, "theme")
+            .await
+            .ok()
+            .flatten();
+        let l = db::queries::get_setting(&pool.0, "language")
+            .await
+            .ok()
+            .flatten();
+        let u = db::queries::get_setting(&pool.0, "update_check_interval")
+            .await
+            .ok()
+            .flatten();
+        let p = db::queries::get_setting(&pool.0, "panel_position")
+            .await
+            .ok()
+            .flatten();
+        let f = db::queries::get_setting(&pool.0, "flat_mode_tb")
+            .await
+            .ok()
+            .flatten();
+        let s = db::queries::get_setting(&pool.0, "panel_open_selection")
+            .await
+            .ok()
+            .flatten();
+        (t, l, u, p, f, s)
+    });
     let theme = theme.unwrap_or_else(|| "dark".to_string());
     let language = language.unwrap_or_else(|| "system".to_string());
     let update_check_interval = update_check_interval.unwrap_or_else(|| "weekly".to_string());
     let panel_position = panel_position.unwrap_or_else(|| "bottom".to_string());
     let flat_mode_tb = flat_mode_tb.unwrap_or_else(|| "false".to_string());
+    let panel_open_selection = panel_open_selection.unwrap_or_else(|| "preserve".to_string());
 
     // Detect monitor containing the cursor (for multi-monitor setups).
     // Falls back to the monitor where the window was last shown.
@@ -379,6 +390,7 @@ pub fn show_main_window(app: &tauri::AppHandle) {
             "update_check_interval": update_check_interval,
             "panel_position": panel_position,
             "flat_mode_tb": flat_mode_tb,
+            "panel_open_selection": panel_open_selection,
             "menu_bar_height": menu_bar_height,
         }),
     );

@@ -208,6 +208,28 @@ function GeneralSettings({
         />
       </SettingRow>
 
+      <SettingRow
+        label={t("settings.general.panelOpenSelection")}
+        description={t("settings.general.panelOpenSelectionDesc")}
+      >
+        <SegmentedControl
+          value={settings.panel_open_selection}
+          options={[
+            {
+              value: "preserve",
+              icon: <RotateCcw size={13} />,
+              label: t("settings.general.openSelectionPreserve"),
+            },
+            {
+              value: "latest",
+              icon: <Clock size={13} />,
+              label: t("settings.general.openSelectionLatest"),
+            },
+          ]}
+          onChange={(v) => updateSetting("panel_open_selection", v)}
+        />
+      </SettingRow>
+
       {(settings.panel_position === "top" || settings.panel_position === "bottom") && (
         <SettingRow
           label={t("settings.general.flatModeTB")}

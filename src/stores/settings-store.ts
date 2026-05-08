@@ -8,6 +8,7 @@ import {
 import i18n from "../i18n";
 
 export type Theme = "dark" | "light" | "system";
+export type PanelOpenSelection = "preserve" | "latest";
 
 export interface Settings {
   shortcut: string;
@@ -22,6 +23,7 @@ export interface Settings {
   update_check_interval: string;
   panel_position: string;
   flat_mode_tb: string;
+  panel_open_selection: PanelOpenSelection;
   show_tray_icon: string;
 }
 
@@ -38,6 +40,7 @@ const DEFAULT_SETTINGS: Settings = {
   update_check_interval: "weekly",
   panel_position: "bottom",
   flat_mode_tb: "false",
+  panel_open_selection: "preserve",
   show_tray_icon: "true",
 };
 
@@ -47,6 +50,7 @@ export interface ShowEventPayload {
   update_check_interval?: string;
   panel_position?: string;
   flat_mode_tb?: string;
+  panel_open_selection?: PanelOpenSelection;
   menu_bar_height?: number;
 }
 
@@ -103,6 +107,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         update_check_interval: raw.update_check_interval ?? DEFAULT_SETTINGS.update_check_interval,
         panel_position: raw.panel_position ?? DEFAULT_SETTINGS.panel_position,
         flat_mode_tb: raw.flat_mode_tb ?? DEFAULT_SETTINGS.flat_mode_tb,
+        panel_open_selection:
+          (raw.panel_open_selection as PanelOpenSelection) ?? DEFAULT_SETTINGS.panel_open_selection,
         show_tray_icon: raw.show_tray_icon ?? DEFAULT_SETTINGS.show_tray_icon,
       };
       set({ settings, loaded: true });
@@ -170,6 +176,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       update_check_interval,
       panel_position,
       flat_mode_tb,
+      panel_open_selection,
       menu_bar_height,
     } = payload;
     if (theme) {
@@ -197,6 +204,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     if (flat_mode_tb) {
       set((state) => ({
         settings: { ...state.settings, flat_mode_tb },
+      }));
+    }
+    if (panel_open_selection) {
+      set((state) => ({
+        settings: { ...state.settings, panel_open_selection },
       }));
     }
     if (menu_bar_height != null) {
