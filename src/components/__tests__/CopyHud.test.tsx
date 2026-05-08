@@ -8,11 +8,11 @@ describe("CopyHudView", () => {
 
     const root = screen.getByTestId("copy-hud-root");
     const surface = screen.getByTestId("copy-hud-surface");
-    expect(root).toHaveClass("bg-zinc-950", "text-white");
+    expect(root).toHaveClass("bg-zinc-900", "text-white");
     expect(surface).toHaveClass("h-full", "w-full");
     expect(surface).not.toHaveClass(
       "rounded-[28px]",
-      "bg-zinc-950",
+      "bg-zinc-900",
       "mx-2",
       "my-2",
       "ring-1",
@@ -25,7 +25,7 @@ describe("CopyHudView", () => {
 
     const root = screen.getByTestId("copy-hud-root");
     const surface = screen.getByTestId("copy-hud-surface");
-    expect(root).not.toHaveClass("bg-zinc-950");
-    expect(surface).not.toHaveClass("bg-zinc-950", "ring-1");
+    expect(root).not.toHaveClass("bg-zinc-900");
+    expect(surface).not.toHaveClass("bg-zinc-900", "ring-1");
   });
 });

@@ -20,7 +20,7 @@ interface CopyHudViewProps {
 export function CopyHudView({ isMac }: CopyHudViewProps) {
   const { t } = useTranslation();
   const rootClassName = `h-screen w-screen flex items-center justify-center overflow-hidden ${
-    isMac ? "" : "bg-zinc-950 text-white"
+    isMac ? "" : "bg-zinc-900 text-white"
   }`;
   const surfaceClassName = `flex flex-col items-center justify-center ${
     isMac ? "" : "h-full w-full"
