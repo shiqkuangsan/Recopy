@@ -112,6 +112,19 @@ pub fn init_hud_panel(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>
         return Ok(());
     };
 
+    #[allow(deprecated)]
+    {
+        use tauri::utils::config::WindowEffectsConfig;
+        use tauri::window::{Effect, EffectState};
+
+        let _ = window.set_effects(WindowEffectsConfig {
+            effects: vec![Effect::HudWindow],
+            state: Some(EffectState::Active),
+            radius: Some(20.0),
+            color: None,
+        });
+    }
+
     let panel = nspanel::convert_to_panel(app.handle(), &window, PanelType::Recopy, None)?;
 
     // Float above the main panel

@@ -25,9 +25,7 @@ export function CopyHudView({ isMac }: CopyHudViewProps) {
       <div
         data-testid="copy-hud-surface"
         className={`flex flex-col items-center justify-center ${
-          isMac
-            ? ""
-            : "h-full w-full rounded-[28px] bg-zinc-950/90 text-white ring-1 ring-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-xl"
+          isMac ? "" : "h-full w-full rounded-[28px] bg-zinc-950 text-white"
         }`}
       >
         <Check
