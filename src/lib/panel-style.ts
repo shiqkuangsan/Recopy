@@ -6,7 +6,7 @@ export function getDocumentBackgroundColor({
   page: string | null;
 }) {
   if (isMac) return "transparent";
-  return page === "hud" ? "#09090B" : "transparent";
+  return page === "hud" ? "#18181B" : "transparent";
 }
 
 export function getMainWindowShellClassName(isMac: boolean) {
@@ -16,15 +16,12 @@ export function getMainWindowShellClassName(isMac: boolean) {
 export function getMainPanelClassName({
   isMac,
   isTop,
-  isVertical = false,
 }: {
   isMac: boolean;
   isTop: boolean;
   isVertical?: boolean;
 }) {
-  const windowsHorizontalEdge = !isMac && !isVertical ? "w-[calc(100%-0.5rem)] mr-2" : "w-full";
-
-  return `panel-idle ${windowsHorizontalEdge} h-full text-foreground flex font-sans overflow-hidden ${
+  return `panel-idle w-full h-full text-foreground flex font-sans overflow-hidden ${
     isTop ? "flex-col-reverse" : "flex-col"
   } ${isMac ? "" : "bg-background ring-1 ring-border/50"}`;
 }

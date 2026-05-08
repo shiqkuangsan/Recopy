@@ -246,6 +246,120 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
+#[derive(Debug, PartialEq)]
+struct MainWindowLayout {
+    win_w: f64,
+    win_h: f64,
+    x: f64,
+    y: f64,
+    min_w: f64,
+    min_h: f64,
+    max_w: f64,
+    max_h: f64,
+    resizable: bool,
+}
+
+struct MainWindowLayoutArgs<'a> {
+    panel_position: &'a str,
+    flat_mode_tb: &'a str,
+    mon_x: f64,
+    mon_y: f64,
+    screen_w: f64,
+    screen_h: f64,
+    menu_bar_height: f64,
+    is_windows: bool,
+}
+
+fn calculate_main_window_layout(args: MainWindowLayoutArgs<'_>) -> MainWindowLayout {
+    let margin = 6.0_f64;
+    let horizontal_margin = if args.is_windows && matches!(args.panel_position, "bottom" | "top") {
+        0.0
+    } else {
+        margin
+    };
+
+    match args.panel_position {
+        "top" => {
+            let win_w = args.screen_w - horizontal_margin * 2.0;
+            let win_h = if args.flat_mode_tb == "true" {
+                366.0
+            } else {
+                420.0
+            };
+            MainWindowLayout {
+                win_w,
+                win_h,
+                x: args.mon_x + horizontal_margin,
+                y: args.mon_y,
+                min_w: win_w,
+                min_h: 300.0,
+                max_w: win_w,
+                max_h: 800.0,
+                resizable: true,
+            }
+        }
+        "left" => {
+            let top_inset = if args.menu_bar_height > 0.0 {
+                args.menu_bar_height + 3.0
+            } else {
+                38.0
+            };
+            let win_w = 380.0;
+            let win_h = args.screen_h - top_inset - margin;
+            MainWindowLayout {
+                win_w,
+                win_h,
+                x: args.mon_x + margin,
+                y: args.mon_y + top_inset,
+                min_w: win_w,
+                min_h: win_h,
+                max_w: win_w,
+                max_h: win_h,
+                resizable: false,
+            }
+        }
+        "right" => {
+            let top_inset = if args.menu_bar_height > 0.0 {
+                args.menu_bar_height + 3.0
+            } else {
+                38.0
+            };
+            let win_w = 380.0;
+            let win_h = args.screen_h - top_inset - margin;
+            MainWindowLayout {
+                win_w,
+                win_h,
+                x: args.mon_x + args.screen_w - win_w - margin,
+                y: args.mon_y + top_inset,
+                min_w: win_w,
+                min_h: win_h,
+                max_w: win_w,
+                max_h: win_h,
+                resizable: false,
+            }
+        }
+        _ => {
+            let win_w = args.screen_w - horizontal_margin * 2.0;
+            let win_h = if args.flat_mode_tb == "true" {
+                366.0
+            } else {
+                380.0
+            };
+            MainWindowLayout {
+                win_w,
+                win_h,
+                x: args.mon_x + horizontal_margin,
+                y: args.mon_y + args.screen_h - win_h - margin,
+                min_w: win_w,
+                min_h: 300.0,
+                max_w: win_w,
+                max_h: 800.0,
+                resizable: true,
+            }
+        }
+    }
+}
+
 /// Show the main window: position depends on `panel_position` setting.
 pub fn show_main_window(app: &tauri::AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
@@ -310,72 +424,39 @@ pub fn show_main_window(app: &tauri::AppHandle) {
         ))
     });
     if let Some((mon_x, mon_y, screen_w, screen_h)) = monitor_bounds {
-        let margin = 6.0_f64;
+        let layout = calculate_main_window_layout(MainWindowLayoutArgs {
+            panel_position: &panel_position,
+            flat_mode_tb: &flat_mode_tb,
+            mon_x,
+            mon_y,
+            screen_w,
+            screen_h,
+            menu_bar_height: platform::platform_menu_bar_height(),
+            is_windows: cfg!(target_os = "windows"),
+        });
 
-        let (win_w, win_h, x, y, min_w, min_h, max_w, max_h) = match panel_position.as_str() {
-            "top" => {
-                let w = screen_w - margin * 2.0;
-                let h = if flat_mode_tb == "true" { 366.0 } else { 420.0 };
-                // y=0: overlay menu bar (NSPanel level raised to MainMenu+1)
-                (w, h, mon_x + margin, mon_y, w, 300.0, w, 800.0)
-            }
-            "left" => {
-                // Dynamic menu bar height: 25px (standard) or ~37px (notched Mac)
-                let menu_h = platform::platform_menu_bar_height();
-                let top_inset = if menu_h > 0.0 { menu_h + 3.0 } else { 38.0 };
-                let w = 380.0;
-                let h = screen_h - top_inset - margin;
-                (w, h, mon_x + margin, mon_y + top_inset, w, h, w, h)
-            }
-            "right" => {
-                let menu_h = platform::platform_menu_bar_height();
-                let top_inset = if menu_h > 0.0 { menu_h + 3.0 } else { 38.0 };
-                let w = 380.0;
-                let h = screen_h - top_inset - margin;
-                (
-                    w,
-                    h,
-                    mon_x + screen_w - w - margin,
-                    mon_y + top_inset,
-                    w,
-                    h,
-                    w,
-                    h,
-                )
-            }
-            _ => {
-                // "bottom" (default)
-                let w = screen_w - margin * 2.0;
-                let h = if flat_mode_tb == "true" { 366.0 } else { 380.0 };
-                (
-                    w,
-                    h,
-                    mon_x + margin,
-                    mon_y + screen_h - h - margin,
-                    w,
-                    300.0,
-                    w,
-                    800.0,
-                )
-            }
-        };
-
-        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(win_w, win_h)));
+        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(
+            layout.win_w,
+            layout.win_h,
+        )));
         let _ = window.set_min_size(Some(tauri::Size::Logical(tauri::LogicalSize::new(
-            min_w, min_h,
+            layout.min_w,
+            layout.min_h,
         ))));
         let _ = window.set_max_size(Some(tauri::Size::Logical(tauri::LogicalSize::new(
-            max_w, max_h,
+            layout.max_w,
+            layout.max_h,
         ))));
-        let resizable = panel_position == "bottom" || panel_position == "top";
-        let _ = window.set_resizable(resizable);
+        let _ = window.set_resizable(layout.resizable);
         #[cfg(target_os = "windows")]
-        if resizable {
+        if layout.resizable {
             if let Some(hwnd) = window.hwnd().ok().map(|h| h.0 as isize) {
                 platform::install_nchittest_hook(hwnd, &panel_position);
             }
         }
-        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)));
+        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(
+            layout.x, layout.y,
+        )));
     }
 
     commands::clipboard::update_window_effects_for_theme(app, &theme);
@@ -1052,5 +1133,40 @@ mod tests {
         assert!(should_show_main_window_for_second_instance(&args(&[
             "/Applications/Recopy.app/Contents/MacOS/recopy",
         ])));
+    }
+
+    #[test]
+    fn windows_bottom_layout_uses_full_monitor_width() {
+        let layout = calculate_main_window_layout(MainWindowLayoutArgs {
+            panel_position: "bottom",
+            flat_mode_tb: "false",
+            mon_x: 0.0,
+            mon_y: 0.0,
+            screen_w: 1280.0,
+            screen_h: 720.0,
+            menu_bar_height: 0.0,
+            is_windows: true,
+        });
+
+        assert_eq!(layout.win_w, 1280.0);
+        assert_eq!(layout.x, 0.0);
+        assert_eq!(layout.y, 720.0 - 380.0 - 6.0);
+    }
+
+    #[test]
+    fn non_windows_bottom_layout_keeps_horizontal_margin() {
+        let layout = calculate_main_window_layout(MainWindowLayoutArgs {
+            panel_position: "bottom",
+            flat_mode_tb: "false",
+            mon_x: 0.0,
+            mon_y: 0.0,
+            screen_w: 1280.0,
+            screen_h: 720.0,
+            menu_bar_height: 0.0,
+            is_windows: false,
+        });
+
+        assert_eq!(layout.win_w, 1268.0);
+        assert_eq!(layout.x, 6.0);
     }
 }

@@ -17,16 +17,16 @@ describe("panel style", () => {
   });
 
   it("uses a solid document background only for the non-macOS HUD page", () => {
-    expect(getDocumentBackgroundColor({ isMac: false, page: "hud" })).toBe("#09090B");
+    expect(getDocumentBackgroundColor({ isMac: false, page: "hud" })).toBe("#18181B");
     expect(getDocumentBackgroundColor({ isMac: true, page: "hud" })).toBe("transparent");
   });
 
-  it("reserves a right-side visual edge on Windows to match the native left edge", () => {
-    expect(getMainPanelClassName({ isMac: false, isTop: false })).toContain("mr-2");
-    expect(getMainPanelClassName({ isMac: false, isTop: false })).toContain(
+  it("keeps Windows horizontal panels full-width without compensating CSS margins", () => {
+    expect(getMainPanelClassName({ isMac: false, isTop: false })).toContain("w-full");
+    expect(getMainPanelClassName({ isMac: false, isTop: false })).not.toContain("mr-2");
+    expect(getMainPanelClassName({ isMac: false, isTop: false })).not.toContain(
       "w-[calc(100%-0.5rem)]",
     );
-    expect(getMainPanelClassName({ isMac: true, isTop: false })).not.toContain("mr-2");
   });
 
   it("keeps vertical side panels full-width", () => {
