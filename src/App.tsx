@@ -164,7 +164,7 @@ function MainApp() {
 
   return (
     <div className={getMainWindowShellClassName(isMac)}>
-      <div ref={panelRef} className={getMainPanelClassName({ isMac, isTop })}>
+      <div ref={panelRef} className={getMainPanelClassName({ isMac, isTop, isVertical })}>
         {/* Drag handle — visual indicator for resize edge (hidden in left/right mode) */}
         {!isVertical && (
           <div className="shrink-0 flex justify-center pointer-events-none select-none">
