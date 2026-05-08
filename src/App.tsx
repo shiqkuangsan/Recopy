@@ -17,6 +17,7 @@ import { useClipboardStore } from "./stores/clipboard-store";
 import { useSettingsStore, type ShowEventPayload } from "./stores/settings-store";
 import { useUpdateStore } from "./stores/update-store";
 import { useKeyboardNav } from "./hooks/useKeyboardNav";
+import { getMainPanelClassName, getMainWindowShellClassName } from "./lib/panel-style";
 
 // Expose update store to devtools console for UI testing
 if (import.meta.env.DEV) {
@@ -156,15 +157,11 @@ function MainApp() {
   const menuBarHeight = useSettingsStore((s) => s.menuBarHeight);
   const isVertical = panelPosition === "left" || panelPosition === "right";
   const isTop = panelPosition === "top";
+  const isMac = platform() === "macos";
 
   return (
-    <div className="h-screen w-screen flex flex-col">
-      <div
-        ref={panelRef}
-        className={`panel-idle w-full h-full text-foreground flex font-sans overflow-hidden ${
-          isTop ? "flex-col-reverse" : "flex-col"
-        }`}
-      >
+    <div className={getMainWindowShellClassName(isMac)}>
+      <div ref={panelRef} className={getMainPanelClassName({ isMac, isTop })}>
         {/* Drag handle — visual indicator for resize edge (hidden in left/right mode) */}
         {!isVertical && (
           <div className="shrink-0 flex justify-center pointer-events-none select-none">

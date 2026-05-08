@@ -1175,11 +1175,7 @@ pub async fn process_clipboard_change(
 }
 
 /// Update main window visual effects to match the given theme.
-#[allow(deprecated)]
 pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
-    use tauri::utils::config::WindowEffectsConfig;
-    use tauri::window::{Effect, EffectState};
-
     let is_system = !matches!(theme, "light" | "dark");
 
     let is_light = match theme {
@@ -1214,18 +1210,27 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     };
 
     if let Some(main_window) = app.get_webview_window("main") {
-        let effect = if is_light {
-            Effect::Sidebar
-        } else {
-            Effect::HudWindow
-        };
-        let effects = WindowEffectsConfig {
-            effects: vec![effect],
-            state: Some(EffectState::Active),
-            radius: Some(12.0),
-            color: None,
-        };
-        let _ = main_window.set_effects(effects);
+        // Windows native window effects leave inconsistent transparent edge
+        // artifacts on the panel. Keep native vibrancy on macOS only; Windows
+        // uses the React-drawn bg-background fallback.
+        #[cfg(target_os = "macos")]
+        {
+            use tauri::utils::config::WindowEffectsConfig;
+            use tauri::window::{Effect, EffectState};
+
+            let effect = if is_light {
+                Effect::Sidebar
+            } else {
+                Effect::HudWindow
+            };
+            let effects = WindowEffectsConfig {
+                effects: vec![effect],
+                state: Some(EffectState::Active),
+                radius: Some(12.0),
+                color: None,
+            };
+            let _ = main_window.set_effects(effects);
+        }
         let _ = main_window.set_theme(window_theme);
     }
 

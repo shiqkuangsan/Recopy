@@ -24,12 +24,7 @@
         "transparent": true,
         "alwaysOnTop": true,
         "visible": false,
-        "skipTaskbar": true,
-        "windowEffects": {
-          "effects": ["hudWindow"],
-          "state": "active",
-          "radius": 12
-        }
+        "skipTaskbar": true
       },
       {
         "label": "hud",
