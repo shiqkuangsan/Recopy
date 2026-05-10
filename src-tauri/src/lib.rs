@@ -285,6 +285,7 @@ fn calculate_main_window_layout(args: MainWindowLayoutArgs<'_>) -> MainWindowLay
         38.0
     };
     let vertical_bottom_margin = if args.is_windows { 0.0 } else { margin };
+    let vertical_edge_margin = if args.is_windows { 0.0 } else { margin };
 
     match args.panel_position {
         "top" => {
@@ -312,7 +313,7 @@ fn calculate_main_window_layout(args: MainWindowLayoutArgs<'_>) -> MainWindowLay
             MainWindowLayout {
                 win_w,
                 win_h,
-                x: args.mon_x + margin,
+                x: args.mon_x + vertical_edge_margin,
                 y: args.mon_y + vertical_top_inset,
                 min_w: win_w,
                 min_h: win_h,
@@ -327,7 +328,7 @@ fn calculate_main_window_layout(args: MainWindowLayoutArgs<'_>) -> MainWindowLay
             MainWindowLayout {
                 win_w,
                 win_h,
-                x: args.mon_x + args.screen_w - win_w - margin,
+                x: args.mon_x + args.screen_w - win_w - vertical_edge_margin,
                 y: args.mon_y + vertical_top_inset,
                 min_w: win_w,
                 min_h: win_h,
@@ -1189,6 +1190,7 @@ mod tests {
             is_windows: true,
         });
 
+        assert_eq!(layout.x, 0.0);
         assert_eq!(layout.y, 0.0);
         assert_eq!(layout.win_h, 720.0);
         assert_eq!(layout.min_h, 720.0);
@@ -1210,7 +1212,7 @@ mod tests {
 
         assert_eq!(layout.y, 0.0);
         assert_eq!(layout.win_h, 720.0);
-        assert_eq!(layout.x, 1280.0 - 380.0 - 6.0);
+        assert_eq!(layout.x, 1280.0 - 380.0);
     }
 
     #[test]
