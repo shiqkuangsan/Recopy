@@ -711,11 +711,7 @@ function ShortcutRecorder({
 }) {
   const { t } = useTranslation();
   const [recording, setRecording] = useState(false);
-  const [display, setDisplay] = useState(value);
-
-  useEffect(() => {
-    setDisplay(value);
-  }, [value]);
+  const [pendingShortcut, setPendingShortcut] = useState<string | null>(null);
 
   useEffect(() => {
     if (!recording) return;
@@ -730,6 +726,7 @@ function ShortcutRecorder({
       // Escape to cancel recording
       if (e.key === "Escape") {
         setRecording(false);
+        setPendingShortcut(null);
         return;
       }
 
@@ -742,10 +739,11 @@ function ShortcutRecorder({
       if (key !== "Meta" && key !== "Control" && key !== "Shift" && key !== "Alt") {
         parts.push(key.length === 1 ? key.toUpperCase() : key);
         const shortcut = parts.join("+");
-        setDisplay(shortcut);
+        setPendingShortcut(shortcut);
         // Persist to DB first, then stop recording — ensures register_shortcut reads the new value
         await onChange(shortcut);
         setRecording(false);
+        setPendingShortcut(null);
       }
     };
 
@@ -768,7 +766,10 @@ function ShortcutRecorder({
     <Button
       variant="outline"
       size="sm"
-      onClick={() => setRecording(!recording)}
+      onClick={() => {
+        setPendingShortcut(null);
+        setRecording(!recording);
+      }}
       className={`min-w-28 text-xs ${
         recording
           ? "bg-primary/15 text-primary ring-1 ring-primary animate-pulse border-primary/30"
@@ -776,7 +777,11 @@ function ShortcutRecorder({
       }`}
     >
       <Keyboard size={12} />
-      {recording ? t("settings.general.pressKeys") : formatShortcut(display)}
+      {recording
+        ? pendingShortcut
+          ? formatShortcut(pendingShortcut)
+          : t("settings.general.pressKeys")
+        : formatShortcut(value)}
     </Button>
   );
 }
