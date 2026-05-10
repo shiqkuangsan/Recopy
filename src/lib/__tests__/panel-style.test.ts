@@ -11,9 +11,12 @@ describe("panel style", () => {
     expect(getMainPanelClassName({ isMac: false, isTop: false })).toContain("bg-background");
   });
 
-  it("keeps the non-macOS main panel document transparent so the reserved edge stays visible", () => {
-    expect(getDocumentBackgroundColor({ isMac: false, page: null })).toBe("transparent");
-    expect(getDocumentBackgroundColor({ isMac: false, page: "" })).toBe("transparent");
+  it("paints the non-macOS main panel document background to cover transparent edge leaks", () => {
+    expect(getDocumentBackgroundColor({ isMac: false, page: null })).toBe(
+      "var(--color-background)",
+    );
+    expect(getDocumentBackgroundColor({ isMac: false, page: "" })).toBe("var(--color-background)");
+    expect(getDocumentBackgroundColor({ isMac: false, page: "preview" })).toBe("transparent");
   });
 
   it("uses a solid document background only for the non-macOS HUD page", () => {

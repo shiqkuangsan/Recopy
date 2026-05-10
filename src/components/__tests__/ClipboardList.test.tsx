@@ -285,6 +285,27 @@ describe("ClipboardList", () => {
     expect(fetchMoreSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps horizontal row gutters outside the scroll viewport", () => {
+    useSettingsStore.setState({
+      settings: { ...DEFAULT_SETTINGS, panel_position: "bottom", flat_mode_tb: "true" },
+      menuBarHeight: 0,
+      loaded: true,
+    });
+    useClipboardStore.setState({
+      items: [
+        mockItem({ id: "item-1", plain_text: "item-1" }),
+        mockItem({ id: "item-2", plain_text: "item-2" }),
+      ],
+    });
+
+    const view = render(<ClipboardList />);
+    const row = view.container.querySelector(".overflow-x-auto") as HTMLDivElement | null;
+
+    expect(row).not.toBeNull();
+    expect(row).not.toHaveClass("px-5");
+    expect(row!.parentElement).toHaveClass("px-5", "w-full", "min-w-0");
+  });
+
   it("does not convert wheel events from a vertically scrollable card child into row scrolling", () => {
     useSettingsStore.setState({
       settings: { ...DEFAULT_SETTINGS, panel_position: "bottom", flat_mode_tb: "true" },

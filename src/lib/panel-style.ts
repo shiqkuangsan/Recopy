@@ -6,6 +6,7 @@ export function getDocumentBackgroundColor({
   page: string | null;
 }) {
   if (isMac) return "transparent";
+  if (page === null || page === "") return "var(--color-background)";
   return page === "hud" ? "#18181B" : "transparent";
 }
 

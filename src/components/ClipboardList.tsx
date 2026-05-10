@@ -79,42 +79,44 @@ const GroupRow = forwardRef<GroupRowHandle, GroupRowProps>(
     }));
 
     return (
-      <div
-        ref={scrollRef}
-        className="overflow-x-auto no-scrollbar pb-1 px-5"
-        onWheel={onRowWheel}
-        onScroll={onScroll}
-      >
+      <div className="w-full min-w-0 px-5">
         <div
-          className="relative"
-          style={{
-            width: virtualizer.getTotalSize(),
-            height: `${CARD_HEIGHT}px`,
-          }}
+          ref={scrollRef}
+          className="overflow-x-auto no-scrollbar pb-1"
+          onWheel={onRowWheel}
+          onScroll={onScroll}
         >
-          {virtualizer.getVirtualItems().map((vi) => {
-            const { item, flatIndex } = items[vi.index];
-            return (
-              <div
-                key={item.id}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: `${CARD_WIDTH}px`,
-                  height: "100%",
-                  transform: `translateX(${vi.start}px)`,
-                }}
-              >
-                <ClipboardCard
-                  item={item}
-                  selected={flatIndex === selectedIndex}
-                  onClick={() => setSelectedIndex(flatIndex)}
-                  quickIndex={quickIndexByFlatIndex.get(flatIndex)}
-                />
-              </div>
-            );
-          })}
+          <div
+            className="relative"
+            style={{
+              width: virtualizer.getTotalSize(),
+              height: `${CARD_HEIGHT}px`,
+            }}
+          >
+            {virtualizer.getVirtualItems().map((vi) => {
+              const { item, flatIndex } = items[vi.index];
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: `${CARD_WIDTH}px`,
+                    height: "100%",
+                    transform: `translateX(${vi.start}px)`,
+                  }}
+                >
+                  <ClipboardCard
+                    item={item}
+                    selected={flatIndex === selectedIndex}
+                    onClick={() => setSelectedIndex(flatIndex)}
+                    quickIndex={quickIndexByFlatIndex.get(flatIndex)}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
