@@ -399,4 +399,42 @@ describe("ClipboardList", () => {
 
     expect(row!.scrollLeft).toBe(120);
   });
+
+  it("converts shift wheel to horizontal row scrolling in grouped mode", () => {
+    useSettingsStore.setState({
+      settings: { ...DEFAULT_SETTINGS, panel_position: "bottom", flat_mode_tb: "false" },
+      menuBarHeight: 0,
+      loaded: true,
+    });
+    useClipboardStore.setState({
+      items: [
+        mockItem({ id: "today-a", plain_text: "today-a", updated_at: "2026-03-18 10:00:00" }),
+        mockItem({ id: "today-b", plain_text: "today-b", updated_at: "2026-03-18 09:00:00" }),
+        mockItem({ id: "week-a", plain_text: "week-a", updated_at: "2026-03-16 10:00:00" }),
+      ],
+    });
+
+    const view = render(<ClipboardList />);
+    const row = view.container.querySelector(".overflow-x-auto") as HTMLDivElement | null;
+
+    expect(row).not.toBeNull();
+
+    Object.defineProperty(row!, "clientWidth", {
+      configurable: true,
+      value: 320,
+    });
+    Object.defineProperty(row!, "scrollWidth", {
+      configurable: true,
+      value: 960,
+    });
+    Object.defineProperty(row!, "scrollLeft", {
+      configurable: true,
+      writable: true,
+      value: 120,
+    });
+
+    fireEvent.wheel(row!, { deltaY: 32, deltaX: 0, shiftKey: true });
+
+    expect(row!.scrollLeft).toBe(152);
+  });
 });

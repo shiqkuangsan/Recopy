@@ -218,9 +218,11 @@ export function ClipboardList() {
     overscan: 5,
   });
 
-  // Convert vertical wheel events to horizontal scroll on card rows.
+  // Convert explicit wheel gestures to horizontal scroll on card rows.
   // Uses axis-intent detection to handle mixed-axis input from Windows Precision
   // Touchpads and high-resolution mice that produce simultaneous deltaX + deltaY.
+  // In grouped mode, plain vertical wheel belongs to the outer date-group scroller;
+  // Shift+wheel is the mouse fallback for horizontal row browsing.
   // At horizontal boundaries, let the event bubble for outer vertical scrolling.
   const EDGE_EPSILON = 1;
   const LINE_HEIGHT = 40; // px per line for deltaMode=1
@@ -229,7 +231,7 @@ export function ClipboardList() {
     (e: React.WheelEvent<HTMLDivElement>) => {
       const el = e.currentTarget;
       if (el.scrollWidth <= el.clientWidth) return; // nothing to scroll
-      if (e.ctrlKey || e.shiftKey) return; // zoom or shift+wheel → native
+      if (e.ctrlKey) return; // zoom
 
       // Normalize deltas to pixels based on deltaMode
       let dy = e.deltaY;
@@ -246,11 +248,13 @@ export function ClipboardList() {
       if (Math.abs(dx) > Math.abs(dy)) return;
       if (dy === 0) return;
 
-      // In grouped mode vertical wheel belongs to the outer date-group scroller.
-      if (shouldGroup) return;
+      const shiftWheel = e.shiftKey;
+
+      // In grouped mode, keep normal vertical wheel for the outer date-group scroller.
+      if (shouldGroup && !shiftWheel) return;
 
       // Let card content with its own vertical scroller consume vertical wheel.
-      if (hasVerticallyScrollableChild(e.target, el)) return;
+      if (!shiftWheel && hasVerticallyScrollableChild(e.target, el)) return;
 
       const atLeft = el.scrollLeft <= EDGE_EPSILON;
       const atRight = el.scrollLeft + el.clientWidth >= el.scrollWidth - EDGE_EPSILON;
