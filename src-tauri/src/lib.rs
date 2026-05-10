@@ -435,6 +435,14 @@ pub fn show_main_window(app: &tauri::AppHandle) {
             is_windows: cfg!(target_os = "windows"),
         });
 
+        platform::platform_prepare_main_window_rect(
+            &window,
+            layout.x,
+            layout.y,
+            layout.win_w,
+            layout.win_h,
+        );
+
         let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(
             layout.win_w,
             layout.win_h,

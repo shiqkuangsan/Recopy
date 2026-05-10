@@ -1,8 +1,10 @@
 use std::sync::{
     atomic::{AtomicBool, AtomicIsize, AtomicU32, Ordering},
-    OnceLock,
+    Mutex, OnceLock,
 };
 use tauri::{Emitter, Manager};
+
+use super::{outer_rect_for_visible_rect, FrameOffsets, RectI32};
 
 // ---------------------------------------------------------------------------
 // Win32 FFI declarations (raw, no external crate dependency)
@@ -27,6 +29,9 @@ mod win32 {
     pub const SWP_NOMOVE: u32 = 0x0002;
     pub const SWP_NOSIZE: u32 = 0x0001;
     pub const SWP_NOACTIVATE: u32 = 0x0010;
+
+    // DWM attributes
+    pub const DWMWA_EXTENDED_FRAME_BOUNDS: u32 = 9;
 
     // Hook / messages
     pub const WH_KEYBOARD_LL: i32 = 13;
@@ -231,6 +236,16 @@ mod win32 {
         pub fn GetProcAddress(hmodule: isize, name: *const u8) -> usize;
         pub fn FreeLibrary(hmodule: isize) -> i32;
     }
+
+    #[link(name = "dwmapi")]
+    unsafe extern "system" {
+        pub fn DwmGetWindowAttribute(
+            hwnd: HWND,
+            dw_attribute: u32,
+            pv_attribute: *mut std::ffi::c_void,
+            cb_attribute: u32,
+        ) -> i32;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -257,6 +272,10 @@ static PANEL_RESIZE_MODE: AtomicU32 = AtomicU32::new(0);
 
 /// HWND of Recopy's main window (cached for the hook callback).
 static MAIN_HWND: AtomicIsize = AtomicIsize::new(0);
+
+/// Desired visible rect for the main panel in physical pixels. Windows
+/// `SetWindowPos` moves the outer HWND rect, but users see DWM's extended frame.
+static MAIN_DESIRED_VISIBLE_RECT: Mutex<Option<RectI32>> = Mutex::new(None);
 
 /// Thread ID of the dedicated hook message-pump thread (0 = no thread).
 static HOOK_THREAD_ID: AtomicU32 = AtomicU32::new(0);
@@ -305,6 +324,104 @@ fn is_hook_active() -> bool {
     HOOK_HANDLE.load(Ordering::SeqCst) != 0
 }
 
+fn rect_from_win32(rect: win32::RECT) -> RectI32 {
+    RectI32 {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+    }
+}
+
+fn get_window_rect(hwnd: isize) -> Option<RectI32> {
+    unsafe {
+        let mut rect: win32::RECT = std::mem::zeroed();
+        if win32::GetWindowRect(hwnd, &mut rect) != 0 {
+            Some(rect_from_win32(rect))
+        } else {
+            None
+        }
+    }
+}
+
+fn get_extended_frame_bounds(hwnd: isize) -> Option<RectI32> {
+    unsafe {
+        let mut rect: win32::RECT = std::mem::zeroed();
+        let hr = win32::DwmGetWindowAttribute(
+            hwnd,
+            win32::DWMWA_EXTENDED_FRAME_BOUNDS,
+            (&mut rect as *mut win32::RECT).cast::<std::ffi::c_void>(),
+            std::mem::size_of::<win32::RECT>() as u32,
+        );
+        if hr == 0 {
+            Some(rect_from_win32(rect))
+        } else {
+            None
+        }
+    }
+}
+
+fn visible_frame_offsets(hwnd: isize) -> Option<FrameOffsets> {
+    let outer = get_window_rect(hwnd)?;
+    let visible = get_extended_frame_bounds(hwnd)?;
+    Some(FrameOffsets {
+        left: visible.left - outer.left,
+        top: visible.top - outer.top,
+        right: outer.right - visible.right,
+        bottom: outer.bottom - visible.bottom,
+    })
+}
+
+fn cursor_monitor_scale() -> Option<f64> {
+    unsafe {
+        let mut pt = win32::POINT { x: 0, y: 0 };
+        if win32::GetCursorPos(&mut pt) == 0 {
+            return None;
+        }
+        let hmonitor = win32::MonitorFromPoint(pt, win32::MONITOR_DEFAULTTONEAREST);
+        if hmonitor == 0 {
+            return None;
+        }
+        Some(get_monitor_dpi_scale(hmonitor))
+    }
+}
+
+fn apply_prepared_main_window_rect(hwnd: isize) -> bool {
+    let desired = MAIN_DESIRED_VISIBLE_RECT
+        .lock()
+        .ok()
+        .and_then(|guard| *guard);
+    let Some(desired) = desired else {
+        return false;
+    };
+
+    let offsets = visible_frame_offsets(hwnd).unwrap_or(FrameOffsets {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+    });
+    let outer = outer_rect_for_visible_rect(desired, offsets);
+    unsafe {
+        win32::SetWindowPos(
+            hwnd,
+            win32::HWND_TOPMOST,
+            outer.left,
+            outer.top,
+            outer.width(),
+            outer.height(),
+            win32::SWP_NOACTIVATE,
+        ) != 0
+    }
+}
+
+fn apply_prepared_main_window_rect_when_visible(hwnd: isize) -> bool {
+    if unsafe { win32::IsWindowVisible(hwnd) } == 0 {
+        return false;
+    }
+    apply_prepared_main_window_rect(hwnd)
+}
+
 /// Check if the current foreground window belongs to the Recopy process.
 #[allow(dead_code)]
 pub fn is_recopy_foreground() -> bool {
@@ -333,6 +450,37 @@ pub fn init_platform(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
+pub fn platform_prepare_main_window_rect(
+    window: &tauri::WebviewWindow,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+) {
+    let scale = cursor_monitor_scale()
+        .or_else(|| {
+            window
+                .current_monitor()
+                .ok()
+                .flatten()
+                .map(|monitor| monitor.scale_factor())
+        })
+        .unwrap_or(1.0);
+    let left = (x * scale).round() as i32;
+    let top = (y * scale).round() as i32;
+    let right = ((x + width) * scale).round() as i32;
+    let bottom = ((y + height) * scale).round() as i32;
+
+    if let Ok(mut guard) = MAIN_DESIRED_VISIBLE_RECT.lock() {
+        *guard = Some(RectI32 {
+            left,
+            top,
+            right,
+            bottom,
+        });
+    }
+}
+
 /// Show the main window **without activating** (previous app keeps focus).
 /// Installs a global keyboard hook so arrow/Enter/Space/Escape still work.
 pub fn platform_show_window(app: &tauri::AppHandle, _panel_position: &str) {
@@ -346,16 +494,22 @@ pub fn platform_show_window(app: &tauri::AppHandle, _panel_position: &str) {
 
                 // Show without stealing focus
                 win32::ShowWindow(hwnd, win32::SW_SHOWNOACTIVATE);
-                win32::SetWindowPos(
-                    hwnd,
-                    win32::HWND_TOPMOST,
-                    0,
-                    0,
-                    0,
-                    0,
-                    win32::SWP_NOMOVE | win32::SWP_NOSIZE | win32::SWP_NOACTIVATE,
-                );
+                if !apply_prepared_main_window_rect_when_visible(hwnd) {
+                    win32::SetWindowPos(
+                        hwnd,
+                        win32::HWND_TOPMOST,
+                        0,
+                        0,
+                        0,
+                        0,
+                        win32::SWP_NOMOVE | win32::SWP_NOSIZE | win32::SWP_NOACTIVATE,
+                    );
+                }
             }
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(40));
+                let _ = apply_prepared_main_window_rect_when_visible(hwnd);
+            });
             install_keyboard_hook();
         }
     }

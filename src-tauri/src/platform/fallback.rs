@@ -20,6 +20,15 @@ pub fn platform_show_window(app: &tauri::AppHandle, _panel_position: &str) {
     }
 }
 
+pub fn platform_prepare_main_window_rect(
+    _window: &tauri::WebviewWindow,
+    _x: f64,
+    _y: f64,
+    _width: f64,
+    _height: f64,
+) {
+}
+
 pub fn platform_hide_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();

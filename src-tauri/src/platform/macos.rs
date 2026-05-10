@@ -69,6 +69,15 @@ pub fn platform_show_window(app: &tauri::AppHandle, panel_position: &str) {
     });
 }
 
+pub fn platform_prepare_main_window_rect(
+    _window: &tauri::WebviewWindow,
+    _x: f64,
+    _y: f64,
+    _width: f64,
+    _height: f64,
+) {
+}
+
 /// Hide the panel.
 /// Safe to call from any thread — dispatches to main thread.
 pub fn platform_hide_window(app: &tauri::AppHandle) {
