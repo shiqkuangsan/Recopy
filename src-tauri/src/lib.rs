@@ -277,6 +277,14 @@ fn calculate_main_window_layout(args: MainWindowLayoutArgs<'_>) -> MainWindowLay
     } else {
         margin
     };
+    let vertical_top_inset = if args.is_windows {
+        0.0
+    } else if args.menu_bar_height > 0.0 {
+        args.menu_bar_height + 3.0
+    } else {
+        38.0
+    };
+    let vertical_bottom_margin = if args.is_windows { 0.0 } else { margin };
 
     match args.panel_position {
         "top" => {
@@ -299,18 +307,13 @@ fn calculate_main_window_layout(args: MainWindowLayoutArgs<'_>) -> MainWindowLay
             }
         }
         "left" => {
-            let top_inset = if args.menu_bar_height > 0.0 {
-                args.menu_bar_height + 3.0
-            } else {
-                38.0
-            };
             let win_w = 380.0;
-            let win_h = args.screen_h - top_inset - margin;
+            let win_h = args.screen_h - vertical_top_inset - vertical_bottom_margin;
             MainWindowLayout {
                 win_w,
                 win_h,
                 x: args.mon_x + margin,
-                y: args.mon_y + top_inset,
+                y: args.mon_y + vertical_top_inset,
                 min_w: win_w,
                 min_h: win_h,
                 max_w: win_w,
@@ -319,18 +322,13 @@ fn calculate_main_window_layout(args: MainWindowLayoutArgs<'_>) -> MainWindowLay
             }
         }
         "right" => {
-            let top_inset = if args.menu_bar_height > 0.0 {
-                args.menu_bar_height + 3.0
-            } else {
-                38.0
-            };
             let win_w = 380.0;
-            let win_h = args.screen_h - top_inset - margin;
+            let win_h = args.screen_h - vertical_top_inset - vertical_bottom_margin;
             MainWindowLayout {
                 win_w,
                 win_h,
                 x: args.mon_x + args.screen_w - win_w - margin,
-                y: args.mon_y + top_inset,
+                y: args.mon_y + vertical_top_inset,
                 min_w: win_w,
                 min_h: win_h,
                 max_w: win_w,
@@ -1176,5 +1174,59 @@ mod tests {
 
         assert_eq!(layout.win_w, 1268.0);
         assert_eq!(layout.x, 6.0);
+    }
+
+    #[test]
+    fn windows_left_layout_uses_full_monitor_height() {
+        let layout = calculate_main_window_layout(MainWindowLayoutArgs {
+            panel_position: "left",
+            flat_mode_tb: "false",
+            mon_x: 0.0,
+            mon_y: 0.0,
+            screen_w: 1280.0,
+            screen_h: 720.0,
+            menu_bar_height: 0.0,
+            is_windows: true,
+        });
+
+        assert_eq!(layout.y, 0.0);
+        assert_eq!(layout.win_h, 720.0);
+        assert_eq!(layout.min_h, 720.0);
+        assert_eq!(layout.max_h, 720.0);
+    }
+
+    #[test]
+    fn windows_right_layout_uses_full_monitor_height() {
+        let layout = calculate_main_window_layout(MainWindowLayoutArgs {
+            panel_position: "right",
+            flat_mode_tb: "false",
+            mon_x: 0.0,
+            mon_y: 0.0,
+            screen_w: 1280.0,
+            screen_h: 720.0,
+            menu_bar_height: 0.0,
+            is_windows: true,
+        });
+
+        assert_eq!(layout.y, 0.0);
+        assert_eq!(layout.win_h, 720.0);
+        assert_eq!(layout.x, 1280.0 - 380.0 - 6.0);
+    }
+
+    #[test]
+    fn non_windows_left_layout_keeps_menu_bar_top_inset() {
+        let layout = calculate_main_window_layout(MainWindowLayoutArgs {
+            panel_position: "left",
+            flat_mode_tb: "false",
+            mon_x: 0.0,
+            mon_y: 0.0,
+            screen_w: 1280.0,
+            screen_h: 720.0,
+            menu_bar_height: 24.0,
+            is_windows: false,
+        });
+
+        assert_eq!(layout.y, 27.0);
+        assert_eq!(layout.win_h, 720.0 - 27.0 - 6.0);
     }
 }
