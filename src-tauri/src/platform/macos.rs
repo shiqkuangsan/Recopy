@@ -379,22 +379,22 @@ pub fn platform_menu_bar_height() -> f64 {
             std::mem::transmute(objc_msgSend as *const ());
 
         // [NSApplication sharedApplication]
-        let cls = objc_getClass(b"NSApplication\0".as_ptr() as _);
-        let sel = sel_registerName(b"sharedApplication\0".as_ptr() as _);
+        let cls = objc_getClass(c"NSApplication".as_ptr());
+        let sel = sel_registerName(c"sharedApplication".as_ptr());
         let app = msg_ptr(cls, sel);
         if app.is_null() {
             return 25.0;
         }
 
         // [app mainMenu]
-        let sel = sel_registerName(b"mainMenu\0".as_ptr() as _);
+        let sel = sel_registerName(c"mainMenu".as_ptr());
         let menu = msg_ptr(app, sel);
         if menu.is_null() {
             return 25.0;
         }
 
         // [menu menuBarHeight]
-        let sel = sel_registerName(b"menuBarHeight\0".as_ptr() as _);
+        let sel = sel_registerName(c"menuBarHeight".as_ptr());
         let height = msg_f64(menu, sel);
 
         if height > 0.0 {
