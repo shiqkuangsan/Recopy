@@ -259,6 +259,28 @@ struct MainWindowLayout {
     resizable: bool,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+struct TargetMonitor {
+    physical_x: i32,
+    physical_y: i32,
+    physical_w: u32,
+    physical_h: u32,
+    scale_factor: f64,
+}
+
+#[derive(Debug, PartialEq)]
+struct MainWindowPlacement {
+    layout: MainWindowLayout,
+    physical_x: i32,
+    physical_y: i32,
+    physical_w: u32,
+    physical_h: u32,
+    physical_min_w: u32,
+    physical_min_h: u32,
+    physical_max_w: u32,
+    physical_max_h: u32,
+}
+
 struct MainWindowLayoutArgs<'a> {
     panel_position: &'a str,
     flat_mode_tb: &'a str,
@@ -266,6 +288,14 @@ struct MainWindowLayoutArgs<'a> {
     mon_y: f64,
     screen_w: f64,
     screen_h: f64,
+    menu_bar_height: f64,
+    is_windows: bool,
+}
+
+struct MainWindowPlacementArgs<'a> {
+    panel_position: &'a str,
+    flat_mode_tb: &'a str,
+    target_monitor: TargetMonitor,
     menu_bar_height: f64,
     is_windows: bool,
 }
@@ -359,6 +389,68 @@ fn calculate_main_window_layout(args: MainWindowLayoutArgs<'_>) -> MainWindowLay
     }
 }
 
+fn logical_px_to_physical(value: f64, scale_factor: f64) -> u32 {
+    (value * scale_factor).round().max(1.0) as u32
+}
+
+fn calculate_main_window_placement(args: MainWindowPlacementArgs<'_>) -> MainWindowPlacement {
+    let scale_factor = if args.target_monitor.scale_factor > 0.0 {
+        args.target_monitor.scale_factor
+    } else {
+        1.0
+    };
+    let logical_mon_x = args.target_monitor.physical_x as f64 / scale_factor;
+    let logical_mon_y = args.target_monitor.physical_y as f64 / scale_factor;
+    let layout = calculate_main_window_layout(MainWindowLayoutArgs {
+        panel_position: args.panel_position,
+        flat_mode_tb: args.flat_mode_tb,
+        mon_x: logical_mon_x,
+        mon_y: logical_mon_y,
+        screen_w: args.target_monitor.physical_w as f64 / scale_factor,
+        screen_h: args.target_monitor.physical_h as f64 / scale_factor,
+        menu_bar_height: args.menu_bar_height,
+        is_windows: args.is_windows,
+    });
+
+    let physical_x =
+        args.target_monitor.physical_x + ((layout.x - logical_mon_x) * scale_factor).round() as i32;
+    let physical_y =
+        args.target_monitor.physical_y + ((layout.y - logical_mon_y) * scale_factor).round() as i32;
+
+    MainWindowPlacement {
+        physical_x,
+        physical_y,
+        physical_w: logical_px_to_physical(layout.win_w, scale_factor),
+        physical_h: logical_px_to_physical(layout.win_h, scale_factor),
+        physical_min_w: logical_px_to_physical(layout.min_w, scale_factor),
+        physical_min_h: logical_px_to_physical(layout.min_h, scale_factor),
+        physical_max_w: logical_px_to_physical(layout.max_w, scale_factor),
+        physical_max_h: logical_px_to_physical(layout.max_h, scale_factor),
+        layout,
+    }
+}
+
+fn target_monitor_from_tauri(monitor: tauri::Monitor) -> TargetMonitor {
+    TargetMonitor {
+        physical_x: monitor.position().x,
+        physical_y: monitor.position().y,
+        physical_w: monitor.size().width,
+        physical_h: monitor.size().height,
+        scale_factor: monitor.scale_factor(),
+    }
+}
+
+fn target_monitor_for_main_window(
+    app: &tauri::AppHandle,
+    window: &tauri::WebviewWindow,
+) -> Option<TargetMonitor> {
+    app.cursor_position()
+        .ok()
+        .and_then(|cursor| app.monitor_from_point(cursor.x, cursor.y).ok().flatten())
+        .or_else(|| window.current_monitor().ok().flatten())
+        .map(target_monitor_from_tauri)
+}
+
 /// Show the main window: position depends on `panel_position` setting.
 pub fn show_main_window(app: &tauri::AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
@@ -408,61 +500,48 @@ pub fn show_main_window(app: &tauri::AppHandle) {
     let flat_mode_tb = flat_mode_tb.unwrap_or_else(|| "false".to_string());
     let panel_open_selection = panel_open_selection.unwrap_or_else(|| "preserve".to_string());
 
-    // Detect monitor containing the cursor (for multi-monitor setups).
-    // Falls back to the monitor where the window was last shown.
-    let monitor_bounds = platform::platform_cursor_monitor().or_else(|| {
-        let monitor = window.current_monitor().ok()??;
-        let size = monitor.size();
-        let pos = monitor.position();
-        let scale = monitor.scale_factor();
-        Some((
-            pos.x as f64 / scale,
-            pos.y as f64 / scale,
-            size.width as f64 / scale,
-            size.height as f64 / scale,
-        ))
-    });
-    if let Some((mon_x, mon_y, screen_w, screen_h)) = monitor_bounds {
-        let layout = calculate_main_window_layout(MainWindowLayoutArgs {
+    // Detect the monitor containing the cursor for multi-display setups.
+    // Use physical placement from the target monitor so hidden-window stale
+    // monitor scale does not affect cross-display positioning.
+    if let Some(target_monitor) = target_monitor_for_main_window(app, &window) {
+        let placement = calculate_main_window_placement(MainWindowPlacementArgs {
             panel_position: &panel_position,
             flat_mode_tb: &flat_mode_tb,
-            mon_x,
-            mon_y,
-            screen_w,
-            screen_h,
+            target_monitor,
             menu_bar_height: platform::platform_menu_bar_height(),
             is_windows: cfg!(target_os = "windows"),
         });
 
         platform::platform_prepare_main_window_rect(
             &window,
-            layout.x,
-            layout.y,
-            layout.win_w,
-            layout.win_h,
+            placement.physical_x,
+            placement.physical_y,
+            placement.physical_w,
+            placement.physical_h,
         );
 
-        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(
-            layout.win_w,
-            layout.win_h,
+        let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize::new(
+            placement.physical_w,
+            placement.physical_h,
         )));
-        let _ = window.set_min_size(Some(tauri::Size::Logical(tauri::LogicalSize::new(
-            layout.min_w,
-            layout.min_h,
+        let _ = window.set_min_size(Some(tauri::Size::Physical(tauri::PhysicalSize::new(
+            placement.physical_min_w,
+            placement.physical_min_h,
         ))));
-        let _ = window.set_max_size(Some(tauri::Size::Logical(tauri::LogicalSize::new(
-            layout.max_w,
-            layout.max_h,
+        let _ = window.set_max_size(Some(tauri::Size::Physical(tauri::PhysicalSize::new(
+            placement.physical_max_w,
+            placement.physical_max_h,
         ))));
-        let _ = window.set_resizable(layout.resizable);
+        let _ = window.set_resizable(placement.layout.resizable);
         #[cfg(target_os = "windows")]
-        if layout.resizable {
+        if placement.layout.resizable {
             if let Some(hwnd) = window.hwnd().ok().map(|h| h.0 as isize) {
                 platform::install_nchittest_hook(hwnd, &panel_position);
             }
         }
-        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(
-            layout.x, layout.y,
+        let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(
+            placement.physical_x,
+            placement.physical_y,
         )));
     }
 
@@ -1230,5 +1309,49 @@ mod tests {
 
         assert_eq!(layout.y, 27.0);
         assert_eq!(layout.win_h, 720.0 - 27.0 - 6.0);
+    }
+
+    #[test]
+    fn mixed_dpi_target_monitor_placement_uses_target_physical_bounds() {
+        let placement = calculate_main_window_placement(MainWindowPlacementArgs {
+            panel_position: "bottom",
+            flat_mode_tb: "false",
+            target_monitor: TargetMonitor {
+                physical_x: 1920,
+                physical_y: 0,
+                physical_w: 2560,
+                physical_h: 1440,
+                scale_factor: 1.5,
+            },
+            menu_bar_height: 0.0,
+            is_windows: true,
+        });
+
+        assert_eq!(placement.physical_x, 1920);
+        assert_eq!(placement.physical_w, 2560);
+        assert_eq!(placement.physical_h, 570);
+        assert_eq!(placement.physical_y, 1440 - 570 - 9);
+    }
+
+    #[test]
+    fn non_windows_target_monitor_placement_preserves_logical_margin_in_physical_space() {
+        let placement = calculate_main_window_placement(MainWindowPlacementArgs {
+            panel_position: "right",
+            flat_mode_tb: "false",
+            target_monitor: TargetMonitor {
+                physical_x: -2048,
+                physical_y: 0,
+                physical_w: 2048,
+                physical_h: 1280,
+                scale_factor: 2.0,
+            },
+            menu_bar_height: 24.0,
+            is_windows: false,
+        });
+
+        assert_eq!(placement.physical_w, 760);
+        assert_eq!(placement.physical_h, 1280 - 54 - 12);
+        assert_eq!(placement.physical_x, -760 - 12);
+        assert_eq!(placement.physical_y, 54);
     }
 }

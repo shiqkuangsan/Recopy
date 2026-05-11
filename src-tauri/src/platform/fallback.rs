@@ -22,10 +22,10 @@ pub fn platform_show_window(app: &tauri::AppHandle, _panel_position: &str) {
 
 pub fn platform_prepare_main_window_rect(
     _window: &tauri::WebviewWindow,
-    _x: f64,
-    _y: f64,
-    _width: f64,
-    _height: f64,
+    _x: i32,
+    _y: i32,
+    _width: u32,
+    _height: u32,
 ) {
 }
 
@@ -84,12 +84,6 @@ pub fn set_preview_focus_guard(val: bool) {
 /// Consume the programmatic-hide flag: returns true (and resets to false) if an explicit hide is in flight.
 pub fn take_preview_programmatic_hide() -> bool {
     PREVIEW_PROGRAMMATIC_HIDE.swap(false, Ordering::SeqCst)
-}
-
-/// Cursor-based monitor detection not available on this platform.
-#[allow(dead_code)]
-pub fn platform_cursor_monitor() -> Option<(f64, f64, f64, f64)> {
-    None
 }
 
 #[allow(dead_code)]

@@ -372,20 +372,6 @@ fn visible_frame_offsets(hwnd: isize) -> Option<FrameOffsets> {
     })
 }
 
-fn cursor_monitor_scale() -> Option<f64> {
-    unsafe {
-        let mut pt = win32::POINT { x: 0, y: 0 };
-        if win32::GetCursorPos(&mut pt) == 0 {
-            return None;
-        }
-        let hmonitor = win32::MonitorFromPoint(pt, win32::MONITOR_DEFAULTTONEAREST);
-        if hmonitor == 0 {
-            return None;
-        }
-        Some(get_monitor_dpi_scale(hmonitor))
-    }
-}
-
 fn apply_prepared_main_window_rect(hwnd: isize) -> bool {
     let desired = MAIN_DESIRED_VISIBLE_RECT
         .lock()
@@ -452,24 +438,16 @@ pub fn init_platform(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>>
 
 pub fn platform_prepare_main_window_rect(
     window: &tauri::WebviewWindow,
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
 ) {
-    let scale = cursor_monitor_scale()
-        .or_else(|| {
-            window
-                .current_monitor()
-                .ok()
-                .flatten()
-                .map(|monitor| monitor.scale_factor())
-        })
-        .unwrap_or(1.0);
-    let left = (x * scale).round() as i32;
-    let top = (y * scale).round() as i32;
-    let right = ((x + width) * scale).round() as i32;
-    let bottom = ((y + height) * scale).round() as i32;
+    let _ = window;
+    let left = x;
+    let top = y;
+    let right = x.saturating_add(width as i32);
+    let bottom = y.saturating_add(height as i32);
 
     if let Ok(mut guard) = MAIN_DESIRED_VISIBLE_RECT.lock() {
         *guard = Some(RectI32 {
@@ -908,49 +886,6 @@ fn point_in_window(x: i32, y: i32, hwnd: isize) -> bool {
         } else {
             false
         }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Cursor-based monitor detection (multi-monitor support)
-// ---------------------------------------------------------------------------
-
-/// Detect which monitor contains the mouse cursor and return its bounds.
-/// Returns (x, y, width, height) in logical coordinates.
-/// Note: on mixed-DPI multi-monitor setups, positioning may be slightly
-/// inaccurate because Tauri converts logical→physical using the window's
-/// current monitor DPI, not the target monitor's.
-pub fn platform_cursor_monitor() -> Option<(f64, f64, f64, f64)> {
-    unsafe {
-        let mut pt = win32::POINT { x: 0, y: 0 };
-        if win32::GetCursorPos(&mut pt) == 0 {
-            return None;
-        }
-
-        let hmonitor = win32::MonitorFromPoint(pt, win32::MONITOR_DEFAULTTONEAREST);
-        if hmonitor == 0 {
-            return None;
-        }
-
-        let mut info: win32::MONITORINFO = std::mem::zeroed();
-        info.cb_size = std::mem::size_of::<win32::MONITORINFO>() as u32;
-        if win32::GetMonitorInfoW(hmonitor, &mut info) == 0 {
-            return None;
-        }
-
-        let rc = &info.rc_monitor;
-        let phys_x = rc.left as f64;
-        let phys_y = rc.top as f64;
-        let phys_w = (rc.right - rc.left) as f64;
-        let phys_h = (rc.bottom - rc.top) as f64;
-
-        let scale = get_monitor_dpi_scale(hmonitor);
-        Some((
-            phys_x / scale,
-            phys_y / scale,
-            phys_w / scale,
-            phys_h / scale,
-        ))
     }
 }
 
