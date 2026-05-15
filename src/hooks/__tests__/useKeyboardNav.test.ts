@@ -548,6 +548,110 @@ describe("useKeyboardNav", () => {
     });
   });
 
+  describe("F — toggle favorite", () => {
+    it("should toggle favorite for selected item in history mode and refresh the list", async () => {
+      const items = [mockItem({ id: "fav-target" }), mockItem({ id: "other" })];
+      setupItems(items, 0);
+      useClipboardStore.setState({ viewMode: "history", searchQuery: "" });
+      mockedInvoke
+        .mockResolvedValueOnce(undefined) // toggle_favorite
+        .mockResolvedValueOnce(items); // refresh fetch
+      hookResult.rerender();
+
+      fireKey("f");
+
+      await vi.waitFor(() => {
+        expect(mockedInvoke).toHaveBeenCalledWith("toggle_favorite", { id: "fav-target" });
+      });
+      await vi.waitFor(() => {
+        expect(mockedInvoke).toHaveBeenCalledWith("get_clipboard_items", {
+          contentType: undefined,
+          limit: 500,
+          offset: 0,
+        });
+      });
+    });
+
+    it("should also trigger on capital F (Shift/CapsLock)", async () => {
+      const items = [mockItem({ id: "fav-target" })];
+      setupItems(items, 0);
+      useClipboardStore.setState({ viewMode: "history", searchQuery: "" });
+      mockedInvoke.mockResolvedValueOnce(undefined).mockResolvedValueOnce(items);
+      hookResult.rerender();
+
+      fireKey("F", { shiftKey: true });
+
+      await vi.waitFor(() => {
+        expect(mockedInvoke).toHaveBeenCalledWith("toggle_favorite", { id: "fav-target" });
+      });
+    });
+
+    it("should refresh pins after unfavoriting in pins mode", async () => {
+      const before = [
+        mockItem({ id: "p-1", is_favorited: true }),
+        mockItem({ id: "p-2", is_favorited: true }),
+      ];
+      const after = [mockItem({ id: "p-2", is_favorited: true })];
+      setupItems(before, 0);
+      useClipboardStore.setState({ viewMode: "pins", searchQuery: "" });
+      mockedInvoke
+        .mockResolvedValueOnce(undefined) // toggle_favorite
+        .mockResolvedValueOnce(after); // refresh fetch (favorites)
+      hookResult.rerender();
+
+      fireKey("f");
+
+      await vi.waitFor(() => {
+        expect(mockedInvoke).toHaveBeenCalledWith("toggle_favorite", { id: "p-1" });
+      });
+      await vi.waitFor(() => {
+        expect(mockedInvoke).toHaveBeenCalledWith("get_favorited_items", {
+          contentType: undefined,
+          limit: 500,
+          offset: 0,
+        });
+      });
+      await vi.waitFor(() => {
+        expect(useClipboardStore.getState().items).toEqual(after);
+      });
+    });
+
+    it("should be a no-op when there are no items", () => {
+      setupItems([], 0);
+      hookResult.rerender();
+
+      fireKey("f");
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("toggle_favorite", expect.anything());
+    });
+
+    it("should not toggle favorite when input is focused", () => {
+      const items = [mockItem({ id: "fav-target" })];
+      setupItems(items, 0);
+      hookResult.rerender();
+
+      const input = document.createElement("input");
+      input.type = "text";
+      document.body.appendChild(input);
+      input.focus();
+
+      fireKey("f", {}, input);
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("toggle_favorite", expect.anything());
+      document.body.removeChild(input);
+    });
+
+    it("should not trigger when Cmd is held (Cmd+F focuses search)", () => {
+      const items = [mockItem({ id: "fav-target" })];
+      setupItems(items, 0);
+      hookResult.rerender();
+
+      fireKey("f", { metaKey: true });
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("toggle_favorite", expect.anything());
+    });
+  });
+
   describe("ArrowRight / ArrowLeft — horizontal navigation (T/B mode)", () => {
     it("should move selection right on ArrowRight in bottom mode", () => {
       const items = [mockItem(), mockItem({ id: "test-id-2" }), mockItem({ id: "test-id-3" })];

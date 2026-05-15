@@ -616,6 +616,24 @@ describe("useClipboardStore", () => {
       ).toBe("old-b");
     });
 
+    it("should be called by toggleFavorite after the IPC resolves", async () => {
+      const favItems = [mockItem({ id: "fav-1", is_favorited: true })];
+      mockedInvoke
+        .mockResolvedValueOnce(undefined) // toggle_favorite
+        .mockResolvedValueOnce(favItems); // refresh fetch
+      useClipboardStore.setState({ viewMode: "pins", searchQuery: "" });
+
+      await useClipboardStore.getState().toggleFavorite("fav-1");
+
+      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "toggle_favorite", { id: "fav-1" });
+      expect(mockedInvoke).toHaveBeenNthCalledWith(2, "get_favorited_items", {
+        contentType: undefined,
+        limit: 500,
+        offset: 0,
+      });
+      expect(useClipboardStore.getState().items).toEqual(favItems);
+    });
+
     it("should clamp selected index when the previously selected item disappears", async () => {
       const oldItems = [
         mockItem({ id: "old-a", plain_text: "old-a" }),

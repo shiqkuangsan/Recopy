@@ -26,6 +26,7 @@ interface ClipboardState {
   fetchItems: () => Promise<void>;
   searchItems: (query: string) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
+  toggleFavorite: (id: string) => Promise<void>;
   refreshOnChange: () => Promise<void>;
   fetchFavorites: () => Promise<void>;
   fetchMore: () => Promise<void>;
@@ -225,6 +226,15 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
         }));
       } catch (e) {
         console.error("Failed to delete item:", e);
+      }
+    },
+
+    toggleFavorite: async (id: string) => {
+      try {
+        await invoke("toggle_favorite", { id });
+        await get().refreshOnChange();
+      } catch (e) {
+        console.error("Failed to toggle favorite:", e);
       }
     },
 

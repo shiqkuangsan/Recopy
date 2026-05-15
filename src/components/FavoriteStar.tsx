@@ -1,5 +1,4 @@
 import { Star } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { useClipboardStore } from "../stores/clipboard-store";
 
 interface FavoriteStarProps {
@@ -8,17 +7,12 @@ interface FavoriteStarProps {
 }
 
 export function FavoriteStar({ itemId, isFavorited }: FavoriteStarProps) {
-  const refreshOnChange = useClipboardStore((s) => s.refreshOnChange);
+  const toggleFavorite = useClipboardStore((s) => s.toggleFavorite);
 
-  const handleClick = async (e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    try {
-      await invoke("toggle_favorite", { id: itemId });
-      await refreshOnChange();
-    } catch (err) {
-      console.error("Failed to toggle favorite:", err);
-    }
+    toggleFavorite(itemId);
   };
 
   if (isFavorited) {

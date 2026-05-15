@@ -199,6 +199,15 @@ export function useKeyboardNav() {
         return;
       }
 
+      // F: toggle favorite on selected item (Cmd/Ctrl+F handled earlier for search focus)
+      if ((e.key === "f" || e.key === "F") && !modifierHeld) {
+        e.preventDefault();
+        if (items[selectedIndex]) {
+          useClipboardStore.getState().toggleFavorite(items[selectedIndex].id);
+        }
+        return;
+      }
+
       switch (e.key) {
         case "ArrowRight": {
           e.preventDefault();

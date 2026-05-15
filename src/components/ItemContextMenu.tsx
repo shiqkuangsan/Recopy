@@ -21,7 +21,7 @@ interface ItemContextMenuProps {
 export function ItemContextMenu({ item, children }: ItemContextMenuProps) {
   const { t } = useTranslation();
   const deleteItem = useClipboardStore((s) => s.deleteItem);
-  const refreshOnChange = useClipboardStore((s) => s.refreshOnChange);
+  const toggleFavorite = useClipboardStore((s) => s.toggleFavorite);
 
   const showHud = useCopyHud((s) => s.show);
 
@@ -29,14 +29,7 @@ export function ItemContextMenu({ item, children }: ItemContextMenuProps) {
   const handlePastePlain = () => pasteAsPlainText(item);
   const handleCopy = () => copyToClipboard(item).then(() => showHud());
 
-  const handleToggleFavorite = async () => {
-    try {
-      await invoke("toggle_favorite", { id: item.id });
-      refreshOnChange();
-    } catch (e) {
-      console.error("Failed to toggle favorite:", e);
-    }
-  };
+  const handleToggleFavorite = () => toggleFavorite(item.id);
 
   const handleDelete = () => deleteItem(item.id);
 
