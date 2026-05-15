@@ -25,6 +25,7 @@ import {
   PanelTop,
   PanelLeft,
   PanelRight,
+  Power,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -640,6 +641,26 @@ function AboutSettings() {
             )}
           </div>
         ))}
+      </Card>
+
+      <Card className="border-border/50 bg-card/60 py-0">
+        <CardContent className="p-4 flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <div className="text-sm font-medium">{t("settings.about.quitApp")}</div>
+            <div className="text-xs text-muted-foreground/80">
+              {t("settings.about.quitAppDesc")}
+            </div>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => invoke("quit_app")}
+          >
+            <Power size={13} />
+            {t("settings.about.quitApp")}
+          </Button>
+        </CardContent>
       </Card>
     </div>
   );

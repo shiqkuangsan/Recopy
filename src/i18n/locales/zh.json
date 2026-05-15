@@ -127,7 +127,9 @@
       "changelog": "更新日志",
       "author": "作者",
       "license": "许可证",
-      "brewAvailable": "支持安装"
+      "brewAvailable": "支持安装",
+      "quitApp": "退出 Recopy",
+      "quitAppDesc": "完全退出应用，托盘图标隐藏时也可使用"
     }
   },
   "update": {

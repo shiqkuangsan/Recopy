@@ -127,7 +127,9 @@
       "changelog": "Changelog",
       "author": "Author",
       "license": "License",
-      "brewAvailable": "Supported"
+      "brewAvailable": "Supported",
+      "quitApp": "Quit Recopy",
+      "quitAppDesc": "Fully quit the app, even when the tray icon is hidden"
     }
   },
   "update": {

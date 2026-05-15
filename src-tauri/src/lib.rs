@@ -86,6 +86,7 @@ pub fn run() {
             clip_cmd::get_current_preview,
             clip_cmd::read_file_preview,
             clip_cmd::hide_window,
+            clip_cmd::quit_app,
             clip_cmd::show_copy_hud,
             clip_cmd::get_storage_size,
             clip_cmd::set_tray_visible,

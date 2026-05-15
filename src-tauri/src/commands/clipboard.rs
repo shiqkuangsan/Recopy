@@ -968,6 +968,12 @@ pub fn hide_window(app: AppHandle) {
     crate::hide_main_window(&app);
 }
 
+/// Quit the application from a non-tray UI entry point.
+#[tauri::command]
+pub fn quit_app(app: AppHandle) {
+    app.exit(0);
+}
+
 /// Show copy HUD: hide main window, display a centered HUD briefly.
 #[tauri::command]
 pub fn show_copy_hud(app: AppHandle) {
