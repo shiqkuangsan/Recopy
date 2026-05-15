@@ -132,7 +132,7 @@ jobs:
 
             ## What's New
 
-            <!-- Replace with actual changelog before publishing -->
+            Release notes are finalized after CI finishes and before publication.
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true

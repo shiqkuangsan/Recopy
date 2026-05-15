@@ -186,7 +186,30 @@ Ask for confirmation before updating the draft release:
 gh release edit vX.Y.Z --notes "<release notes>"
 ```
 
-### 9. Optional Gitee Sync
+### 9. Refresh Updater Metadata
+
+After release notes are written, update the `latest.json` updater metadata so the in-app update notes match the published release notes.
+
+Ask for confirmation before replacing the GitHub release asset, because this edits an external release artifact:
+
+```bash
+TAG="vX.Y.Z"
+WORK_DIR=$(mktemp -d /tmp/recopy-updater-notes.XXXXXX)
+
+gh release view "$TAG" -R shiqkuangsan/Recopy --json body -q '.body' > "$WORK_DIR/release-notes.md"
+gh release download "$TAG" -R shiqkuangsan/Recopy -p latest.json -D "$WORK_DIR"
+
+jq --rawfile notes "$WORK_DIR/release-notes.md" \
+  '.notes = $notes' \
+  "$WORK_DIR/latest.json" > "$WORK_DIR/latest.updated.json"
+mv "$WORK_DIR/latest.updated.json" "$WORK_DIR/latest.json"
+
+gh release upload "$TAG" -R shiqkuangsan/Recopy "$WORK_DIR/latest.json" --clobber
+```
+
+If Gitee sync is also performed, use this updated `latest.json` as the source file.
+
+### 10. Optional Gitee Sync
 
 After release notes are written, offer to sync the release to Gitee for China mainland users.
 
@@ -213,6 +236,11 @@ sed -i '' 's|https://github.com/shiqkuangsan/Recopy/releases/download/|https://g
 
 ```bash
 BODY=$(gh release view "$TAG" -R shiqkuangsan/Recopy --json body -q '.body')
+printf '%s' "$BODY" > /tmp/gitee-sync/release-notes.md
+jq --rawfile notes /tmp/gitee-sync/release-notes.md \
+  '.notes = $notes' \
+  /tmp/gitee-sync/latest.json > /tmp/gitee-sync/latest.updated.json
+mv /tmp/gitee-sync/latest.updated.json /tmp/gitee-sync/latest.json
 
 RELEASE_ID=$(curl -sf -X POST "https://gitee.com/api/v5/repos/shiqkuangsan/Recopy/releases" \
   -H "Content-Type: application/json" \
