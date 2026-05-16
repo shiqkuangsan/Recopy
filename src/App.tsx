@@ -43,8 +43,8 @@ const CHECK_INTERVALS: Record<string, number> = {
 };
 
 function MainApp() {
-  const fetchItems = useClipboardStore((s) => s.fetchItems);
   const refreshOnChange = useClipboardStore((s) => s.refreshOnChange);
+  const markDirty = useClipboardStore((s) => s.markDirty);
   const onPanelShow = useClipboardStore((s) => s.onPanelShow);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const syncSettingsFromEvent = useSettingsStore((s) => s.syncSettingsFromEvent);
@@ -52,6 +52,7 @@ function MainApp() {
   const updateCheckInterval = useSettingsStore((s) => s.settings.update_check_interval);
   const checkForUpdate = useUpdateStore((s) => s.checkForUpdate);
   const panelRef = useRef<HTMLDivElement>(null);
+  const panelVisibleRef = useRef(false);
 
   // Keyboard navigation
   useKeyboardNav();
@@ -71,20 +72,19 @@ function MainApp() {
     return () => clearInterval(timer);
   }, [settingsLoaded, checkForUpdate, updateCheckInterval]);
 
-  // Initial load
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
-
   // Listen for clipboard change events from Rust backend
   useEffect(() => {
     const unlisten = listen("clipboard-changed", () => {
-      refreshOnChange();
+      if (panelVisibleRef.current) {
+        void refreshOnChange();
+      } else {
+        markDirty();
+      }
     });
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [refreshOnChange]);
+  }, [markDirty, refreshOnChange]);
 
   // Dismiss context menus on blur (always needed regardless of close_on_blur setting).
   // Use window-scoped listener so other windows (settings) don't trigger this.
@@ -109,6 +109,7 @@ function MainApp() {
   // NOT by blur — so close_on_blur=false correctly keeps content visible.
   useEffect(() => {
     const unlisten = listen("recopy-hide", () => {
+      panelVisibleRef.current = false;
       const el = panelRef.current;
       if (el) {
         el.classList.remove("panel-enter");
@@ -122,14 +123,15 @@ function MainApp() {
 
   // Listen for show event to replay entrance animation and refresh data.
   // Payload carries settings (theme, language, panel_position) read by Rust from DB.
-  // Animation starts AFTER data fetch + React render + scroll settle to prevent visible jump.
+  // Refresh runs in the background so IPC/DB work never delays the window reveal.
   useEffect(() => {
-    const unlisten = listen<ShowEventPayload>("recopy-show", async (event) => {
+    const unlisten = listen<ShowEventPayload>("recopy-show", (event) => {
+      panelVisibleRef.current = true;
       syncSettingsFromEvent(event.payload);
       const panelOpenSelection =
         event.payload.panel_open_selection ??
         useSettingsStore.getState().settings.panel_open_selection;
-      await onPanelShow(panelOpenSelection);
+      void onPanelShow(panelOpenSelection);
 
       // Wait for React re-render + useLayoutEffect (scroll) to complete before animating.
       // requestAnimationFrame fires after layout/paint, ensuring scroll has settled.

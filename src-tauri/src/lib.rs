@@ -27,6 +27,22 @@ pub fn set_skip_next_clipboard_change() {
 pub fn clear_skip_next_clipboard_change() {
     SKIP_NEXT_CLIPBOARD_CHANGE.store(false, Ordering::SeqCst);
 }
+
+fn cached_setting(app: &tauri::AppHandle, key: &str, default: &str) -> String {
+    app.try_state::<db::SettingsCache>()
+        .and_then(|cache| cache.get(key))
+        .unwrap_or_else(|| default.to_string())
+}
+
+fn cached_setting_bool(app: &tauri::AppHandle, key: &str, default: bool) -> bool {
+    match app
+        .try_state::<db::SettingsCache>()
+        .and_then(|cache| cache.get(key))
+    {
+        Some(value) => value == "true",
+        None => default,
+    }
+}
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -458,48 +474,12 @@ pub fn show_main_window(app: &tauri::AppHandle) {
         return;
     };
 
-    // Read settings from DB before positioning
-    let pool = app.state::<db::DbPool>();
-    let (
-        theme,
-        language,
-        update_check_interval,
-        panel_position,
-        flat_mode_tb,
-        panel_open_selection,
-    ) = tauri::async_runtime::block_on(async {
-        let t = db::queries::get_setting(&pool.0, "theme")
-            .await
-            .ok()
-            .flatten();
-        let l = db::queries::get_setting(&pool.0, "language")
-            .await
-            .ok()
-            .flatten();
-        let u = db::queries::get_setting(&pool.0, "update_check_interval")
-            .await
-            .ok()
-            .flatten();
-        let p = db::queries::get_setting(&pool.0, "panel_position")
-            .await
-            .ok()
-            .flatten();
-        let f = db::queries::get_setting(&pool.0, "flat_mode_tb")
-            .await
-            .ok()
-            .flatten();
-        let s = db::queries::get_setting(&pool.0, "panel_open_selection")
-            .await
-            .ok()
-            .flatten();
-        (t, l, u, p, f, s)
-    });
-    let theme = theme.unwrap_or_else(|| "dark".to_string());
-    let language = language.unwrap_or_else(|| "system".to_string());
-    let update_check_interval = update_check_interval.unwrap_or_else(|| "weekly".to_string());
-    let panel_position = panel_position.unwrap_or_else(|| "bottom".to_string());
-    let flat_mode_tb = flat_mode_tb.unwrap_or_else(|| "false".to_string());
-    let panel_open_selection = panel_open_selection.unwrap_or_else(|| "preserve".to_string());
+    let theme = cached_setting(app, "theme", "dark");
+    let language = cached_setting(app, "language", "system");
+    let update_check_interval = cached_setting(app, "update_check_interval", "weekly");
+    let panel_position = cached_setting(app, "panel_position", "bottom");
+    let flat_mode_tb = cached_setting(app, "flat_mode_tb", "false");
+    let panel_open_selection = cached_setting(app, "panel_open_selection", "preserve");
 
     // Detect the monitor containing the cursor for multi-display setups.
     // Use physical placement from the target monitor so hidden-window stale
@@ -759,18 +739,11 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn open_settings_window(app: &tauri::AppHandle) {
-    // Tray menu path (synchronous, not inside tokio runtime — block_on is safe)
-    let window_theme = {
-        let pool = app.state::<db::DbPool>();
-        let theme_str = tauri::async_runtime::block_on(db::queries::get_setting(&pool.0, "theme"))
-            .ok()
-            .flatten()
-            .unwrap_or_else(|| "system".to_string());
-        match theme_str.as_str() {
-            "light" => Some(tauri::Theme::Light),
-            "dark" => Some(tauri::Theme::Dark),
-            _ => None,
-        }
+    let theme_str = cached_setting(app, "theme", "system");
+    let window_theme = match theme_str.as_str() {
+        "light" => Some(tauri::Theme::Light),
+        "dark" => Some(tauri::Theme::Dark),
+        _ => None,
     };
     crate::open_settings_window_impl(app, window_theme);
 }
@@ -812,17 +785,7 @@ pub fn open_settings_window_impl(app: &tauri::AppHandle, window_theme: Option<ta
         if let tauri::WindowEvent::Destroyed = event {
             use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
-            let shortcut = tauri::async_runtime::block_on(async {
-                if let Some(pool) = app_clone.try_state::<db::DbPool>() {
-                    db::queries::get_setting(&pool.0, "shortcut")
-                        .await
-                        .unwrap_or(None)
-                        .unwrap_or_else(|| "CommandOrControl+Shift+V".to_string())
-                } else {
-                    "CommandOrControl+Shift+V".to_string()
-                }
-            });
-
+            let shortcut = cached_setting(&app_clone, "shortcut", "CommandOrControl+Shift+V");
             let _ = app_clone.global_shortcut().unregister_all();
             let app_inner = app_clone.clone();
             let _ = app_clone.global_shortcut().on_shortcut(
@@ -845,16 +808,7 @@ pub fn open_settings_window_impl(app: &tauri::AppHandle, window_theme: Option<ta
 fn setup_global_shortcut(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-    let shortcut = if let Some(pool) = app.try_state::<db::DbPool>() {
-        tauri::async_runtime::block_on(async {
-            db::queries::get_setting(&pool.0, "shortcut")
-                .await
-                .unwrap_or(None)
-                .unwrap_or_else(|| "CommandOrControl+Shift+V".to_string())
-        })
-    } else {
-        "CommandOrControl+Shift+V".to_string()
-    };
+    let shortcut = cached_setting(app, "shortcut", "CommandOrControl+Shift+V");
 
     let app_handle = app.clone();
     app.global_shortcut()
@@ -886,17 +840,7 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
             }
 
             let app_handle = app_handle.clone();
-            let should_hide = tauri::async_runtime::block_on(async {
-                if let Some(pool) = app_handle.try_state::<db::DbPool>() {
-                    db::queries::get_setting(&pool.0, "close_on_blur")
-                        .await
-                        .unwrap_or(None)
-                        .unwrap_or_else(|| "true".to_string())
-                } else {
-                    "true".to_string()
-                }
-            });
-            if should_hide == "true" {
+            if cached_setting_bool(&app_handle, "close_on_blur", true) {
                 hide_main_window(&app_handle);
             }
         });
@@ -929,15 +873,7 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
                         if win.is_focused().unwrap_or(false) {
                             return;
                         }
-                        let should_hide = if let Some(pool) = app_handle.try_state::<db::DbPool>() {
-                            db::queries::get_setting(&pool.0, "close_on_blur")
-                                .await
-                                .unwrap_or(None)
-                                .unwrap_or_else(|| "true".to_string())
-                        } else {
-                            "true".to_string()
-                        };
-                        if should_hide == "true" {
+                        if cached_setting_bool(&app_handle, "close_on_blur", true) {
                             hide_main_window(&app_handle);
                         }
                     });
@@ -961,15 +897,7 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
                     }
                     let app_inner = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
-                        let should_hide = if let Some(pool) = app_inner.try_state::<db::DbPool>() {
-                            db::queries::get_setting(&pool.0, "close_on_blur")
-                                .await
-                                .unwrap_or(None)
-                                .unwrap_or_else(|| "true".to_string())
-                        } else {
-                            "true".to_string()
-                        };
-                        if should_hide == "true" {
+                        if cached_setting_bool(&app_inner, "close_on_blur", true) {
                             hide_main_window(&app_inner);
                         }
                     });
@@ -983,17 +911,7 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
         app.listen("platform-click-outside", move |_| {
             let app_inner = app_click.clone();
             tauri::async_runtime::spawn(async move {
-                let should_hide = if let Some(pool) = app_inner.try_state::<db::DbPool>() {
-                    db::queries::get_setting(&pool.0, "close_on_blur")
-                        .await
-                        .ok()
-                        .flatten()
-                        .map(|v| v != "false")
-                        .unwrap_or(true)
-                } else {
-                    true
-                };
-                if should_hide {
+                if cached_setting_bool(&app_inner, "close_on_blur", true) {
                     hide_main_window(&app_inner);
                 }
             });
@@ -1083,16 +1001,13 @@ async fn extract_clipboard_content(
     Option<String>,
     Option<String>,
 )> {
-    // Read max item size from DB settings
-    let max_size_mb = if let Some(pool) = app.try_state::<db::DbPool>() {
-        db::queries::get_setting(&pool.0, "max_item_size_mb")
-            .await
-            .unwrap_or(None)
-            .and_then(|v| v.parse::<usize>().ok())
-            .unwrap_or(clipboard::DEFAULT_MAX_ITEM_SIZE_MB)
-    } else {
-        clipboard::DEFAULT_MAX_ITEM_SIZE_MB
-    };
+    let max_size_mb = cached_setting(
+        app,
+        "max_item_size_mb",
+        &clipboard::DEFAULT_MAX_ITEM_SIZE_MB.to_string(),
+    )
+    .parse::<usize>()
+    .unwrap_or(clipboard::DEFAULT_MAX_ITEM_SIZE_MB);
 
     // Try files first
     if let Ok(true) = tauri_plugin_clipboard_x::has_files().await {

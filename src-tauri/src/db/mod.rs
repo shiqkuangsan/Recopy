@@ -2,8 +2,10 @@ pub mod models;
 pub mod queries;
 
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
+use std::collections::HashMap;
 use std::fs;
 use std::str::FromStr;
+use std::sync::RwLock;
 use tauri::{AppHandle, Manager};
 
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
@@ -34,7 +36,13 @@ pub async fn init(app: &AppHandle) -> Result<SqlitePool, sqlx::Error> {
     // Run migrations
     MIGRATOR.run(&pool).await?;
 
+    let settings = queries::get_all_settings(&pool)
+        .await?
+        .into_iter()
+        .collect::<HashMap<_, _>>();
+
     // Store pool in app state
+    app.manage(SettingsCache::new(settings));
     app.manage(DbPool(pool.clone()));
 
     log::info!("Database initialized at: {}", db_url);
@@ -44,6 +52,25 @@ pub async fn init(app: &AppHandle) -> Result<SqlitePool, sqlx::Error> {
 
 /// Wrapper around SqlitePool for Tauri state management.
 pub struct DbPool(pub SqlitePool);
+
+/// In-memory settings snapshot for synchronous UI hot paths.
+pub struct SettingsCache(RwLock<HashMap<String, String>>);
+
+impl SettingsCache {
+    pub fn new(settings: HashMap<String, String>) -> Self {
+        Self(RwLock::new(settings))
+    }
+
+    pub fn get(&self, key: &str) -> Option<String> {
+        self.0.read().ok()?.get(key).cloned()
+    }
+
+    pub fn set(&self, key: String, value: String) {
+        if let Ok(mut settings) = self.0.write() {
+            settings.insert(key, value);
+        }
+    }
+}
 
 /// Helper to create a test pool with in-memory SQLite and run migrations.
 #[cfg(test)]

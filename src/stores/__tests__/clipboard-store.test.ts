@@ -41,6 +41,7 @@ describe("useClipboardStore", () => {
       panelShowVersion: 0,
       hasMore: true,
       isFetchingMore: false,
+      dirty: true,
     });
   });
 
@@ -54,6 +55,7 @@ describe("useClipboardStore", () => {
     expect(state.selectedIndex).toBe(0);
     expect(state.hasMore).toBe(true);
     expect(state.isFetchingMore).toBe(false);
+    expect(state.dirty).toBe(true);
   });
 
   it("should fetch items and update state", async () => {
@@ -187,6 +189,31 @@ describe("useClipboardStore", () => {
 
     expect(useClipboardStore.getState().selectedIndex).toBe(0);
     expect(useClipboardStore.getState().items[0]?.id).toBe("new-top");
+  });
+
+  it("should reuse the loaded panel scope when it is not dirty", async () => {
+    const items = [mockItem({ id: "loaded-1" })];
+    mockedInvoke.mockResolvedValueOnce(items);
+
+    await useClipboardStore.getState().fetchItems();
+    await useClipboardStore.getState().onPanelShow();
+
+    expect(mockedInvoke).toHaveBeenCalledTimes(1);
+    expect(useClipboardStore.getState().panelShowVersion).toBe(1);
+  });
+
+  it("should refresh the loaded panel scope after it is marked dirty", async () => {
+    const firstItems = [mockItem({ id: "loaded-1" })];
+    const refreshedItems = [mockItem({ id: "loaded-2" })];
+    mockedInvoke.mockResolvedValueOnce(firstItems).mockResolvedValueOnce(refreshedItems);
+
+    await useClipboardStore.getState().fetchItems();
+    useClipboardStore.getState().markDirty();
+    await useClipboardStore.getState().onPanelShow();
+
+    expect(mockedInvoke).toHaveBeenCalledTimes(2);
+    expect(useClipboardStore.getState().items).toEqual(refreshedItems);
+    expect(useClipboardStore.getState().dirty).toBe(false);
   });
 
   it("should ignore stale results from older requests", async () => {

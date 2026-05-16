@@ -426,6 +426,10 @@ pub async fn set_setting(
         .await
         .map_err(|e| e.to_string())?;
 
+    if let Some(cache) = app.try_state::<crate::db::SettingsCache>() {
+        cache.set(key.clone(), value.clone());
+    }
+
     // Dynamically switch main window effects when theme changes
     if key == "theme" {
         update_window_effects_for_theme(&app, &value);
@@ -632,11 +636,7 @@ pub async fn show_preview_window(
 
     let detail = load_item_detail(&db, &id).await?;
 
-    let panel_position = queries::get_setting(&db.0, "panel_position")
-        .await
-        .ok()
-        .flatten()
-        .unwrap_or_else(|| "bottom".to_string());
+    let panel_position = crate::cached_setting(&app, "panel_position", "bottom");
 
     // Calculate available space for preview based on panel position
     let gap = 24.0; // 8px gap + 16px margin
@@ -689,11 +689,7 @@ pub async fn show_preview_window(
 
     // Resolve window theme: None for system, Some for explicit
     let window_theme = {
-        let theme_str = queries::get_setting(&db.0, "theme")
-            .await
-            .ok()
-            .flatten()
-            .unwrap_or_else(|| "system".to_string());
+        let theme_str = crate::cached_setting(&app, "theme", "system");
         match theme_str.as_str() {
             "light" => Some(tauri::Theme::Light),
             "dark" => Some(tauri::Theme::Dark),
