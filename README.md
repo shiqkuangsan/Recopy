@@ -58,43 +58,47 @@ Download the latest `.dmg` or `.exe` from the [Releases](https://github.com/shiq
 ## Features
 
 - **Full-type support** — Plain text, rich text, images, files, and links
-- **Instant recall** — `Cmd+Shift+V` to summon, arrow keys to navigate, Enter to paste
+- **Instant recall** — `Cmd/Ctrl+Shift+V` to summon, arrow keys to navigate, Enter to paste, `Cmd/Ctrl+1–9` for quick paste
 - **Quick Look preview** — Press Space to preview any item with Finder-style zoom animation
-- **Flexible layout** — Panel docks to any screen edge (bottom/top/left/right), adapts to your workflow
+- **Flexible layout** — Panel docks to any screen edge (bottom/top/left/right), with grouped or single-row browsing for top/bottom layouts
 - **Smart dedup** — SHA-256 hash prevents duplicate entries, bumps latest to top
-- **Full-text search** — FTS5 with trigram tokenizer, multi-keyword AND matching, Chinese/English fuzzy search
+- **Ranked fuzzy search** — Multi-keyword AND matching across text, file names, and source apps; exact and ordered matches rise to the top
 - **Link detection** — URLs auto-recognized with dedicated cards, `Cmd+Click` to open in browser
 - **IME friendly** — Search works correctly with Chinese input methods (composition-aware)
-- **Favorites** — Pin frequently used items for quick access
-- **Non-activating panel** — NSPanel on macOS, keyboard hook on Windows — never steals focus from your active app
+- **Favorites** — Pin frequently used items from the card, context menu, or `F`; favorites are protected from cleanup
+- **Non-activating panel** — NSPanel on macOS plus foreground restore and keyboard hook on Windows — never steals focus from your active app
 - **Copy HUD** — Frosted glass feedback overlay when copying to clipboard
 - **Auto-update** — Built-in update checker with in-app download and one-click restart
-- **Configurable** — Theme, language, shortcut, panel position, auto-start, retention policy
-- **Privacy first** — All data stored locally in SQLite, nothing leaves your machine
+- **Configurable** — Theme, language, shortcut, tray icon, panel position, selected item on open, single-row mode, auto-start, retention policy
+- **Privacy first** — Clipboard data stays local in SQLite; only update checks/downloads contact release endpoints
 
 ## Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
-| `Cmd+Shift+V` | Toggle Recopy panel (customizable in settings) |
-| `←` `→` | Navigate between items |
-| `↑` `↓` | Jump between date groups |
+| `Cmd/Ctrl+Shift+V` | Toggle Recopy panel (customizable in settings) |
+| `←` `→` / `↑` `↓` | Navigate items and date groups based on panel layout |
 | `Enter` | Paste selected item |
 | `Space` | Quick Look preview |
-| `Cmd+C` | Copy to clipboard (with HUD feedback) |
-| `Cmd+F` | Focus search |
-| `Cmd+,` | Open settings |
+| `Cmd/Ctrl+1` ... `9` | Quick paste one of the visible targets |
+| `Cmd/Ctrl+C` | Copy to clipboard (with HUD feedback) |
+| `Cmd/Ctrl+F` | Focus search |
+| `F` | Favorite / unfavorite selected item |
+| `Tab` | Switch between History and Pins |
+| `Cmd/Ctrl+↑` | Select the first item |
+| `Cmd/Ctrl+←` | Select the first item in the current group (top/bottom layouts) |
+| `Cmd/Ctrl+,` | Open settings |
 | `Delete` / `Backspace` | Delete selected item |
 | `Escape` | Close panel / blur search |
 
 ## Settings
 
-Open settings via the gear icon in the panel header, tray menu, or `Cmd+,`.
+Open settings via the gear icon in the panel header, tray menu, or `Cmd/Ctrl+,`.
 
-- **General** — Theme (dark/light/system), language (en/zh/system), global shortcut, panel position (bottom/top/left/right), auto-start, close-on-blur
-- **History** — Retention policy (unlimited/days/count), max item size (1–100 MB), clear history
+- **General** — Theme (dark/light/system), language (en/zh/system), global shortcut, panel position (bottom/top/left/right), selected item on open, single-row mode, tray icon, auto-start, close-on-blur
+- **History** — Retention policy (unlimited/days/count), max item size (1–100 MB), storage used, clear history while preserving favorites
 - **Privacy** — Accessibility permission guide, app exclusion list (coming soon)
-- **About** — Version, license, tech stack
+- **About** — Version, update check interval, links, license, Homebrew status, quit action
 
 ## Tech Stack
 
