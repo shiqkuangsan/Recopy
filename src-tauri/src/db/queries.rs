@@ -278,45 +278,7 @@ pub async fn search_items(
     limit: i64,
     favorites_only: bool,
 ) -> Result<Vec<ClipboardItem>, sqlx::Error> {
-    let tokens: Vec<&str> = query.split_whitespace().filter(|t| !t.is_empty()).collect();
-    if tokens.is_empty() {
-        return Ok(vec![]);
-    }
-
-    if can_use_fts(&tokens) {
-        search_items_fts(
-            pool,
-            query.trim(),
-            &tokens,
-            content_type,
-            limit,
-            favorites_only,
-        )
-        .await
-    } else {
-        search_items_like(pool, query, content_type, limit, favorites_only).await
-    }
-}
-
-fn can_use_fts(tokens: &[&str]) -> bool {
-    tokens.iter().all(|token| {
-        token.chars().count() >= 3
-            && token
-                .chars()
-                .all(|ch| ch.is_alphanumeric() || matches!(ch, '-' | '.' | '/' | ':'))
-    })
-}
-
-fn fts_phrase(token: &str) -> String {
-    format!("\"{}\"", token.replace('"', "\"\""))
-}
-
-fn fts_query(tokens: &[&str]) -> String {
-    tokens
-        .iter()
-        .map(|token| fts_phrase(token))
-        .collect::<Vec<_>>()
-        .join(" ")
+    search_items_like(pool, query, content_type, limit, favorites_only).await
 }
 
 fn fuzzy_like_pattern(token: &str) -> String {
@@ -341,100 +303,6 @@ fn literal_like_pattern(value: &str) -> String {
     }
     pattern.push('%');
     pattern
-}
-
-async fn search_items_fts(
-    pool: &SqlitePool,
-    query: &str,
-    tokens: &[&str],
-    content_type: Option<&str>,
-    limit: i64,
-    favorites_only: bool,
-) -> Result<Vec<ClipboardItem>, sqlx::Error> {
-    let exact_pattern = literal_like_pattern(query);
-    let ordered_pattern = fuzzy_like_pattern(&tokens.join(""));
-    let match_query = fts_query(tokens);
-    let rank_clause = "CASE
-                 WHEN (ci.plain_text LIKE ? ESCAPE '\\' OR ci.file_name LIKE ? ESCAPE '\\' OR ci.source_app_name LIKE ? ESCAPE '\\') THEN 0
-                 WHEN (ci.plain_text LIKE ? ESCAPE '\\' OR ci.file_name LIKE ? ESCAPE '\\' OR ci.source_app_name LIKE ? ESCAPE '\\') THEN 1
-                 ELSE 2
-             END";
-    let fav_filter = if favorites_only {
-        " AND ci.is_favorited = 1"
-    } else {
-        ""
-    };
-
-    let sql = if content_type.is_some() {
-        format!(
-            "SELECT ci.id, ci.content_type, ci.plain_text, ci.image_path, ci.file_path, ci.file_name, ci.source_app, ci.source_app_name, ci.content_size, ci.content_hash, ci.is_favorited, ci.created_at, ci.updated_at
-             FROM clipboard_fts
-             JOIN clipboard_items ci ON ci.id = clipboard_fts.item_id
-             WHERE clipboard_fts MATCH ? AND ci.content_type = ?{} ORDER BY {}, ci.updated_at DESC, ci.id DESC LIMIT ?",
-            fav_filter, rank_clause
-        )
-    } else {
-        format!(
-            "SELECT ci.id, ci.content_type, ci.plain_text, ci.image_path, ci.file_path, ci.file_name, ci.source_app, ci.source_app_name, ci.content_size, ci.content_hash, ci.is_favorited, ci.created_at, ci.updated_at
-             FROM clipboard_fts
-             JOIN clipboard_items ci ON ci.id = clipboard_fts.item_id
-             WHERE clipboard_fts MATCH ?{} ORDER BY {}, ci.updated_at DESC, ci.id DESC LIMIT ?",
-            fav_filter, rank_clause
-        )
-    };
-
-    let mut q = sqlx::query_as::<
-        _,
-        (
-            String,
-            String,
-            String,
-            Option<String>,
-            Option<String>,
-            Option<String>,
-            String,
-            String,
-            i64,
-            String,
-            bool,
-            String,
-            String,
-        ),
-    >(&sql)
-    .bind(match_query);
-
-    if let Some(ct) = content_type {
-        q = q.bind(ct);
-    }
-    q = q.bind(&exact_pattern);
-    q = q.bind(&exact_pattern);
-    q = q.bind(&exact_pattern);
-    q = q.bind(&ordered_pattern);
-    q = q.bind(&ordered_pattern);
-    q = q.bind(&ordered_pattern);
-    q = q.bind(limit);
-
-    let items = q.fetch_all(pool).await?;
-
-    Ok(items
-        .into_iter()
-        .map(|r| ClipboardItem {
-            id: r.0,
-            content_type: r.1,
-            plain_text: r.2,
-            thumbnail: None,
-            image_path: r.3,
-            file_path: r.4,
-            file_name: r.5,
-            source_app: r.6,
-            source_app_name: r.7,
-            content_size: r.8,
-            content_hash: r.9,
-            is_favorited: r.10,
-            created_at: r.11,
-            updated_at: r.12,
-        })
-        .collect())
 }
 
 /// Fuzzy search using LIKE with multi-token AND matching.
@@ -1377,6 +1245,11 @@ mod tests {
         insert_item(&pool, &item).await.unwrap();
 
         let results = search_items(&pool, "hw", None, 10, false).await.unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert!(results[0].plain_text.contains("Hello World"));
+
+        let results = search_items(&pool, "hlo", None, 10, false).await.unwrap();
 
         assert_eq!(results.len(), 1);
         assert!(results[0].plain_text.contains("Hello World"));
