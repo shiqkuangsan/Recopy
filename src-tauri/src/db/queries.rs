@@ -269,7 +269,7 @@ pub async fn delete_item(pool: &SqlitePool, id: &str) -> Result<(), sqlx::Error>
     Ok(())
 }
 
-/// Search clipboard items using FTS5 trigram.
+/// Search clipboard items using fuzzy token matching.
 /// Excludes thumbnail blobs for fast IPC transfer.
 pub async fn search_items(
     pool: &SqlitePool,
@@ -278,101 +278,34 @@ pub async fn search_items(
     limit: i64,
     favorites_only: bool,
 ) -> Result<Vec<ClipboardItem>, sqlx::Error> {
-    // Multi-token query: always use LIKE with AND matching
-    let tokens: Vec<&str> = query.split_whitespace().collect();
-    if tokens.len() > 1 {
-        return search_items_like(pool, query, content_type, limit, favorites_only).await;
-    }
-
-    // Single token: FTS5 for >= 3 chars, LIKE for < 3
-    if query.chars().count() < 3 {
-        return search_items_like(pool, query, content_type, limit, favorites_only).await;
-    }
-
-    let fts_query = format!("\"{}\"", query.replace('"', "\"\""));
-
-    let item_ids: Vec<(String,)> =
-        sqlx::query_as("SELECT item_id FROM clipboard_fts WHERE clipboard_fts MATCH ? LIMIT ?")
-            .bind(&fts_query)
-            .bind(limit)
-            .fetch_all(pool)
-            .await?;
-
-    if item_ids.is_empty() {
-        return Ok(vec![]);
-    }
-
-    let ids: Vec<String> = item_ids.into_iter().map(|r| r.0).collect();
-    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-
-    let fav_filter = if favorites_only {
-        " AND is_favorited = 1"
-    } else {
-        ""
-    };
-    let sql = if content_type.is_some() {
-        format!(
-            "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE id IN ({}) AND content_type = ?{} ORDER BY updated_at DESC, id DESC",
-            placeholders, fav_filter
-        )
-    } else {
-        format!(
-            "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE id IN ({}){} ORDER BY updated_at DESC, id DESC",
-            placeholders, fav_filter
-        )
-    };
-
-    let mut q = sqlx::query_as::<
-        _,
-        (
-            String,
-            String,
-            String,
-            Option<String>,
-            Option<String>,
-            Option<String>,
-            String,
-            String,
-            i64,
-            String,
-            bool,
-            String,
-            String,
-        ),
-    >(&sql);
-    for id in &ids {
-        q = q.bind(id);
-    }
-    if let Some(ct) = content_type {
-        q = q.bind(ct);
-    }
-
-    let items = q.fetch_all(pool).await?;
-
-    Ok(items
-        .into_iter()
-        .map(|r| ClipboardItem {
-            id: r.0,
-            content_type: r.1,
-            plain_text: r.2,
-            thumbnail: None,
-            image_path: r.3,
-            file_path: r.4,
-            file_name: r.5,
-            source_app: r.6,
-            source_app_name: r.7,
-            content_size: r.8,
-            content_hash: r.9,
-            is_favorited: r.10,
-            created_at: r.11,
-            updated_at: r.12,
-        })
-        .collect())
+    search_items_like(pool, query, content_type, limit, favorites_only).await
 }
 
-/// Fallback search using LIKE with multi-token AND matching.
+fn fuzzy_like_pattern(token: &str) -> String {
+    let mut pattern = String::from("%");
+    for ch in token.chars() {
+        if matches!(ch, '%' | '_' | '\\') {
+            pattern.push('\\');
+        }
+        pattern.push(ch);
+        pattern.push('%');
+    }
+    pattern
+}
+
+fn literal_like_pattern(value: &str) -> String {
+    let mut pattern = String::from("%");
+    for ch in value.chars() {
+        if matches!(ch, '%' | '_' | '\\') {
+            pattern.push('\\');
+        }
+        pattern.push(ch);
+    }
+    pattern.push('%');
+    pattern
+}
+
+/// Fuzzy search using LIKE with multi-token AND matching.
 /// Excludes thumbnail blobs for fast IPC transfer.
 async fn search_items_like(
     pool: &SqlitePool,
@@ -386,12 +319,22 @@ async fn search_items_like(
         return Ok(vec![]);
     }
 
+    let exact_pattern = literal_like_pattern(query.trim());
+    let ordered_pattern = fuzzy_like_pattern(&tokens.join(""));
+    let rank_clause = "CASE
+                 WHEN (plain_text LIKE ? ESCAPE '\\' OR file_name LIKE ? ESCAPE '\\' OR source_app_name LIKE ? ESCAPE '\\') THEN 0
+                 WHEN (plain_text LIKE ? ESCAPE '\\' OR file_name LIKE ? ESCAPE '\\' OR source_app_name LIKE ? ESCAPE '\\') THEN 1
+                 ELSE 2
+             END";
+
     // Build per-token conditions: each token must match at least one searchable field
     let mut conditions = Vec::new();
     let mut binds = Vec::new();
     for token in &tokens {
-        let pattern = format!("%{}%", token);
-        conditions.push("(plain_text LIKE ? OR file_name LIKE ? OR source_app_name LIKE ?)");
+        let pattern = fuzzy_like_pattern(token);
+        conditions.push(
+            "(plain_text LIKE ? ESCAPE '\\' OR file_name LIKE ? ESCAPE '\\' OR source_app_name LIKE ? ESCAPE '\\')",
+        );
         binds.push(pattern);
     }
     let where_clause = conditions.join(" AND ");
@@ -404,14 +347,14 @@ async fn search_items_like(
     let sql = if let Some(_ct) = content_type {
         format!(
             "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE {} AND content_type = ?{} ORDER BY updated_at DESC, id DESC LIMIT ?",
-            where_clause, fav_filter
+             FROM clipboard_items WHERE {} AND content_type = ?{} ORDER BY {}, updated_at DESC, id DESC LIMIT ?",
+            where_clause, fav_filter, rank_clause
         )
     } else {
         format!(
             "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE {}{} ORDER BY updated_at DESC, id DESC LIMIT ?",
-            where_clause, fav_filter
+             FROM clipboard_items WHERE {}{} ORDER BY {}, updated_at DESC, id DESC LIMIT ?",
+            where_clause, fav_filter, rank_clause
         )
     };
 
@@ -443,6 +386,12 @@ async fn search_items_like(
     if let Some(ct) = content_type {
         q = q.bind(ct);
     }
+    q = q.bind(&exact_pattern);
+    q = q.bind(&exact_pattern);
+    q = q.bind(&exact_pattern);
+    q = q.bind(&ordered_pattern);
+    q = q.bind(&ordered_pattern);
+    q = q.bind(&ordered_pattern);
     q = q.bind(limit);
 
     let items = q.fetch_all(pool).await?;
@@ -860,7 +809,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_search_fts5() {
+    async fn test_search_text_matching() {
         let pool = test_pool().await;
 
         for (i, text) in [
@@ -887,19 +836,19 @@ mod tests {
             insert_item(&pool, &item).await.unwrap();
         }
 
-        // FTS search (>= 3 chars)
+        // English text search
         let results = search_items(&pool, "World", None, 10, false).await.unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].plain_text.contains("World"));
 
-        // Chinese search (>= 3 chars for trigram)
+        // Chinese text search
         let results = search_items(&pool, "中文搜", None, 10, false)
             .await
             .unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].plain_text.contains("中文"));
 
-        // Short query fallback to LIKE
+        // Short query search
         let results = search_items(&pool, "Ru", None, 10, false).await.unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].plain_text.contains("Rust"));
@@ -1224,12 +1173,12 @@ mod tests {
         };
         insert_item(&pool, &item).await.unwrap();
 
-        // FTS5 special characters should not cause a crash
-        // Quotes are escaped by the search_items function (double-quoting)
+        // Search-special characters should not cause a crash
+        // Quotes are treated as ordinary search characters
         let results = search_items(&pool, "\"quoted\"", None, 10, false).await;
         assert!(results.is_ok());
 
-        // Asterisks (FTS5 prefix operator) should not crash
+        // Asterisks should not crash
         let results = search_items(&pool, "text*", None, 10, false).await;
         assert!(results.is_ok());
 
@@ -1261,12 +1210,12 @@ mod tests {
         };
         insert_item(&pool, &item).await.unwrap();
 
-        // Single character (< 3 chars) should fall back to LIKE search
+        // Single character search
         let results = search_items(&pool, "X", None, 10, false).await.unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].plain_text.contains("X"));
 
-        // Two characters should also use LIKE fallback
+        // Two character search
         let results = search_items(&pool, "ma", None, 10, false).await.unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].plain_text.contains("marks"));
@@ -1274,6 +1223,74 @@ mod tests {
         // Single char with no match
         let results = search_items(&pool, "Z", None, 10, false).await.unwrap();
         assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_search_fuzzy_non_contiguous_characters() {
+        let pool = test_pool().await;
+
+        let item = NewClipboardItem {
+            content_type: ContentType::PlainText,
+            plain_text: "Hello World example".into(),
+            rich_content: None,
+            thumbnail: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            source_app: "".into(),
+            source_app_name: "".into(),
+            content_size: 19,
+            content_hash: "fuzzy-search-hash".into(),
+        };
+        insert_item(&pool, &item).await.unwrap();
+
+        let results = search_items(&pool, "hw", None, 10, false).await.unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert!(results[0].plain_text.contains("Hello World"));
+    }
+
+    #[tokio::test]
+    async fn test_search_ranks_exact_then_ordered_then_unordered_matches() {
+        let pool = test_pool().await;
+
+        for (i, text) in [
+            "List unrelated req",
+            "req world List",
+            "req List",
+            "req hello List",
+        ]
+        .iter()
+        .enumerate()
+        {
+            let item = NewClipboardItem {
+                content_type: ContentType::PlainText,
+                plain_text: text.to_string(),
+                rich_content: None,
+                thumbnail: None,
+                image_path: None,
+                file_path: None,
+                file_name: None,
+                source_app: "".into(),
+                source_app_name: "".into(),
+                content_size: text.len() as i64,
+                content_hash: format!("ranked-fuzzy-search-hash-{}", i),
+            };
+            insert_item(&pool, &item).await.unwrap();
+        }
+
+        let results = search_items(&pool, "req List", None, 10, false)
+            .await
+            .unwrap();
+        let texts: Vec<&str> = results
+            .iter()
+            .map(|item| item.plain_text.as_str())
+            .collect();
+
+        assert_eq!(texts.first(), Some(&"req List"));
+        assert_eq!(texts.last(), Some(&"List unrelated req"));
+        assert!(texts[1..3].contains(&"req hello List"));
+        assert!(texts[1..3].contains(&"req world List"));
     }
 
     #[tokio::test]
