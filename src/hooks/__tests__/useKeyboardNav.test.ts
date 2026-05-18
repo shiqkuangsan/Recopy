@@ -196,6 +196,52 @@ describe("useKeyboardNav", () => {
     });
   });
 
+  describe("Cmd/Ctrl+Bracket — cycle type filter", () => {
+    it("should cycle to the next type filter on Cmd+]", () => {
+      mockedInvoke.mockResolvedValueOnce([]);
+      useClipboardStore.setState({ filterType: "all", viewMode: "history", searchQuery: "" });
+      hookResult.rerender();
+
+      const event = new KeyboardEvent("keydown", {
+        key: "]",
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      document.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(useClipboardStore.getState().filterType).toBe("plain_text");
+      expect(mockedInvoke).toHaveBeenCalledWith("get_clipboard_items", {
+        contentType: "plain_text",
+        limit: 500,
+        offset: 0,
+      });
+    });
+
+    it("should cycle to the previous type filter on Cmd+[", () => {
+      mockedInvoke.mockResolvedValueOnce([]);
+      useClipboardStore.setState({ filterType: "all", viewMode: "history", searchQuery: "" });
+      hookResult.rerender();
+
+      const event = new KeyboardEvent("keydown", {
+        key: "[",
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      document.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(useClipboardStore.getState().filterType).toBe("rich_text");
+      expect(mockedInvoke).toHaveBeenCalledWith("get_clipboard_items", {
+        contentType: "rich_text",
+        limit: 500,
+        offset: 0,
+      });
+    });
+  });
+
   describe("Cmd+F / Ctrl+F — focus search", () => {
     it("should focus search input on Cmd+F", () => {
       const input = document.createElement("input");

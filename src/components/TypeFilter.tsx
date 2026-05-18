@@ -1,19 +1,22 @@
 import { useTranslation } from "react-i18next";
 import { useClipboardStore } from "../stores/clipboard-store";
+import { FILTER_TYPES } from "../lib/types";
 import type { FilterType } from "../lib/types";
 import { createPressActionHandlers } from "../lib/press-action";
 import { LayoutGrid, Type, Link, Image, File, FileText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
 
-const FILTERS: { i18nKey: string; value: FilterType; icon: LucideIcon }[] = [
-  { i18nKey: "filter.all", value: "all", icon: LayoutGrid },
-  { i18nKey: "filter.text", value: "plain_text", icon: Type },
-  { i18nKey: "filter.link", value: "link", icon: Link },
-  { i18nKey: "filter.image", value: "image", icon: Image },
-  { i18nKey: "filter.file", value: "file", icon: File },
-  { i18nKey: "filter.rich", value: "rich_text", icon: FileText },
-];
+const FILTER_DETAILS: Record<FilterType, { i18nKey: string; icon: LucideIcon }> = {
+  all: { i18nKey: "filter.all", icon: LayoutGrid },
+  plain_text: { i18nKey: "filter.text", icon: Type },
+  link: { i18nKey: "filter.link", icon: Link },
+  image: { i18nKey: "filter.image", icon: Image },
+  file: { i18nKey: "filter.file", icon: File },
+  rich_text: { i18nKey: "filter.rich", icon: FileText },
+};
+
+const FILTERS = FILTER_TYPES.map((value) => ({ value, ...FILTER_DETAILS[value] }));
 
 interface TypeFilterProps {
   iconOnly?: boolean;

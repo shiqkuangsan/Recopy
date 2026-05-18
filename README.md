@@ -85,6 +85,7 @@ Download the latest `.dmg` or `.exe` from the [Releases](https://github.com/shiq
 | `Cmd/Ctrl+F` | Focus search |
 | `F` | Favorite / unfavorite selected item |
 | `Tab` | Switch between History and Pins |
+| `Cmd/Ctrl+[` / `Cmd/Ctrl+]` | Switch to previous / next type filter |
 | `Cmd/Ctrl+↑` | Select the first item |
 | `Cmd/Ctrl+←` | Select the first item in the current group (top/bottom layouts) |
 | `Cmd/Ctrl+,` | Open settings |

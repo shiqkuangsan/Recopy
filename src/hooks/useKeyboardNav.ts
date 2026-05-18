@@ -7,6 +7,7 @@ import { useCopyHud } from "../components/CopyHud";
 import { pasteItem, copyToClipboard } from "../lib/paste";
 import { dateGroupLabel } from "../lib/time";
 import { getQuickPasteTargets } from "../lib/quick-paste";
+import { FILTER_TYPES } from "../lib/types";
 
 // Module-level preview state for cross-component access.
 // Set in openPreview/closePreview, reset on recopy-hide.
@@ -15,8 +16,10 @@ export const previewState = { open: false };
 export function useKeyboardNav() {
   const items = useClipboardStore((s) => s.items);
   const selectedIndex = useClipboardStore((s) => s.selectedIndex);
+  const filterType = useClipboardStore((s) => s.filterType);
   const viewMode = useClipboardStore((s) => s.viewMode);
   const setSelectedIndex = useClipboardStore((s) => s.setSelectedIndex);
+  const setFilterType = useClipboardStore((s) => s.setFilterType);
   const setViewMode = useClipboardStore((s) => s.setViewMode);
   const setModifierHeld = useClipboardStore((s) => s.setModifierHeld);
   const panelPosition = useSettingsStore((s) => s.settings.panel_position);
@@ -91,6 +94,19 @@ export function useKeyboardNav() {
         e.preventDefault();
         const input = document.querySelector<HTMLInputElement>('input[type="text"]');
         input?.focus();
+        return;
+      }
+
+      // Cmd/Ctrl+[ or ]: cycle type filters without leaving keyboard flow
+      if (modifierHeld && (e.key === "[" || e.key === "]")) {
+        e.preventDefault();
+        const direction = e.key === "]" ? 1 : -1;
+        const currentIndex = FILTER_TYPES.indexOf(filterType);
+        const nextIndex =
+          currentIndex === -1
+            ? 0
+            : (currentIndex + direction + FILTER_TYPES.length) % FILTER_TYPES.length;
+        setFilterType(FILTER_TYPES[nextIndex]);
         return;
       }
 
@@ -301,8 +317,10 @@ export function useKeyboardNav() {
     [
       items,
       selectedIndex,
+      filterType,
       viewMode,
       setSelectedIndex,
+      setFilterType,
       setViewMode,
       setModifierHeld,
       groupInfo,

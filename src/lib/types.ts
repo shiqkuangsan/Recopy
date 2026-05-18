@@ -41,3 +41,12 @@ export interface FilePreviewData {
 
 export type ViewMode = "history" | "pins";
 export type FilterType = "all" | "plain_text" | "rich_text" | "image" | "file" | "link";
+
+export const FILTER_TYPES: readonly FilterType[] = [
+  "all",
+  "plain_text",
+  "link",
+  "image",
+  "file",
+  "rich_text",
+];

@@ -85,6 +85,7 @@ brew upgrade --cask recopy
 | `Cmd/Ctrl+F` | 聚焦搜索框 |
 | `F` | 收藏 / 取消收藏选中条目 |
 | `Tab` | 在历史与收藏视图间切换 |
+| `Cmd/Ctrl+[` / `Cmd/Ctrl+]` | 切换上一个 / 下一个类型筛选 |
 | `Cmd/Ctrl+↑` | 选中第一条 |
 | `Cmd/Ctrl+←` | 选中当前分组第一条（顶部/底部布局） |
 | `Cmd/Ctrl+,` | 打开设置 |
