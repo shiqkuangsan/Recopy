@@ -33,7 +33,7 @@
     ]
   },
   "dependencies": {
-    "@tanstack/react-virtual": "^3.13.24",
+    "@tanstack/react-virtual": "^3.13.26",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-autostart": "^2.5.1",
     "@tauri-apps/plugin-global-shortcut": "^2.3.1",
