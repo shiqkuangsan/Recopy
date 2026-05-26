@@ -15,6 +15,11 @@ on:
           - macOS-arm64
           - macOS-x64
           - Windows-x64
+      publish_release:
+        description: "Create draft release when dispatching from a v* tag"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -109,7 +114,7 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
       - name: Build Tauri app (release)
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish_release && startsWith(github.ref, 'refs/tags/v'))
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -139,7 +144,7 @@ jobs:
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
 
       - name: Build Tauri app (test)
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish_release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -151,7 +156,7 @@ jobs:
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
 
       - name: Upload build artifacts
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish_release
         uses: actions/upload-artifact@v7
         with:
           name: build-${{ matrix.name }}
@@ -163,7 +168,7 @@ jobs:
   update-cask:
     name: Update Homebrew Cask
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish_release)) && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Trigger homebrew-recopy update
