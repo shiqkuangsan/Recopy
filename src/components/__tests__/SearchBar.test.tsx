@@ -48,10 +48,9 @@ describe("SearchBar", () => {
       "placeholder:text-zinc-600",
       "dark:placeholder:text-zinc-300",
     );
-    expect(container.querySelector(".lucide-search")).toHaveClass(
-      "text-zinc-700",
-      "dark:text-zinc-300",
-    );
+    const searchIcon = container.querySelector(".lucide-search");
+    expect(searchIcon).not.toBeNull();
+    expect(searchIcon!).toHaveClass("text-zinc-700", "dark:text-zinc-300");
   });
 
   it("should update search query on input change", () => {

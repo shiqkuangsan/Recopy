@@ -1131,6 +1131,14 @@ mod tests {
     }
 
     #[test]
+    fn second_instance_minimized_autostart_should_not_show_main_window() {
+        assert!(!should_show_main_window_for_second_instance(&args(&[
+            "/Applications/Recopy.app/Contents/MacOS/recopy",
+            "--minimized",
+        ])));
+    }
+
+    #[test]
     fn second_instance_user_launch_should_show_main_window() {
         assert!(should_show_main_window_for_second_instance(&args(&[
             "/Applications/Recopy.app/Contents/MacOS/recopy",
