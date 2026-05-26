@@ -1,6 +1,6 @@
 ---
 name: recopy-release
-description: Use when releasing the Recopy desktop app, including version selection, version bumping, pre-release checks, GitHub tagging, release CI monitoring, bilingual release notes, and optional Gitee release sync.
+description: Use when releasing the Recopy desktop app, including version selection, version bumping, pre-release checks, GitHub tagging, release CI monitoring, bilingual release notes, updater metadata, and Gitee release sync.
 ---
 
 # Recopy Release
@@ -9,11 +9,17 @@ Use this workflow when the user asks to release Recopy, run the release command,
 
 ## Hard Gates
 
-- Never commit, push, tag, edit a GitHub release, force-push the `updater` branch, or call the Gitee API without explicit user confirmation for that exact action.
+- Never commit, push, tag, edit a GitHub release, or call external release APIs unless the user has explicitly asked to release or sync.
 - Before committing, show the exact file scope and a concise diff summary.
 - `git commit`, `git push`, tag push, release edits, and Gitee sync are separate external actions. Do not combine them with unrelated commands.
 - If any verification step fails, stop and report the failing command and relevant output. Do not continue to commit or tag.
 - Do not add AI signatures, generated-by notes, or AI co-author trailers.
+
+Release intent rule:
+
+- A clear Recopy release request such as "我要发版", "准备发版", or "release vX.Y.Z" confirms the standard release pipeline for the current repo: pre-checks, version/tag handling, GitHub release, release notes, updater metadata, Homebrew monitoring, and Gitee sync.
+- Ask again only when the version target is ambiguous, verification fails, the working tree contains unrelated changes, a destructive recovery action is required, or required credentials/secrets are missing.
+- Gitee sync is mandatory for every Recopy release. Do not ask separately after GitHub release publication.
 
 ## Inputs
 
@@ -23,7 +29,7 @@ The user may provide:
 - An exact semver version: for example `1.7.0`
 - Nothing: derive a recommended version from commits
 
-Always confirm the final version number with the user before editing version files.
+Confirm the final version number before editing version files. If the version files are already prepared and the user explicitly asked to release, report the inferred version and continue unless it conflicts with tags or release state.
 
 ## Workflow
 
@@ -34,6 +40,7 @@ Always confirm the final version number with the user before editing version fil
 3. Confirm the branch and remote state are appropriate for release.
 4. If local `main` is ahead, behind, or diverged, explain the state before proceeding.
 5. Read the current version from `src-tauri/tauri.conf.json`.
+6. Confirm GitHub Actions secrets include `GITEE_TOKEN` before relying on automatic Gitee sync.
 
 ### 1. Determine Version
 
@@ -53,7 +60,7 @@ If the user gives no version:
    - `BREAKING CHANGE` or `!:` means `major`.
    - `feat:` or `feat(...):` means at least `minor`.
    - Only `fix:`, `chore:`, `docs:`, `style:`, `refactor:`, `perf:`, or `test:` means `patch`.
-4. Present the analysis and ask for confirmation.
+4. Present the analysis. If the user explicitly asked to release and the inferred version matches the prepared version files, continue; otherwise ask for confirmation.
 
 ### 2. Bump Version
 
@@ -95,7 +102,7 @@ For patch or minor releases, skip the local build unless the user asks for it or
 
 ### 5. Commit And Push
 
-After checks pass, ask the user to confirm the commit and push. Show the exact files that will be staged.
+After checks pass, show the exact files that will be staged. If the user explicitly asked to release, commit and push as part of the standard release pipeline.
 
 On confirmation:
 
@@ -107,9 +114,7 @@ git push
 
 ### 6. Tag And Push Tag
 
-Ask for confirmation before tagging. Explain that pushing the tag triggers the release build.
-
-On confirmation:
+Tag and push after the release commit is on `main`. Explain that pushing the tag triggers the release build.
 
 ```bash
 git tag vX.Y.Z
@@ -125,7 +130,17 @@ gh run list --limit 3
 gh run view <run-id> --json jobs --jq '.jobs[] | "\(.name)\t\(.status)\t\(.conclusion // "running")"'
 ```
 
-Report job statuses in a compact table. If the user asks to check again, rerun the commands.
+Report job statuses in a compact table. If the tag push does not create a Release run, use the manual fallback:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $GITHUB_TOKEN" \
+  -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/shiqkuangsan/Recopy/actions/workflows/release.yml/dispatches \
+  -d '{"ref":"vX.Y.Z","inputs":{"platform":"all","publish_release":"true"}}'
+```
+
+Cancel duplicate runs if both tag push and manual dispatch start.
 
 ### 8. Release Notes
 
@@ -180,7 +195,7 @@ Content rules:
 - Skip merge commits and trivial chores.
 - Get asset names from `gh release view vX.Y.Z --json assets`.
 
-Ask for confirmation before updating the draft release:
+Update the draft release notes after Release CI succeeds:
 
 ```bash
 gh release edit vX.Y.Z --notes "<release notes>"
@@ -190,7 +205,7 @@ gh release edit vX.Y.Z --notes "<release notes>"
 
 After release notes are written, update the `latest.json` updater metadata so the in-app update notes match the published release notes.
 
-Ask for confirmation before replacing the GitHub release asset, because this edits an external release artifact:
+Replace the GitHub `latest.json` asset after release notes are updated:
 
 ```bash
 TAG="vX.Y.Z"
@@ -207,80 +222,45 @@ mv "$WORK_DIR/latest.updated.json" "$WORK_DIR/latest.json"
 gh release upload "$TAG" -R shiqkuangsan/Recopy "$WORK_DIR/latest.json" --clobber
 ```
 
-If Gitee sync is also performed, use this updated `latest.json` as the source file.
+Publish the GitHub release only after `latest.json` contains the final release notes.
 
-### 10. Optional Gitee Sync
+### 10. Gitee Sync
 
-After release notes are written, offer to sync the release to Gitee for China mainland users.
+Gitee sync is required for every Recopy release.
 
-Prerequisite: `GITEE_TOKEN` must be set. If it is missing, skip and remind the user.
+Preferred path: GitHub Actions automatically runs `.github/workflows/sync-gitee.yml` on `release.published`.
 
-Procedure:
+Prerequisites:
 
-1. Download GitHub release assets:
+- GitHub Actions secret `GITEE_TOKEN` exists.
+- GitHub release is published, not draft.
+- `latest.json` on the GitHub release already contains final release notes.
+
+Monitor the workflow:
 
 ```bash
-TAG="vX.Y.Z"
-mkdir -p /tmp/gitee-sync
-gh release download "$TAG" -R shiqkuangsan/Recopy -D /tmp/gitee-sync
+gh run list --workflow "Sync Gitee Release" --limit 3
 ```
 
-2. Generate Gitee version of `latest.json`:
+Fallback path if Actions is unavailable or must be run locally:
 
 ```bash
-cd /tmp/gitee-sync
-sed -i '' 's|https://github.com/shiqkuangsan/Recopy/releases/download/|https://gitee.com/shiqkuangsan/Recopy/releases/download/|g' latest.json
+GITHUB_TOKEN=<token> GITEE_TOKEN=<token> scripts/sync-gitee-release.sh vX.Y.Z
 ```
 
-3. Create the Gitee release and upload all assets:
+The script:
+
+- Downloads GitHub release assets.
+- Rewrites `latest.json` download URLs from GitHub to Gitee.
+- Creates the Gitee release if missing.
+- Uploads missing Gitee assets idempotently.
+- Updates the GitHub `updater` branch through the GitHub Contents API.
+
+Completion checks:
 
 ```bash
-BODY=$(gh release view "$TAG" -R shiqkuangsan/Recopy --json body -q '.body')
-printf '%s' "$BODY" > /tmp/gitee-sync/release-notes.md
-jq --rawfile notes /tmp/gitee-sync/release-notes.md \
-  '.notes = $notes' \
-  /tmp/gitee-sync/latest.json > /tmp/gitee-sync/latest.updated.json
-mv /tmp/gitee-sync/latest.updated.json /tmp/gitee-sync/latest.json
-
-RELEASE_ID=$(curl -sf -X POST "https://gitee.com/api/v5/repos/shiqkuangsan/Recopy/releases" \
-  -H "Content-Type: application/json" \
-  -d "$(jq -n \
-    --arg token "$GITEE_TOKEN" \
-    --arg tag "$TAG" \
-    --arg name "Recopy $TAG" \
-    --arg body "$BODY" \
-    '{access_token: $token, tag_name: $tag, name: $name, body: $body, target_commitish: "main"}'
-  )" | jq -r '.id')
-
-for file in /tmp/gitee-sync/*; do
-  [ -f "$file" ] || continue
-  fname=$(basename "$file")
-  curl -sf -X POST \
-    "https://gitee.com/api/v5/repos/shiqkuangsan/Recopy/releases/${RELEASE_ID}/attach_files" \
-    -F "access_token=${GITEE_TOKEN}" \
-    -F "file=@${file}" > /dev/null
-  echo "  uploaded $fname"
-done
-```
-
-4. Push `latest.json` with Gitee download URLs to GitHub `updater` branch so the Gitee mirror can sync it:
-
-```bash
-cd /tmp
-rm -rf github-updater
-git init github-updater
-cd github-updater
-cp /tmp/gitee-sync/latest.json .
-git add latest.json
-git -c user.name="release" -c user.email="release@recopy.app" \
-  commit -m "update latest.json for $TAG"
-git branch -M updater
-git remote add origin "https://github.com/shiqkuangsan/Recopy.git"
-git push -f origin updater
-```
-
-5. Clean up:
-
-```bash
-rm -rf /tmp/gitee-sync /tmp/github-updater
+curl -fsSL https://gitee.com/api/v5/repos/shiqkuangsan/Recopy/releases/tags/vX.Y.Z \
+  | jq -r '[.tag_name, (.assets|length)] | @tsv'
+curl -fsSL https://gitee.com/shiqkuangsan/Recopy/releases/download/vX.Y.Z/latest.json \
+  | jq -r '[.version, (.platforms["darwin-aarch64"].url | startswith("https://gitee.com/"))] | @tsv'
 ```
