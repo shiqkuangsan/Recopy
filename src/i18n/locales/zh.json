@@ -48,6 +48,7 @@
     "loading": "正在加载设置...",
     "tabs": {
       "general": "通用",
+      "shortcuts": "快捷键",
       "history": "历史",
       "privacy": "隐私",
       "about": "关于"
@@ -59,8 +60,6 @@
       "dark": "深色",
       "light": "浅色",
       "system": "跟随系统",
-      "shortcut": "全局快捷键",
-      "shortcutDesc": "显示/隐藏 Recopy 的快捷键",
       "autoStart": "开机自启动",
       "autoStartDesc": "登录时自动启动 Recopy",
       "language": "语言",
@@ -83,6 +82,33 @@
       "showTrayIcon": "显示托盘图标",
       "showTrayIconDesc": "在菜单栏显示 Recopy 图标",
       "trayIconRequiresShortcut": "隐藏托盘图标前须先设置全局快捷键"
+    },
+    "shortcuts": {
+      "title": "快捷键",
+      "globalShortcut": "全局快捷键",
+      "globalShortcutDesc": "显示/隐藏 Recopy 的系统级快捷键",
+      "groups": {
+        "panel": "面板导航",
+        "item": "条目操作",
+        "window": "窗口"
+      },
+      "actions": {
+        "switchTabs": "切换历史 / 收藏",
+        "focusSearch": "聚焦搜索框",
+        "prevFilter": "切换到上一个筛选类型",
+        "nextFilter": "切换到下一个筛选类型",
+        "navigate": "移动选中条目",
+        "firstItem": "选中第一条",
+        "groupStart": "选中当前分组第一条",
+        "paste": "粘贴选中条目",
+        "preview": "打开 / 关闭预览",
+        "copy": "复制选中条目",
+        "favorite": "收藏 / 取消收藏",
+        "delete": "删除选中条目",
+        "quickPaste": "快速粘贴前 9 条可见条目",
+        "escape": "关闭预览或隐藏窗口",
+        "openSettings": "打开设置"
+      }
     },
     "history": {
       "title": "历史",

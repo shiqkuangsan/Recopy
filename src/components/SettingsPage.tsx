@@ -31,7 +31,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Switch } from "./ui/switch";
 
-type SettingsTab = "general" | "history" | "privacy" | "about";
+type SettingsTab = "general" | "shortcuts" | "history" | "privacy" | "about";
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -52,6 +52,7 @@ export function SettingsPage() {
 
   const tabs: { id: SettingsTab; i18nKey: string; icon: React.ReactNode }[] = [
     { id: "general", i18nKey: "settings.tabs.general", icon: <Settings size={15} /> },
+    { id: "shortcuts", i18nKey: "settings.tabs.shortcuts", icon: <Keyboard size={15} /> },
     { id: "history", i18nKey: "settings.tabs.history", icon: <Clock size={15} /> },
     { id: "privacy", i18nKey: "settings.tabs.privacy", icon: <Shield size={15} /> },
     { id: "about", i18nKey: "settings.tabs.about", icon: <Info size={15} /> },
@@ -82,6 +83,9 @@ export function SettingsPage() {
       <div className="flex-1 p-6 overflow-y-auto">
         {activeTab === "general" && (
           <GeneralSettings settings={settings} updateSetting={updateSetting} />
+        )}
+        {activeTab === "shortcuts" && (
+          <ShortcutsSettings settings={settings} updateSetting={updateSetting} />
         )}
         {activeTab === "history" && (
           <HistorySettings
@@ -134,16 +138,6 @@ function GeneralSettings({
             { value: "system", icon: <Globe size={13} />, label: t("settings.general.system") },
           ]}
           onChange={(v) => updateSetting("language", v)}
-        />
-      </SettingRow>
-
-      <SettingRow
-        label={t("settings.general.shortcut")}
-        description={t("settings.general.shortcutDesc")}
-      >
-        <ShortcutRecorder
-          value={settings.shortcut}
-          onChange={(v) => updateSetting("shortcut", v)}
         />
       </SettingRow>
 
@@ -242,6 +236,83 @@ function GeneralSettings({
           />
         </SettingRow>
       )}
+    </div>
+  );
+}
+
+function ShortcutsSettings({
+  settings,
+  updateSetting,
+}: {
+  settings: AppSettings;
+  updateSetting: (key: keyof AppSettings, value: string) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const mod = platform() === "macos" ? "\u2318" : "Ctrl";
+
+  const shortcutGroups = [
+    {
+      title: t("settings.shortcuts.groups.panel"),
+      items: [
+        { keys: ["Tab"], label: t("settings.shortcuts.actions.switchTabs") },
+        { keys: [mod, "F"], label: t("settings.shortcuts.actions.focusSearch") },
+        { keys: [mod, "["], label: t("settings.shortcuts.actions.prevFilter") },
+        { keys: [mod, "]"], label: t("settings.shortcuts.actions.nextFilter") },
+        {
+          keys: ["\u2190", "\u2191", "\u2192", "\u2193"],
+          label: t("settings.shortcuts.actions.navigate"),
+        },
+        { keys: [mod, "\u2191"], label: t("settings.shortcuts.actions.firstItem") },
+        { keys: [mod, "\u2190"], label: t("settings.shortcuts.actions.groupStart") },
+      ],
+    },
+    {
+      title: t("settings.shortcuts.groups.item"),
+      items: [
+        { keys: ["Enter"], label: t("settings.shortcuts.actions.paste") },
+        { keys: ["Space"], label: t("settings.shortcuts.actions.preview") },
+        { keys: [mod, "C"], label: t("settings.shortcuts.actions.copy") },
+        { keys: ["F"], label: t("settings.shortcuts.actions.favorite") },
+        { keys: ["Delete", "Backspace"], label: t("settings.shortcuts.actions.delete") },
+        { keys: [mod, "1-9"], label: t("settings.shortcuts.actions.quickPaste") },
+      ],
+    },
+    {
+      title: t("settings.shortcuts.groups.window"),
+      items: [
+        { keys: ["Esc"], label: t("settings.shortcuts.actions.escape") },
+        { keys: [mod, ","], label: t("settings.shortcuts.actions.openSettings") },
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle>{t("settings.shortcuts.title")}</SectionTitle>
+
+      <SettingRow
+        label={t("settings.shortcuts.globalShortcut")}
+        description={t("settings.shortcuts.globalShortcutDesc")}
+      >
+        <ShortcutRecorder
+          value={settings.shortcut}
+          onChange={(v) => updateSetting("shortcut", v)}
+        />
+      </SettingRow>
+
+      <div className="space-y-3">
+        {shortcutGroups.map((group) => (
+          <ShortcutGroup key={group.title} title={group.title}>
+            {group.items.map((item) => (
+              <ShortcutRow
+                key={`${group.title}-${item.label}`}
+                keys={item.keys}
+                label={item.label}
+              />
+            ))}
+          </ShortcutGroup>
+        ))}
+      </div>
     </div>
   );
 }
@@ -670,6 +741,40 @@ function AboutSettings() {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="text-base font-semibold mb-3">{children}</h2>;
+}
+
+function ShortcutGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Card className="border-border/50 bg-card/60 py-0 overflow-hidden">
+      <CardContent className="p-0">
+        <div className="px-4 py-2.5 border-b border-border/30 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {title}
+        </div>
+        <div>{children}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ShortcutRow({ keys, label }: { keys: string[]; label: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-2.5 border-b border-border/20 last:border-b-0">
+      <span className="text-sm text-foreground">{label}</span>
+      <div className="flex flex-wrap justify-end gap-1.5">
+        {keys.map((key) => (
+          <ShortcutKey key={key}>{key}</ShortcutKey>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ShortcutKey({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="min-w-6 h-6 px-2 inline-flex items-center justify-center rounded-md border border-border/50 bg-input/70 text-[11px] font-medium text-foreground shadow-sm">
+      {children}
+    </kbd>
+  );
 }
 
 function SettingRow({
