@@ -81,7 +81,7 @@
       "flatModeTBDesc": "禁用日期分组，所有条目显示在同一行",
       "showTrayIcon": "显示托盘图标",
       "showTrayIconDesc": "在菜单栏显示 Recopy 图标",
-      "trayIconRequiresShortcut": "隐藏托盘图标前须先设置全局快捷键"
+      "trayIconRequiresShortcut": "隐藏托盘图标前，请先在快捷键中设置全局快捷键"
     },
     "shortcuts": {
       "title": "快捷键",

@@ -81,7 +81,7 @@
       "flatModeTBDesc": "Disable date grouping, show all items in one row",
       "showTrayIcon": "Show Tray Icon",
       "showTrayIconDesc": "Show Recopy icon in the menu bar",
-      "trayIconRequiresShortcut": "Global shortcut must be set before hiding the tray icon"
+      "trayIconRequiresShortcut": "Set a global shortcut in Shortcuts before hiding the tray icon"
     },
     "shortcuts": {
       "title": "Shortcuts",
