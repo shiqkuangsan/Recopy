@@ -27,7 +27,7 @@ vi.mock("../../lib/paste", () => ({
 // Import stores AFTER matchMedia is mocked
 const { useClipboardStore } = await import("../../stores/clipboard-store");
 const { useSettingsStore } = await import("../../stores/settings-store");
-const { useCopyHud } = await import("../../components/CopyHud");
+const { useCopyHud } = await import("../../stores/copy-hud-store");
 const { useKeyboardNav, previewState } = await import("../useKeyboardNav");
 const { pasteItem, copyToClipboard } = await import("../../lib/paste");
 

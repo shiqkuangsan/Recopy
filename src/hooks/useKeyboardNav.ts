@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useClipboardStore } from "../stores/clipboard-store";
 import { useSettingsStore } from "../stores/settings-store";
-import { useCopyHud } from "../components/CopyHud";
+import { useCopyHud } from "../stores/copy-hud-store";
 import { pasteItem, copyToClipboard } from "../lib/paste";
 import { dateGroupLabel } from "../lib/time";
 import { getQuickPasteTargets } from "../lib/quick-paste";
@@ -325,7 +325,6 @@ export function useKeyboardNav() {
       setModifierHeld,
       groupInfo,
       isVertical,
-      flatModeTB,
       panelPosition,
       quickPasteTargets,
       openPreview,

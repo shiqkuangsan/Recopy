@@ -1,17 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
 import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { create } from "zustand";
-
-interface CopyHudState {
-  show: () => void;
-}
-
-export const useCopyHud = create<CopyHudState>(() => ({
-  show: () => {
-    invoke("show_copy_hud");
-  },
-}));
 
 interface CopyHudViewProps {
   isMac: boolean;
