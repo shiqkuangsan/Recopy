@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 use uuid::Uuid;
 
 use super::models::{ClipboardItem, NewClipboardItem};
@@ -321,46 +321,55 @@ async fn search_items_like(
 
     let exact_pattern = literal_like_pattern(query.trim());
     let ordered_pattern = fuzzy_like_pattern(&tokens.join(""));
-    let rank_clause = "CASE
-                 WHEN (plain_text LIKE ? ESCAPE '\\' OR file_name LIKE ? ESCAPE '\\' OR source_app_name LIKE ? ESCAPE '\\') THEN 0
-                 WHEN (plain_text LIKE ? ESCAPE '\\' OR file_name LIKE ? ESCAPE '\\' OR source_app_name LIKE ? ESCAPE '\\') THEN 1
-                 ELSE 2
-             END";
-
     // Build per-token conditions: each token must match at least one searchable field
-    let mut conditions = Vec::new();
     let mut binds = Vec::new();
     for token in &tokens {
         let pattern = fuzzy_like_pattern(token);
-        conditions.push(
-            "(plain_text LIKE ? ESCAPE '\\' OR file_name LIKE ? ESCAPE '\\' OR source_app_name LIKE ? ESCAPE '\\')",
-        );
         binds.push(pattern);
     }
-    let where_clause = conditions.join(" AND ");
-    let fav_filter = if favorites_only {
-        " AND is_favorited = 1"
-    } else {
-        ""
-    };
 
-    let sql = if let Some(_ct) = content_type {
-        format!(
-            "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE {} AND content_type = ?{} ORDER BY {}, updated_at DESC, id DESC LIMIT ?",
-            where_clause, fav_filter, rank_clause
-        )
-    } else {
-        format!(
-            "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
-             FROM clipboard_items WHERE {}{} ORDER BY {}, updated_at DESC, id DESC LIMIT ?",
-            where_clause, fav_filter, rank_clause
-        )
-    };
+    let mut q = QueryBuilder::<Sqlite>::new(
+        "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
+         FROM clipboard_items WHERE ",
+    );
 
-    let mut q = sqlx::query_as::<
-        _,
-        (
+    // Bind each token's pattern 3 times (for plain_text, file_name, source_app_name)
+    for (index, pattern) in binds.iter().enumerate() {
+        if index > 0 {
+            q.push(" AND ");
+        }
+        q.push("(plain_text LIKE ")
+            .push_bind(pattern)
+            .push(" ESCAPE '\\' OR file_name LIKE ")
+            .push_bind(pattern)
+            .push(" ESCAPE '\\' OR source_app_name LIKE ")
+            .push_bind(pattern)
+            .push(" ESCAPE '\\')");
+    }
+    if let Some(ct) = content_type {
+        q.push(" AND content_type = ").push_bind(ct);
+    }
+    if favorites_only {
+        q.push(" AND is_favorited = 1");
+    }
+
+    q.push(" ORDER BY CASE WHEN (plain_text LIKE ")
+        .push_bind(&exact_pattern)
+        .push(" ESCAPE '\\' OR file_name LIKE ")
+        .push_bind(&exact_pattern)
+        .push(" ESCAPE '\\' OR source_app_name LIKE ")
+        .push_bind(&exact_pattern)
+        .push(" ESCAPE '\\') THEN 0 WHEN (plain_text LIKE ")
+        .push_bind(&ordered_pattern)
+        .push(" ESCAPE '\\' OR file_name LIKE ")
+        .push_bind(&ordered_pattern)
+        .push(" ESCAPE '\\' OR source_app_name LIKE ")
+        .push_bind(&ordered_pattern)
+        .push(" ESCAPE '\\') THEN 1 ELSE 2 END, updated_at DESC, id DESC LIMIT ")
+        .push_bind(limit);
+
+    let items = q
+        .build_query_as::<(
             String,
             String,
             String,
@@ -374,27 +383,9 @@ async fn search_items_like(
             bool,
             String,
             String,
-        ),
-    >(&sql);
-
-    // Bind each token's pattern 3 times (for plain_text, file_name, source_app_name)
-    for pattern in &binds {
-        q = q.bind(pattern);
-        q = q.bind(pattern);
-        q = q.bind(pattern);
-    }
-    if let Some(ct) = content_type {
-        q = q.bind(ct);
-    }
-    q = q.bind(&exact_pattern);
-    q = q.bind(&exact_pattern);
-    q = q.bind(&exact_pattern);
-    q = q.bind(&ordered_pattern);
-    q = q.bind(&ordered_pattern);
-    q = q.bind(&ordered_pattern);
-    q = q.bind(limit);
-
-    let items = q.fetch_all(pool).await?;
+        )>()
+        .fetch_all(pool)
+        .await?;
 
     Ok(items
         .into_iter()
