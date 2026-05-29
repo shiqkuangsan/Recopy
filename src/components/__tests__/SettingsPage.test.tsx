@@ -58,4 +58,17 @@ describe("SettingsPage", () => {
 
     expect(mockedInvoke).toHaveBeenCalledWith("quit_app");
   });
+
+  it("shows shortcut settings and the keyboard shortcut list", () => {
+    render(<SettingsPage />);
+
+    expect(screen.queryByText("Global Shortcut")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Shortcuts" }));
+
+    expect(screen.getByText("Global Shortcut")).toBeInTheDocument();
+    expect(screen.getByText("Panel Navigation")).toBeInTheDocument();
+    expect(screen.getByText("Switch History / Pins")).toBeInTheDocument();
+    expect(screen.getByText("Quick paste first 9 visible items")).toBeInTheDocument();
+  });
 });

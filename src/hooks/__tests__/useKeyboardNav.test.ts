@@ -1062,6 +1062,17 @@ describe("useKeyboardNav", () => {
       expect(mockedPasteItem).toHaveBeenCalledWith(items[2]);
     });
 
+    it("should paste the ninth visible item with Cmd+9", () => {
+      const items = Array.from({ length: 10 }, (_, i) => mockItem({ id: `ninth-${i}` }));
+      setupItems(items, 0);
+      setupSettings({ panel_position: "left", flat_mode_tb: "false" });
+      hookResult.rerender();
+
+      fireKey("9", { metaKey: true });
+
+      expect(mockedPasteItem).toHaveBeenCalledWith(items[8]);
+    });
+
     it("should support Ctrl+number shortcuts", () => {
       const items = Array.from({ length: 4 }, (_, i) => mockItem({ id: `ctrl-${i}` }));
       setupItems(items, 0);

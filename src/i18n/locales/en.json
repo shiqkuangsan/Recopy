@@ -48,6 +48,7 @@
     "loading": "Loading settings...",
     "tabs": {
       "general": "General",
+      "shortcuts": "Shortcuts",
       "history": "History",
       "privacy": "Privacy",
       "about": "About"
@@ -59,8 +60,6 @@
       "dark": "Dark",
       "light": "Light",
       "system": "System",
-      "shortcut": "Global Shortcut",
-      "shortcutDesc": "Keyboard shortcut to show/hide Recopy",
       "autoStart": "Start at Login",
       "autoStartDesc": "Automatically start Recopy when you log in",
       "language": "Language",
@@ -82,7 +81,34 @@
       "flatModeTBDesc": "Disable date grouping, show all items in one row",
       "showTrayIcon": "Show Tray Icon",
       "showTrayIconDesc": "Show Recopy icon in the menu bar",
-      "trayIconRequiresShortcut": "Global shortcut must be set before hiding the tray icon"
+      "trayIconRequiresShortcut": "Set a global shortcut in Shortcuts before hiding the tray icon"
+    },
+    "shortcuts": {
+      "title": "Shortcuts",
+      "globalShortcut": "Global Shortcut",
+      "globalShortcutDesc": "System-wide shortcut to show or hide Recopy",
+      "groups": {
+        "panel": "Panel Navigation",
+        "item": "Item Actions",
+        "window": "Window"
+      },
+      "actions": {
+        "switchTabs": "Switch History / Pins",
+        "focusSearch": "Focus search",
+        "prevFilter": "Previous type filter",
+        "nextFilter": "Next type filter",
+        "navigate": "Move selection",
+        "firstItem": "Select first item",
+        "groupStart": "Select first item in current group",
+        "paste": "Paste selected item",
+        "preview": "Open / close preview",
+        "copy": "Copy selected item",
+        "favorite": "Favorite / unfavorite",
+        "delete": "Delete selected item",
+        "quickPaste": "Quick paste first 9 visible items",
+        "escape": "Close preview or hide window",
+        "openSettings": "Open settings"
+      }
     },
     "history": {
       "title": "History",

@@ -140,3 +140,9 @@ GitHub Actions on push to main + PRs:
 - Rust: `cargo test` + `cargo check` per target
 - Build matrix: macOS (aarch64) + Windows (x64)
 - Release: version tags trigger DMG + NSIS bundle creation
+
+## Pull Requests
+
+- Before creating or editing a pull request body, read `.github/PULL_REQUEST_TEMPLATE.md` and follow its structure when the template exists.
+- Do not replace the template with an ad hoc summary/checklist format.
+- When editing an existing PR body, preserve bot-managed sections verbatim, especially CodeRabbit blocks between their start/end HTML comments.
