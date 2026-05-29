@@ -66,6 +66,7 @@ const GroupRow = forwardRef<GroupRowHandle, GroupRowProps>(
   ) => {
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual owns mutable scroll helpers that React Compiler should not memoize.
     const virtualizer = useVirtualizer({
       count: items.length,
       horizontal: true,
@@ -211,6 +212,7 @@ export function ClipboardList() {
   const lastGroupedAutoScrollKeyRef = useRef<string | null>(null);
 
   // Vertical virtualizer for L/R mode
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual owns mutable scroll helpers that React Compiler should not memoize.
   const verticalVirtualizer = useVirtualizer({
     count: isVertical ? items.length : 0,
     getScrollElement: () => verticalParentRef.current,

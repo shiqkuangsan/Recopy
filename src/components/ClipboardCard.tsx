@@ -1,7 +1,7 @@
 import type { ClipboardItem } from "../lib/types";
 import { copyToClipboard } from "../lib/paste";
 import { X } from "lucide-react";
-import { useCopyHud } from "./CopyHud";
+import { useCopyHud } from "../stores/copy-hud-store";
 import { useClipboardStore } from "../stores/clipboard-store";
 import { FavoriteStar } from "./FavoriteStar";
 import { TextCard } from "./TextCard";

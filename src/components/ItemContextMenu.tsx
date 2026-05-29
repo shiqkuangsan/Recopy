@@ -3,7 +3,7 @@ import { Clipboard, ClipboardPaste, ExternalLink, FileText, Star, Trash2 } from 
 import type { ClipboardItem } from "../lib/types";
 import { pasteItem, copyToClipboard, pasteAsPlainText } from "../lib/paste";
 import { useClipboardStore } from "../stores/clipboard-store";
-import { useCopyHud } from "./CopyHud";
+import { useCopyHud } from "../stores/copy-hud-store";
 import { invoke } from "@tauri-apps/api/core";
 import {
   ContextMenu,
