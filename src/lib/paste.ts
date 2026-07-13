@@ -24,6 +24,13 @@ export async function copyToClipboard(item: ClipboardItem): Promise<void> {
 }
 
 /**
+ * Copy exact plain text without pasting or changing window focus.
+ */
+export async function copyTextToClipboard(text: string): Promise<void> {
+  await invoke("copy_text_to_clipboard", { text });
+}
+
+/**
  * Paste item as plain text (strip rich formatting).
  */
 export async function pasteAsPlainText(item: ClipboardItem): Promise<void> {

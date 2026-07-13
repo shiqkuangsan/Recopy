@@ -177,6 +177,23 @@ pub async fn paste_as_plain_text(
     Ok(())
 }
 
+/// Copy exact plain text without pasting or changing window focus.
+#[tauri::command]
+pub async fn copy_text_to_clipboard(text: String) -> Result<(), String> {
+    if text.is_empty() {
+        return Err("Cannot copy empty text".to_string());
+    }
+
+    // Keep internal copy actions from creating a new clipboard-history item.
+    crate::set_skip_next_clipboard_change();
+    if let Err(e) = tauri_plugin_clipboard_x::write_text(text).await {
+        crate::clear_skip_next_clipboard_change();
+        return Err(format!("Failed to write text: {}", e));
+    }
+
+    Ok(())
+}
+
 /// Toggle favorite status of a clipboard item.
 #[tauri::command]
 pub async fn toggle_favorite(db: State<'_, DbPool>, id: String) -> Result<bool, String> {

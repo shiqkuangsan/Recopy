@@ -1,10 +1,18 @@
 import { useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { useClipboardStore } from "../stores/clipboard-store";
 import { useSettingsStore } from "../stores/settings-store";
 import { useCopyHud } from "../stores/copy-hud-store";
-import { pasteItem, copyToClipboard } from "../lib/paste";
+import { pasteItem, copyTextToClipboard, copyToClipboard } from "../lib/paste";
+import {
+  getValidPreviewSelectionText,
+  PREVIEW_SELECTION_CLEAR_EVENT,
+  PREVIEW_SELECTION_CHANGED_EVENT,
+  PREVIEW_SELECTION_READY_EVENT,
+  type PreviewSelectionClearPayload,
+  type PreviewSelectionPayload,
+} from "../lib/preview-selection";
 import { dateGroupLabel } from "../lib/time";
 import { getQuickPasteTargets } from "../lib/quick-paste";
 import { FILTER_TYPES } from "../lib/types";
@@ -27,6 +35,10 @@ export function useKeyboardNav() {
   const isVertical = panelPosition === "left" || panelPosition === "right";
   const shouldGroup = !isVertical && !flatModeTB;
   const previewOpenRef = useRef(false);
+  const previewSelectionRef = useRef<PreviewSelectionPayload | null>(null);
+  const previewSelectionSequenceRef = useRef(0);
+  const previewSelectionAcceptingRef = useRef(false);
+  const previewSelectionGenerationRef = useRef(0);
 
   // Build group info for T/B cross-group navigation (up/down preserves column position).
   // Null when L/R mode or T/B flat mode (no grouping).
@@ -55,21 +67,40 @@ export function useKeyboardNav() {
     [items, selectedIndex, shouldGroup],
   );
 
-  const openPreview = useCallback((id: string) => {
-    previewOpenRef.current = true;
-    previewState.open = true;
-    invoke("show_preview_window", { id });
+  const clearPreviewSelection = useCallback(() => {
+    previewSelectionRef.current = null;
+    previewSelectionSequenceRef.current = 0;
+    previewSelectionAcceptingRef.current = false;
+    previewSelectionGenerationRef.current += 1;
+    void emit(PREVIEW_SELECTION_CLEAR_EVENT, {
+      generation: previewSelectionGenerationRef.current,
+    } satisfies PreviewSelectionClearPayload);
   }, []);
 
+  const openPreview = useCallback(
+    (id: string) => {
+      clearPreviewSelection();
+      previewOpenRef.current = true;
+      previewState.open = true;
+      invoke("show_preview_window", { id });
+    },
+    [clearPreviewSelection],
+  );
+
   const closePreview = useCallback(() => {
+    clearPreviewSelection();
     previewOpenRef.current = false;
     previewState.open = false;
     invoke("animate_close_preview");
-  }, []);
+  }, [clearPreviewSelection]);
 
-  const updatePreview = useCallback((id: string) => {
-    invoke("show_preview_window", { id });
-  }, []);
+  const updatePreview = useCallback(
+    (id: string) => {
+      clearPreviewSelection();
+      invoke("show_preview_window", { id });
+    },
+    [clearPreviewSelection],
+  );
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -304,10 +335,26 @@ export function useKeyboardNav() {
         case "c": {
           if (e.metaKey || e.ctrlKey) {
             e.preventDefault();
-            if (items[selectedIndex]) {
-              copyToClipboard(items[selectedIndex]).then(() => {
-                useCopyHud.getState().show();
-              });
+            const selectedItem = items[selectedIndex];
+            const selectedText = getValidPreviewSelectionText(
+              previewOpenRef.current,
+              selectedItem?.id,
+              previewSelectionRef.current,
+            );
+            const copyOperation =
+              selectedText !== null
+                ? copyTextToClipboard(selectedText)
+                : selectedItem
+                  ? copyToClipboard(selectedItem)
+                  : null;
+            if (copyOperation) {
+              copyOperation
+                .then(() => {
+                  useCopyHud.getState().show();
+                })
+                .catch((error) => {
+                  console.error("Failed to copy preview selection:", error);
+                });
             }
           }
           break;
@@ -357,6 +404,42 @@ export function useKeyboardNav() {
     };
   }, [setModifierHeld]);
 
+  useEffect(() => {
+    const unlistenSelection = listen<PreviewSelectionPayload>(
+      PREVIEW_SELECTION_CHANGED_EVENT,
+      (event) => {
+        if (
+          event.payload.generation !== previewSelectionGenerationRef.current ||
+          event.payload.sequence <= previewSelectionSequenceRef.current
+        ) {
+          return;
+        }
+
+        previewSelectionSequenceRef.current = event.payload.sequence;
+        if (event.payload.text.length === 0) {
+          previewSelectionRef.current = null;
+          previewSelectionAcceptingRef.current = true;
+        } else if (previewSelectionAcceptingRef.current) {
+          previewSelectionRef.current = event.payload;
+        }
+      },
+    );
+    const unlistenReady = listen(PREVIEW_SELECTION_READY_EVENT, () => {
+      previewSelectionRef.current = null;
+      previewSelectionSequenceRef.current = 0;
+      previewSelectionAcceptingRef.current = false;
+      void emit(PREVIEW_SELECTION_CLEAR_EVENT, {
+        generation: previewSelectionGenerationRef.current,
+      } satisfies PreviewSelectionClearPayload);
+    });
+    return () => {
+      unlistenSelection.then((fn) => fn());
+      unlistenReady.then((fn) => fn());
+      previewSelectionRef.current = null;
+      previewSelectionAcceptingRef.current = false;
+    };
+  }, []);
+
   // Auto-update preview when selection or underlying item changes
   const selectedItemId = items[selectedIndex]?.id;
   useEffect(() => {
@@ -370,17 +453,19 @@ export function useKeyboardNav() {
   // Windows focus dance (preview.show + main.set_focus causes a brief blur).
   useEffect(() => {
     const unlisten = listen("recopy-hide", () => {
+      clearPreviewSelection();
       previewOpenRef.current = false;
       previewState.open = false;
       setModifierHeld(false);
     });
     return () => {
       unlisten.then((fn) => fn());
+      clearPreviewSelection();
       previewOpenRef.current = false;
       previewState.open = false;
       setModifierHeld(false);
     };
-  }, [setModifierHeld]);
+  }, [clearPreviewSelection, setModifierHeld]);
 
   // Windows non-activating mode: keyboard hook forwards navigation keys as
   // platform-keydown events. Dispatch them as synthetic KeyboardEvents so the

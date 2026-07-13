@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { pasteItem, copyToClipboard, pasteAsPlainText } from "../paste";
+import { pasteItem, copyTextToClipboard, copyToClipboard, pasteAsPlainText } from "../paste";
 import type { ClipboardItem } from "../types";
 
 const mockedInvoke = vi.mocked(invoke);
@@ -149,6 +149,27 @@ describe("copyToClipboard", () => {
 
     expect(consoleSpy).toHaveBeenCalledWith("Failed to paste item:", expect.any(Error));
     consoleSpy.mockRestore();
+  });
+});
+
+describe("copyTextToClipboard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should invoke copy_text_to_clipboard with the exact text", async () => {
+    const text = "  first line\nsecond line  ";
+
+    await copyTextToClipboard(text);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("copy_text_to_clipboard", { text });
+  });
+
+  it("should reject when the exact-text clipboard write fails", async () => {
+    const error = new Error("copy failed");
+    mockedInvoke.mockRejectedValueOnce(error);
+
+    await expect(copyTextToClipboard("selected")).rejects.toBe(error);
   });
 });
 
