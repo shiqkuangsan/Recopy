@@ -70,13 +70,23 @@ After confirmation, run:
 ./scripts/bump-version.sh <version>
 ```
 
-This should update:
+The script directly updates:
 
 - `package.json`
 - `src-tauri/tauri.conf.json`
 - `src-tauri/Cargo.toml`
 
-Verify with `git diff -- package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml`.
+The first Cargo verification command refreshes the root `recopy` package version
+in `src-tauri/Cargo.lock`. The effective release-version contract therefore
+contains four files. After the Cargo checks, verify with:
+
+```bash
+git diff -- \
+  package.json \
+  src-tauri/tauri.conf.json \
+  src-tauri/Cargo.toml \
+  src-tauri/Cargo.lock
+```
 
 ### 3. Pre-Checks
 
@@ -86,9 +96,12 @@ Run:
 npx tsc --noEmit
 npx vitest run
 cargo test
+cargo test --locked
 ```
 
-Run `cargo test` from `src-tauri/`.
+Run both Cargo commands from `src-tauri/`. The unlocked run refreshes
+`Cargo.lock` after the version bump; the locked run proves the committed graph
+is now self-consistent.
 
 ### 4. Local Build
 
@@ -107,7 +120,7 @@ After checks pass, show the exact files that will be staged. If the user explici
 On confirmation:
 
 ```bash
-git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
 git commit -m "chore: bump version to X.Y.Z"
 git push
 ```
@@ -305,8 +318,41 @@ The script:
 Completion checks:
 
 ```bash
+TAG="vX.Y.Z"
+VERSION="${TAG#v}"
+WORK_DIR=$(mktemp -d /tmp/recopy-release-check.XXXXXX)
+
+gh release download "$TAG" -R shiqkuangsan/Recopy \
+  -p latest.json -D "$WORK_DIR/github"
+jq -e --arg version "$VERSION" \
+  --arg prefix "https://github.com/shiqkuangsan/Recopy/releases/download/${TAG}/" \
+  '.version == $version and (.platforms | length == 6)
+   and ([.platforms[].url | startswith($prefix)] | all)
+   and ([.platforms[].signature | (type == "string" and length > 0)] | all)
+   and (.notes | type == "string" and length > 0)' \
+  "$WORK_DIR/github/latest.json"
+
 curl -fsSL https://gitee.com/api/v5/repos/shiqkuangsan/Recopy/releases/tags/vX.Y.Z \
   | jq -r '[.tag_name, (.assets|length)] | @tsv'
 curl -fsSL https://gitee.com/shiqkuangsan/Recopy/releases/download/vX.Y.Z/latest.json \
-  | jq -r '[.version, (.platforms["darwin-aarch64"].url | startswith("https://gitee.com/"))] | @tsv'
+  | jq -e --arg version "$VERSION" \
+      --arg prefix "https://gitee.com/shiqkuangsan/Recopy/releases/download/${TAG}/" \
+      '.version == $version and (.platforms | length == 6)
+       and ([.platforms[].url | startswith($prefix)] | all)
+       and ([.platforms[].signature | (type == "string" and length > 0)] | all)
+       and (.notes | type == "string" and length > 0)'
+
+gh api 'repos/shiqkuangsan/Recopy/contents/latest.json?ref=updater' --jq '.content' \
+  | tr -d '\n' \
+  | openssl base64 -d -A \
+  | jq -e --arg version "$VERSION" \
+      --arg prefix "https://gitee.com/shiqkuangsan/Recopy/releases/download/${TAG}/" \
+      '.version == $version and (.platforms | length == 6)
+       and ([.platforms[].url | startswith($prefix)] | all)
+       and ([.platforms[].signature | (type == "string" and length > 0)] | all)
+       and (.notes | type == "string" and length > 0)'
 ```
+
+Use the GitHub Contents API result as the canonical `updater` branch check.
+`raw.githubusercontent.com` can briefly return stale cached content immediately
+after the branch is updated.

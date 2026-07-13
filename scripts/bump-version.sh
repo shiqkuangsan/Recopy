@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Bump version across all config files and create a git tag.
+# Bump the version across Recopy's manifest files.
+# Cargo.lock is refreshed by the Cargo verification step after this script.
 # Usage: ./scripts/bump-version.sh <version>
 # Example: ./scripts/bump-version.sh 0.2.0
 
@@ -40,10 +41,12 @@ mv "$ROOT/src-tauri/Cargo.toml.tmp" "$ROOT/src-tauri/Cargo.toml"
 echo "  ✓ src-tauri/Cargo.toml"
 
 echo ""
-echo "Done! Version updated to $VERSION in all files."
+echo "Done! Version updated to $VERSION in manifest files."
 echo ""
 echo "Next steps:"
-echo "  git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml"
+echo "  (cd src-tauri && cargo test)  # refresh and verify Cargo.lock"
+echo "  git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock"
 echo "  git commit -m \"chore: bump version to $VERSION\""
+echo "  git push origin main"
 echo "  git tag v$VERSION"
-echo "  git push origin main --tags"
+echo "  git push origin v$VERSION"

@@ -1,4 +1,76 @@
 #!/usr/bin/env bash
+
+refresh_gitee_attachments() {
+  curl -fsSL --retry 3 --retry-all-errors --retry-delay 2 \
+    --connect-timeout 30 --max-time 120 \
+    "${GITEE_API}/releases/${release_id}/attach_files?access_token=${GITEE_TOKEN}&per_page=100" \
+    > "$gitee_attachments_json"
+}
+
+gitee_asset_exists() {
+  local asset_name="$1"
+  jq -e --arg name "$asset_name" 'any(.[]; .name == $name)' \
+    "$gitee_attachments_json" >/dev/null
+}
+
+replace_gitee_latest() {
+  local latest_ids_file="$WORK_DIR/gitee-latest-ids.txt"
+  local latest_id
+
+  jq -r '.[] | select(.name == "latest.json") | .id' \
+    "$gitee_attachments_json" > "$latest_ids_file"
+  while IFS= read -r latest_id; do
+    [[ -n "$latest_id" ]] || continue
+    curl -fsS -X DELETE \
+      --connect-timeout 30 --max-time 120 \
+      "${GITEE_API}/releases/${release_id}/attach_files/${latest_id}?access_token=${GITEE_TOKEN}"
+    echo "deleted existing asset latest.json (${latest_id}) for replacement"
+  done < "$latest_ids_file"
+  refresh_gitee_attachments
+  if gitee_asset_exists "latest.json"; then
+    echo "failed to remove all existing latest.json assets" >&2
+    return 1
+  fi
+}
+
+upload_gitee_asset() {
+  local asset_name="$1"
+  local check upload_status
+
+  if curl -fsS -X POST \
+    --connect-timeout 30 --max-time 600 \
+    "${GITEE_API}/releases/${release_id}/attach_files" \
+    -F "access_token=${GITEE_TOKEN}" \
+    -F "file=@${WORK_DIR}/${asset_name}" \
+    > "$WORK_DIR/upload-${asset_name}.json"; then
+    echo "uploaded asset ${asset_name}"
+    return 0
+  else
+    upload_status=$?
+  fi
+
+  for check in 1 2 3; do
+    if ! refresh_gitee_attachments; then
+      echo "could not verify asset ${asset_name} after upload response failure; refusing to retry POST" >&2
+      return "$upload_status"
+    fi
+    if gitee_asset_exists "$asset_name"; then
+      echo "asset ${asset_name} exists after upload response failure"
+      return 0
+    fi
+    if [[ "$check" != "3" ]]; then
+      sleep $((check * 2))
+    fi
+  done
+
+  echo "asset ${asset_name} is absent after upload failure; rerun the idempotent sync instead of retrying POST" >&2
+  return "$upload_status"
+}
+
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  return 0
+fi
+
 set -euo pipefail
 
 TAG="${1:-${TAG:-}}"
@@ -26,6 +98,7 @@ done
 
 WORK_DIR="$(mktemp -d /tmp/recopy-gitee-release.XXXXXX)"
 trap 'rm -r "$WORK_DIR"' EXIT
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 GITHUB_API="https://api.github.com/repos/${REPO}"
 GITEE_API="https://gitee.com/api/v5/repos/${GITEE_REPO}"
@@ -78,45 +151,7 @@ jq \
   --arg gitee_download_prefix "$GITEE_RELEASE_DOWNLOAD_PREFIX" \
   --arg version "$VERSION" \
   --argjson expected_platform_assets "$EXPECTED_PLATFORM_ASSETS" \
-  '
-    ($release[0].assets
-      | map({ key: (.id | tostring), value: .name })
-      | from_entries) as $asset_names
-    | ($release[0].assets | map(.name)) as $release_asset_names
-    | if .version != $version then
-        error("updater version \(.version) does not match tag version \($version)")
-      elif (.platforms | keys) != ($expected_platform_assets | keys) then
-        error("updater platform keys do not match the required Recopy platforms")
-      elif (([.platforms[].signature | (type == "string" and length > 0)] | all) == false) then
-        error("updater signatures must be nonempty strings")
-      else
-        .
-      end
-    | .platforms |= with_entries(
-        .key as $platform
-        | .value.url as $source_url
-        | (if ($source_url | startswith($github_asset_api_prefix)) then
-            ($source_url | split("/")[-1]) as $asset_id
-            | ($asset_names[$asset_id]
-                // error("unknown GitHub release asset id: \($asset_id)")) as $asset_name
-            | $asset_name
-          elif ($source_url | startswith($github_download_prefix)) then
-            $source_url | ltrimstr($github_download_prefix)
-          elif ($source_url | startswith($gitee_download_prefix)) then
-            $source_url | ltrimstr($gitee_download_prefix)
-          else
-            error("unsupported updater asset URL: \($source_url)")
-          end) as $asset_name
-        | if $asset_name != $expected_platform_assets[$platform] then
-            error("unexpected asset for \($platform): \($asset_name)")
-          elif ($release_asset_names | index($asset_name)) == null then
-            error("updater asset is missing from the GitHub release: \($asset_name)")
-          else
-            .value.url = ($gitee_download_prefix + $asset_name)
-          end
-      )
-    | .notes = $notes
-  ' \
+  -f "$SCRIPT_DIR/lib/normalize-updater.jq" \
   "$WORK_DIR/latest.json" > "$WORK_DIR/latest.updated.json"
 mv "$WORK_DIR/latest.updated.json" "$WORK_DIR/latest.json"
 
@@ -142,74 +177,13 @@ else
 fi
 
 gitee_attachments_json="$WORK_DIR/gitee-attachments.json"
-refresh_gitee_attachments() {
-  curl -fsSL --retry 3 --retry-all-errors --retry-delay 2 \
-    --connect-timeout 30 --max-time 120 \
-    "${GITEE_API}/releases/${release_id}/attach_files?access_token=${GITEE_TOKEN}&per_page=100" \
-    > "$gitee_attachments_json"
-}
-
-gitee_asset_exists() {
-  local asset_name="$1"
-  jq -e --arg name "$asset_name" 'any(.[]; .name == $name)' \
-    "$gitee_attachments_json" >/dev/null
-}
-
 refresh_gitee_attachments
 
 if [[ "$REPLACE_GITEE_LATEST" == "true" ]]; then
-  latest_ids_file="$WORK_DIR/gitee-latest-ids.txt"
-  jq -r '.[] | select(.name == "latest.json") | .id' \
-    "$gitee_attachments_json" > "$latest_ids_file"
-  while IFS= read -r latest_id; do
-    [[ -n "$latest_id" ]] || continue
-    curl -fsS -X DELETE \
-      --connect-timeout 30 --max-time 120 \
-      "${GITEE_API}/releases/${release_id}/attach_files/${latest_id}?access_token=${GITEE_TOKEN}"
-    echo "deleted existing asset latest.json (${latest_id}) for replacement"
-  done < "$latest_ids_file"
-  refresh_gitee_attachments
-  if gitee_asset_exists "latest.json"; then
-    echo "failed to remove all existing latest.json assets" >&2
-    exit 1
-  fi
+  replace_gitee_latest
 fi
 
 jq -r '.[].name' "$gitee_attachments_json" | sort > "$WORK_DIR/existing-assets.txt"
-
-upload_gitee_asset() {
-  local asset_name="$1"
-  local check upload_status
-
-  if curl -fsS -X POST \
-    --connect-timeout 30 --max-time 600 \
-    "${GITEE_API}/releases/${release_id}/attach_files" \
-    -F "access_token=${GITEE_TOKEN}" \
-    -F "file=@${WORK_DIR}/${asset_name}" \
-    > "$WORK_DIR/upload-${asset_name}.json"; then
-    echo "uploaded asset ${asset_name}"
-    return 0
-  else
-    upload_status=$?
-  fi
-
-  for check in 1 2 3; do
-    if ! refresh_gitee_attachments; then
-      echo "could not verify asset ${asset_name} after upload response failure; refusing to retry POST" >&2
-      return "$upload_status"
-    fi
-    if gitee_asset_exists "$asset_name"; then
-      echo "asset ${asset_name} exists after upload response failure"
-      return 0
-    fi
-    if [[ "$check" != "3" ]]; then
-      sleep $((check * 2))
-    fi
-  done
-
-  echo "asset ${asset_name} is absent after upload failure; rerun the idempotent sync instead of retrying POST" >&2
-  return "$upload_status"
-}
 
 while IFS=$'\t' read -r _ asset_name; do
   if grep -Fxq "$asset_name" "$WORK_DIR/existing-assets.txt"; then

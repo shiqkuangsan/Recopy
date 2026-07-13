@@ -1,0 +1,41 @@
+name: Release Tooling
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".agents/skills/recopy-release/SKILL.md"
+      - "scripts/bump-version.sh"
+      - "scripts/sync-gitee-release.sh"
+      - "scripts/lib/normalize-updater.jq"
+      - "scripts/tests/release-tooling.sh"
+      - ".github/workflows/release-tooling.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".agents/skills/recopy-release/SKILL.md"
+      - "scripts/bump-version.sh"
+      - "scripts/sync-gitee-release.sh"
+      - "scripts/lib/normalize-updater.jq"
+      - "scripts/tests/release-tooling.sh"
+      - ".github/workflows/release-tooling.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-release-tooling:
+    name: Release tooling (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run release-tooling regression tests
+        run: bash scripts/tests/release-tooling.sh
