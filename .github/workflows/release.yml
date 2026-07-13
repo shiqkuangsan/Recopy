@@ -140,7 +140,7 @@ jobs:
             Release notes are finalized after CI finishes and before publication.
           releaseDraft: true
           prerelease: false
-          includeUpdaterJson: true
+          uploadUpdaterJson: true
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
 
       - name: Build Tauri app (test)
@@ -152,7 +152,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && 'RecopyCodeSign' || '' }}
         with:
-          includeUpdaterJson: true
+          uploadUpdaterJson: true
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
 
       - name: Upload build artifacts
