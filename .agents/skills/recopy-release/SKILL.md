@@ -209,18 +209,60 @@ Replace the GitHub `latest.json` asset after release notes are updated:
 
 ```bash
 TAG="vX.Y.Z"
+VERSION="${TAG#v}"
 WORK_DIR=$(mktemp -d /tmp/recopy-updater-notes.XXXXXX)
+GITHUB_DOWNLOAD_PREFIX="https://github.com/shiqkuangsan/Recopy/releases/download/${TAG}"
 
 gh release view "$TAG" -R shiqkuangsan/Recopy --json body -q '.body' > "$WORK_DIR/release-notes.md"
 gh release download "$TAG" -R shiqkuangsan/Recopy -p latest.json -D "$WORK_DIR"
+gh release view "$TAG" -R shiqkuangsan/Recopy --json assets -q '.assets[].name' > "$WORK_DIR/assets.txt"
 
-jq --rawfile notes "$WORK_DIR/release-notes.md" \
-  '.notes = $notes' \
+for asset in \
+  "Recopy_${VERSION}_aarch64.app.tar.gz" \
+  "Recopy_${VERSION}_x64.app.tar.gz" \
+  "Recopy_${VERSION}_x64-setup.exe"; do
+  grep -Fxq "$asset" "$WORK_DIR/assets.txt" || {
+    echo "Missing updater asset: $asset" >&2
+    exit 1
+  }
+done
+
+jq \
+  --rawfile notes "$WORK_DIR/release-notes.md" \
+  --arg prefix "$GITHUB_DOWNLOAD_PREFIX" \
+  --arg version "$VERSION" \
+  '
+    .notes = $notes
+    | .platforms["darwin-aarch64"].url = ($prefix + "/Recopy_" + $version + "_aarch64.app.tar.gz")
+    | .platforms["darwin-aarch64-app"].url = ($prefix + "/Recopy_" + $version + "_aarch64.app.tar.gz")
+    | .platforms["darwin-x86_64"].url = ($prefix + "/Recopy_" + $version + "_x64.app.tar.gz")
+    | .platforms["darwin-x86_64-app"].url = ($prefix + "/Recopy_" + $version + "_x64.app.tar.gz")
+    | .platforms["windows-x86_64"].url = ($prefix + "/Recopy_" + $version + "_x64-setup.exe")
+    | .platforms["windows-x86_64-nsis"].url = ($prefix + "/Recopy_" + $version + "_x64-setup.exe")
+  ' \
   "$WORK_DIR/latest.json" > "$WORK_DIR/latest.updated.json"
 mv "$WORK_DIR/latest.updated.json" "$WORK_DIR/latest.json"
 
+jq -e \
+  --arg version "$VERSION" \
+  --arg prefix "${GITHUB_DOWNLOAD_PREFIX}/" \
+  '
+    .version == $version
+    and (.platforms | length == 6)
+    and ([.platforms[].url | startswith($prefix)] | all)
+    and ([.platforms[].signature | length > 0] | all)
+  ' "$WORK_DIR/latest.json" >/dev/null || {
+    echo "Invalid updater metadata for ${TAG}" >&2
+    exit 1
+  }
+
 gh release upload "$TAG" -R shiqkuangsan/Recopy "$WORK_DIR/latest.json" --clobber
 ```
+
+Before publication, verify every updater URL uses the direct
+`https://github.com/.../releases/download/$TAG/...` form. GitHub API asset URLs
+such as `https://api.github.com/repos/.../releases/assets/...` are metadata
+endpoints and must not be published as updater download URLs.
 
 Publish the GitHub release only after `latest.json` contains the final release notes.
 
@@ -247,6 +289,10 @@ Fallback path if Actions is unavailable or must be run locally:
 ```bash
 GITHUB_TOKEN=<token> GITEE_TOKEN=<token> scripts/sync-gitee-release.sh vX.Y.Z
 ```
+
+If a failed sync already uploaded an incorrect `latest.json`, rerun the fallback
+with `REPLACE_GITEE_LATEST=true`. This explicitly deletes and replaces only that
+metadata asset; all other existing assets remain idempotently skipped.
 
 The script:
 
