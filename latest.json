@@ -5,27 +5,27 @@
   "platforms": {
     "darwin-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SFhSV1lXTVQ4dzIxT2kySHZnaVl1bXJ2SFVkdE5JSnpTUXpHVWhWbE8zaGhxQ2pWbHV2cmNrSlNrVm02ZjU2bVNTemRTSmlLdkhaQ2xaTUFmcHJHQkFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTU2NDY1CWZpbGU6UmVjb3B5LmFwcC50YXIuZ3oKcXlKMnNxTXJVdXpZR09TWlBUOGJSOURPZXJXQjV2UE92U1I2TTV4MnQxL21ZcEZXbVd0NllKalRuL1JveHpBdWZYdmc0aEN2bVBtVHBGcXAxZkhHQWc9PQo=",
-      "url": "https://api.github.com/repos/shiqkuangsan/Recopy/releases/assets/475615689"
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.8.0/Recopy_1.8.0_x64.app.tar.gz"
     },
     "darwin-x86_64-app": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SFhSV1lXTVQ4dzIxT2kySHZnaVl1bXJ2SFVkdE5JSnpTUXpHVWhWbE8zaGhxQ2pWbHV2cmNrSlNrVm02ZjU2bVNTemRTSmlLdkhaQ2xaTUFmcHJHQkFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTU2NDY1CWZpbGU6UmVjb3B5LmFwcC50YXIuZ3oKcXlKMnNxTXJVdXpZR09TWlBUOGJSOURPZXJXQjV2UE92U1I2TTV4MnQxL21ZcEZXbVd0NllKalRuL1JveHpBdWZYdmc0aEN2bVBtVHBGcXAxZkhHQWc9PQo=",
-      "url": "https://api.github.com/repos/shiqkuangsan/Recopy/releases/assets/475615689"
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.8.0/Recopy_1.8.0_x64.app.tar.gz"
     },
     "darwin-aarch64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SFZyL0JhRUJvS0FEWUtDNFpVanVPeWJpclQ0cCtHRUcvS2FVZGlTSGljeTk3ZUZPTFhxM2h5b2Y3UWRlZWM3YXk2dFFEUE1ldWFGUThoVEhkcldhUmdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTU2NDg1CWZpbGU6UmVjb3B5LmFwcC50YXIuZ3oKMk1SRHI5cWl6MjhxYzYyRTZhR3d5NGozNkpydzUxUS85M1IyQnIrWjBSUU5WampJb2s5WEg1a0lubHI4MmRhUXo2MXY1R3V5WVlTOWNma2xraGhzQ3c9PQo=",
-      "url": "https://api.github.com/repos/shiqkuangsan/Recopy/releases/assets/475615958"
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.8.0/Recopy_1.8.0_aarch64.app.tar.gz"
     },
     "darwin-aarch64-app": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SFZyL0JhRUJvS0FEWUtDNFpVanVPeWJpclQ0cCtHRUcvS2FVZGlTSGljeTk3ZUZPTFhxM2h5b2Y3UWRlZWM3YXk2dFFEUE1ldWFGUThoVEhkcldhUmdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTU2NDg1CWZpbGU6UmVjb3B5LmFwcC50YXIuZ3oKMk1SRHI5cWl6MjhxYzYyRTZhR3d5NGozNkpydzUxUS85M1IyQnIrWjBSUU5WampJb2s5WEg1a0lubHI4MmRhUXo2MXY1R3V5WVlTOWNma2xraGhzQ3c9PQo=",
-      "url": "https://api.github.com/repos/shiqkuangsan/Recopy/releases/assets/475615958"
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.8.0/Recopy_1.8.0_aarch64.app.tar.gz"
     },
     "windows-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SFVBWVN0UGhRdVJReXY5bUpLOTdsWC9QNE4ybklKdG9ROEh6NTJ0WmhFU1JLbFZmbEkrekhpcmdxbmZ0QUV1UFVMOUcwK2ZTYUo1VVdiSjN6NzROZkFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTU2NTY0CWZpbGU6UmVjb3B5XzEuOC4wX3g2NC1zZXR1cC5leGUKZG9wZkZMaVdvV1E1dTg5bzNhZitBK2w0aVNLMzlwNUp6KzNTcjcyOEhtUlVHa04wSmN6emhhVzZDanBhMUl6YzJhTm91MHVjNE50OGZCcU5tQVhnREE9PQo=",
-      "url": "https://api.github.com/repos/shiqkuangsan/Recopy/releases/assets/475617193"
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.8.0/Recopy_1.8.0_x64-setup.exe"
     },
     "windows-x86_64-nsis": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTVFkwWFhSdVh5SFVBWVN0UGhRdVJReXY5bUpLOTdsWC9QNE4ybklKdG9ROEh6NTJ0WmhFU1JLbFZmbEkrekhpcmdxbmZ0QUV1UFVMOUcwK2ZTYUo1VVdiSjN6NzROZkFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzOTU2NTY0CWZpbGU6UmVjb3B5XzEuOC4wX3g2NC1zZXR1cC5leGUKZG9wZkZMaVdvV1E1dTg5bzNhZitBK2w0aVNLMzlwNUp6KzNTcjcyOEhtUlVHa04wSmN6emhhVzZDanBhMUl6YzJhTm91MHVjNE50OGZCcU5tQVhnREE9PQo=",
-      "url": "https://api.github.com/repos/shiqkuangsan/Recopy/releases/assets/475617193"
+      "url": "https://gitee.com/shiqkuangsan/Recopy/releases/download/v1.8.0/Recopy_1.8.0_x64-setup.exe"
     }
   }
 }
