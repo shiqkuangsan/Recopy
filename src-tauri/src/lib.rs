@@ -5,10 +5,17 @@ mod platform;
 
 use commands::clipboard as clip_cmd;
 use db::models::ContentType;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    collections::VecDeque,
+    sync::{LazyLock, Mutex},
+    time::{Duration, Instant},
+};
 
-/// Flag to skip the next clipboard change event (set before self-initiated writes).
-static SKIP_NEXT_CLIPBOARD_CHANGE: AtomicBool = AtomicBool::new(false);
+/// Self-initiated writes waiting for their matching clipboard change event.
+/// Expiry prevents a dropped/coalesced plugin event from suppressing a later user copy.
+static PENDING_INTERNAL_CLIPBOARD_WRITES: LazyLock<PendingClipboardWrites> =
+    LazyLock::new(PendingClipboardWrites::default);
+const INTERNAL_CLIPBOARD_WRITE_TTL: Duration = Duration::from_secs(2);
 const AUTOSTART_HIDDEN_ARG: &str = "--hidden";
 
 fn should_show_main_window_for_second_instance(args: &[String]) -> bool {
@@ -18,14 +25,46 @@ fn should_show_main_window_for_second_instance(args: &[String]) -> bool {
         .any(|arg| arg == AUTOSTART_HIDDEN_ARG || arg == "--minimized")
 }
 
-/// Set the skip flag before writing to clipboard (called from commands).
-pub fn set_skip_next_clipboard_change() {
-    SKIP_NEXT_CLIPBOARD_CHANGE.store(true, Ordering::SeqCst);
+#[derive(Default)]
+struct PendingClipboardWrites {
+    deadlines: Mutex<VecDeque<Instant>>,
 }
 
-/// Clear the skip flag (called when clipboard write fails).
+impl PendingClipboardWrites {
+    fn register(&self, now: Instant) {
+        self.deadlines
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .push_back(now + INTERNAL_CLIPBOARD_WRITE_TTL);
+    }
+
+    fn cancel_one(&self) {
+        self.deadlines
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .pop_back();
+    }
+
+    fn consume(&self, now: Instant) -> bool {
+        let mut deadlines = self
+            .deadlines
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        while deadlines.front().is_some_and(|deadline| *deadline <= now) {
+            deadlines.pop_front();
+        }
+        deadlines.pop_front().is_some()
+    }
+}
+
+/// Register one expected clipboard change before a self-initiated write.
+pub fn set_skip_next_clipboard_change() {
+    PENDING_INTERNAL_CLIPBOARD_WRITES.register(Instant::now());
+}
+
+/// Remove one expected clipboard change when a self-initiated write fails.
 pub fn clear_skip_next_clipboard_change() {
-    SKIP_NEXT_CLIPBOARD_CHANGE.store(false, Ordering::SeqCst);
+    PENDING_INTERNAL_CLIPBOARD_WRITES.cancel_one();
 }
 
 fn cached_setting(app: &tauri::AppHandle, key: &str, default: &str) -> String {
@@ -85,6 +124,7 @@ pub fn run() {
             clip_cmd::delete_clipboard_item,
             clip_cmd::paste_clipboard_item,
             clip_cmd::paste_as_plain_text,
+            clip_cmd::copy_text_to_clipboard,
             clip_cmd::toggle_favorite,
             clip_cmd::get_favorited_items,
             clip_cmd::get_settings,
@@ -870,7 +910,15 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
                         // Debounce: on Windows 11, resize and other interactions
                         // cause transient blur. Wait briefly and recheck focus.
                         tokio::time::sleep(std::time::Duration::from_millis(150)).await;
-                        if win.is_focused().unwrap_or(false) {
+                        let main_focused = win.is_focused().unwrap_or(false);
+                        let preview_focused = app_handle
+                            .get_webview_window("preview")
+                            .and_then(|preview| preview.is_focused().ok())
+                            .unwrap_or(false);
+                        if !platform::should_hide_after_recopy_focus_check(
+                            main_focused,
+                            preview_focused,
+                        ) {
                             return;
                         }
                         if cached_setting_bool(&app_handle, "close_on_blur", true) {
@@ -887,6 +935,7 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
         // Guard check prevents firing during the show+set_focus dance.
         if let Some(preview) = app.get_webview_window("preview") {
             let app_handle = app.clone();
+            let preview_window = preview.clone();
             preview.on_window_event(move |event| {
                 if let tauri::WindowEvent::Focused(false) = event {
                     if platform::is_preview_focus_guard() {
@@ -896,7 +945,20 @@ fn setup_blur_hide(app: &tauri::AppHandle) {
                         return;
                     }
                     let app_inner = app_handle.clone();
+                    let preview_inner = preview_window.clone();
                     tauri::async_runtime::spawn(async move {
+                        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+                        let main_focused = app_inner
+                            .get_webview_window("main")
+                            .and_then(|main| main.is_focused().ok())
+                            .unwrap_or(false);
+                        let preview_focused = preview_inner.is_focused().unwrap_or(false);
+                        if !platform::should_hide_after_recopy_focus_check(
+                            main_focused,
+                            preview_focused,
+                        ) {
+                            return;
+                        }
                         if cached_setting_bool(&app_inner, "close_on_blur", true) {
                             hide_main_window(&app_inner);
                         }
@@ -954,7 +1016,7 @@ fn start_clipboard_monitor(app: tauri::AppHandle) {
 
 async fn handle_clipboard_event(app: &tauri::AppHandle) {
     // Skip self-initiated clipboard writes to avoid redundant processing
-    if SKIP_NEXT_CLIPBOARD_CHANGE.swap(false, Ordering::SeqCst) {
+    if PENDING_INTERNAL_CLIPBOARD_WRITES.consume(Instant::now()) {
         log::info!("Skipping self-initiated clipboard change");
         return;
     }
@@ -1143,6 +1205,42 @@ mod tests {
         assert!(should_show_main_window_for_second_instance(&args(&[
             "/Applications/Recopy.app/Contents/MacOS/recopy",
         ])));
+    }
+
+    #[test]
+    fn pending_internal_clipboard_writes_are_consumed_individually() {
+        let now = std::time::Instant::now();
+        let pending = PendingClipboardWrites::default();
+
+        pending.register(now);
+        pending.register(now);
+
+        assert!(pending.consume(now));
+        assert!(pending.consume(now));
+        assert!(!pending.consume(now));
+    }
+
+    #[test]
+    fn failed_internal_clipboard_write_removes_only_one_pending_slot() {
+        let now = std::time::Instant::now();
+        let pending = PendingClipboardWrites::default();
+
+        pending.register(now);
+        pending.register(now);
+        pending.cancel_one();
+
+        assert!(pending.consume(now));
+        assert!(!pending.consume(now));
+    }
+
+    #[test]
+    fn expired_internal_clipboard_write_does_not_suppress_future_event() {
+        let now = std::time::Instant::now();
+        let pending = PendingClipboardWrites::default();
+
+        pending.register(now);
+
+        assert!(!pending.consume(now + INTERNAL_CLIPBOARD_WRITE_TTL));
     }
 
     #[test]

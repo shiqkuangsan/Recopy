@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import type { ClipboardItem } from "../../lib/types";
 
 // Must mock matchMedia before importing stores (module-level code uses it)
@@ -22,6 +22,7 @@ Object.defineProperty(window, "matchMedia", {
 vi.mock("../../lib/paste", () => ({
   pasteItem: vi.fn(),
   copyToClipboard: vi.fn(() => Promise.resolve()),
+  copyTextToClipboard: vi.fn(() => Promise.resolve()),
 }));
 
 // Import stores AFTER matchMedia is mocked
@@ -29,11 +30,18 @@ const { useClipboardStore } = await import("../../stores/clipboard-store");
 const { useSettingsStore } = await import("../../stores/settings-store");
 const { useCopyHud } = await import("../../stores/copy-hud-store");
 const { useKeyboardNav, previewState } = await import("../useKeyboardNav");
-const { pasteItem, copyToClipboard } = await import("../../lib/paste");
+const { pasteItem, copyTextToClipboard, copyToClipboard } = await import("../../lib/paste");
+const {
+  PREVIEW_SELECTION_CHANGED_EVENT,
+  PREVIEW_SELECTION_CLEAR_EVENT,
+  PREVIEW_SELECTION_READY_EVENT,
+} = await import("../../lib/preview-selection");
 
 const mockedInvoke = vi.mocked(invoke);
+const mockedEmit = vi.mocked(emit);
 const mockedListen = vi.mocked(listen);
 const mockedPasteItem = vi.mocked(pasteItem);
+const mockedCopyTextToClipboard = vi.mocked(copyTextToClipboard);
 const mockedCopyToClipboard = vi.mocked(copyToClipboard);
 const tauriEventHandlers = new Map<string, (event: { payload: unknown }) => void>();
 
@@ -85,6 +93,10 @@ function setupSettings(overrides: Partial<{ panel_position: string; flat_mode_tb
 
 function emitTauriEvent<T>(eventName: string, payload: T) {
   tauriEventHandlers.get(eventName)?.({ payload });
+}
+
+function acknowledgePreviewSelection(itemId: string, sequence = 1, generation = 1) {
+  emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, { itemId, text: "", sequence, generation });
 }
 
 describe("useKeyboardNav", () => {
@@ -977,6 +989,246 @@ describe("useKeyboardNav", () => {
   });
 
   describe("Cmd+C / Ctrl+C — copy to clipboard", () => {
+    it("responds to preview readiness with the current main-owned generation", () => {
+      const items = [mockItem()];
+      setupItems(items, 0);
+      hookResult.rerender();
+      fireKey(" ");
+      mockedEmit.mockClear();
+
+      emitTauriEvent(PREVIEW_SELECTION_READY_EVENT, undefined);
+
+      expect(mockedEmit).toHaveBeenCalledWith(PREVIEW_SELECTION_CLEAR_EVENT, {
+        generation: 1,
+      });
+    });
+
+    it("should reject a higher-sequence selection from the previous preview lifecycle", async () => {
+      const items = [mockItem()];
+      setupItems(items, 0);
+      hookResult.rerender();
+      fireKey(" ");
+      acknowledgePreviewSelection(items[0].id);
+      emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, {
+        itemId: items[0].id,
+        text: "selected before close",
+        sequence: 10,
+        generation: 1,
+      });
+
+      fireKey(" ");
+      fireKey(" ");
+      emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, {
+        itemId: items[0].id,
+        text: "",
+        sequence: 11,
+        generation: 1,
+      });
+      emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, {
+        itemId: items[0].id,
+        text: "late stale selection",
+        sequence: 12,
+        generation: 1,
+      });
+      fireKey("c", { metaKey: true });
+
+      await vi.waitFor(() => {
+        expect(mockedCopyToClipboard).toHaveBeenCalledWith(items[0]);
+        expect(mockedCopyTextToClipboard).not.toHaveBeenCalled();
+      });
+    });
+
+    it("should ignore a late preview selection event with an older sequence", async () => {
+      const items = [mockItem()];
+      setupItems(items, 0);
+      hookResult.rerender();
+      fireKey(" ");
+      acknowledgePreviewSelection(items[0].id);
+      emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, {
+        itemId: items[0].id,
+        text: "new selection",
+        sequence: 20,
+        generation: 1,
+      });
+      emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, {
+        itemId: items[0].id,
+        text: "late old selection",
+        sequence: 19,
+        generation: 1,
+      });
+
+      fireKey("c", { metaKey: true });
+
+      await vi.waitFor(() => {
+        expect(mockedCopyTextToClipboard).toHaveBeenCalledWith("new selection");
+      });
+    });
+
+    it("should request DOM selection clearing when the preview closes", () => {
+      const items = [mockItem()];
+      setupItems(items, 0);
+      hookResult.rerender();
+      fireKey(" ");
+      mockedEmit.mockClear();
+
+      fireKey(" ");
+
+      expect(mockedEmit).toHaveBeenCalledWith(
+        PREVIEW_SELECTION_CLEAR_EVENT,
+        expect.objectContaining({ generation: expect.any(Number) }),
+      );
+    });
+
+    it("should copy the exact active preview selection on Cmd+C", async () => {
+      const showSpy = vi.fn();
+      useCopyHud.setState({ show: showSpy });
+      const items = [mockItem()];
+      setupItems(items, 0);
+      hookResult.rerender();
+      fireKey(" ");
+      acknowledgePreviewSelection(items[0].id);
+      emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, {
+        itemId: items[0].id,
+        text: "  selected\ntext  ",
+        sequence: 2,
+        generation: 1,
+      });
+
+      fireKey("c", { metaKey: true });
+
+      await vi.waitFor(() => {
+        expect(mockedCopyTextToClipboard).toHaveBeenCalledWith("  selected\ntext  ");
+        expect(mockedCopyToClipboard).not.toHaveBeenCalled();
+        expect(showSpy).toHaveBeenCalled();
+      });
+    });
+
+    it("should copy the exact active preview selection on Ctrl+C", async () => {
+      const items = [mockItem()];
+      setupItems(items, 0);
+      hookResult.rerender();
+      fireKey(" ");
+      acknowledgePreviewSelection(items[0].id);
+      emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, {
+        itemId: items[0].id,
+        text: "selected",
+        sequence: 2,
+        generation: 1,
+      });
+
+      fireKey("c", { ctrlKey: true });
+
+      await vi.waitFor(() => {
+        expect(mockedCopyTextToClipboard).toHaveBeenCalledWith("selected");
+        expect(mockedCopyToClipboard).not.toHaveBeenCalled();
+      });
+    });
+
+    it("should not show the HUD when exact preview selection copy fails", async () => {
+      const showSpy = vi.fn();
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      useCopyHud.setState({ show: showSpy });
+      mockedCopyTextToClipboard.mockRejectedValueOnce(new Error("copy failed"));
+      const items = [mockItem()];
+      setupItems(items, 0);
+      hookResult.rerender();
+      fireKey(" ");
+      acknowledgePreviewSelection(items[0].id);
+      emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, {
+        itemId: items[0].id,
+        text: "selected",
+        sequence: 2,
+        generation: 1,
+      });
+
+      fireKey("c", { metaKey: true });
+
+      await vi.waitFor(() => {
+        expect(mockedCopyTextToClipboard).toHaveBeenCalledWith("selected");
+        expect(consoleSpy).toHaveBeenCalledWith(
+          "Failed to copy preview selection:",
+          expect.any(Error),
+        );
+      });
+      expect(showSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it.each([
+      { label: "empty", itemId: "test-id-1", text: "" },
+      { label: "stale", itemId: "different-item", text: "selected" },
+    ])(
+      "should copy the whole item when the preview selection is $label",
+      async ({ itemId, text }) => {
+        const items = [mockItem()];
+        setupItems(items, 0);
+        hookResult.rerender();
+        fireKey(" ");
+        acknowledgePreviewSelection(items[0].id);
+        emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, {
+          itemId,
+          text,
+          sequence: 2,
+          generation: 1,
+        });
+
+        fireKey("c", { metaKey: true });
+
+        await vi.waitFor(() => {
+          expect(mockedCopyToClipboard).toHaveBeenCalledWith(items[0]);
+          expect(mockedCopyTextToClipboard).not.toHaveBeenCalled();
+        });
+      },
+    );
+
+    it("should clear a preview selection after closing and reopening the preview", async () => {
+      const items = [mockItem()];
+      setupItems(items, 0);
+      hookResult.rerender();
+      fireKey(" ");
+      acknowledgePreviewSelection(items[0].id);
+      emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, {
+        itemId: items[0].id,
+        text: "selected",
+        sequence: 2,
+        generation: 1,
+      });
+      fireKey(" ");
+      fireKey(" ");
+
+      fireKey("c", { metaKey: true });
+
+      await vi.waitFor(() => {
+        expect(mockedCopyToClipboard).toHaveBeenCalledWith(items[0]);
+        expect(mockedCopyTextToClipboard).not.toHaveBeenCalled();
+      });
+    });
+
+    it("should clear a preview selection after switching away and back", async () => {
+      const items = [mockItem(), mockItem({ id: "test-id-2" })];
+      setupItems(items, 0);
+      hookResult.rerender();
+      fireKey(" ");
+      acknowledgePreviewSelection(items[0].id);
+      emitTauriEvent(PREVIEW_SELECTION_CHANGED_EVENT, {
+        itemId: items[0].id,
+        text: "selected",
+        sequence: 2,
+        generation: 1,
+      });
+
+      fireKey("ArrowRight");
+      hookResult.rerender();
+      fireKey("ArrowLeft");
+      hookResult.rerender();
+      fireKey("c", { metaKey: true });
+
+      await vi.waitFor(() => {
+        expect(mockedCopyToClipboard).toHaveBeenCalledWith(items[0]);
+        expect(mockedCopyTextToClipboard).not.toHaveBeenCalled();
+      });
+    });
+
     it("should copy selected item on Cmd+C", async () => {
       const showSpy = vi.fn();
       useCopyHud.setState({ show: showSpy });

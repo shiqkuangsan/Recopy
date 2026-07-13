@@ -1,9 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { emit, listen } from "@tauri-apps/api/event";
 import DOMPurify from "dompurify";
 import { useSettingsStore } from "../stores/settings-store";
+import { useCopyHud } from "../stores/copy-hud-store";
 import { ImageIcon, File } from "lucide-react";
+import { copyTextToClipboard } from "../lib/paste";
+import {
+  createPreviewSelection,
+  emptyPreviewSelection,
+  PREVIEW_SELECTION_CHANGED_EVENT,
+  PREVIEW_SELECTION_CLEAR_EVENT,
+  PREVIEW_SELECTION_READY_EVENT,
+  type PreviewSelectionClearPayload,
+} from "../lib/preview-selection";
 import type { ItemDetail, PreviewResponse, FilePreviewData } from "../lib/types";
 
 export function PreviewPage() {
@@ -74,13 +85,13 @@ function PreviewContent({ detail }: { detail: ItemDetail }) {
   switch (detail.content_type) {
     case "plain_text":
       return (
-        <ReadableCard>
+        <ReadableCard itemId={detail.id}>
           <PlainTextPreview text={detail.plain_text} />
         </ReadableCard>
       );
     case "rich_text":
       return (
-        <ReadableCard>
+        <ReadableCard itemId={detail.id}>
           <RichTextPreview html={detail.rich_content} fallback={detail.plain_text} />
         </ReadableCard>
       );
@@ -94,6 +105,7 @@ function PreviewContent({ detail }: { detail: ItemDetail }) {
       return (
         <WithTitleBar title={getTitle(detail)} size={detail.content_size}>
           <FileContent
+            itemId={detail.id}
             filePath={detail.file_path}
             fileName={detail.file_name}
             contentSize={detail.content_size}
@@ -102,13 +114,13 @@ function PreviewContent({ detail }: { detail: ItemDetail }) {
       );
     case "link":
       return (
-        <ReadableCard>
+        <ReadableCard itemId={detail.id}>
           <PlainTextPreview text={detail.plain_text} />
         </ReadableCard>
       );
     default:
       return (
-        <ReadableCard>
+        <ReadableCard itemId={detail.id}>
           <PlainTextPreview text={detail.plain_text} />
         </ReadableCard>
       );
@@ -150,10 +162,84 @@ function getTitle(detail: ItemDetail): string {
 }
 
 /** Semi-transparent card for text-based content — readable against glassmorphism */
-function ReadableCard({ children }: { children: React.ReactNode }) {
+function ReadableCard({ itemId, children }: { itemId: string; children: React.ReactNode }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const generationRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const getContainedSelectionText = () => {
+      const container = contentRef.current;
+      const selection = window.getSelection();
+      const anchorNode = selection?.anchorNode;
+      const focusNode = selection?.focusNode;
+      const belongsToContent =
+        container &&
+        anchorNode &&
+        focusNode &&
+        container.contains(anchorNode) &&
+        container.contains(focusNode);
+
+      return belongsToContent ? selection.toString() : "";
+    };
+
+    const publishSelection = () => {
+      const generation = generationRef.current;
+      if (generation === null) return;
+      void emit(
+        PREVIEW_SELECTION_CHANGED_EVENT,
+        createPreviewSelection(itemId, getContainedSelectionText(), generation),
+      );
+    };
+
+    const copyWholeItem = () => invoke("paste_clipboard_item", { id: itemId, autoPaste: false });
+
+    const handleCopy = (event: ClipboardEvent) => {
+      event.preventDefault();
+      const selectedText = getContainedSelectionText();
+      const copyOperation =
+        selectedText.length > 0 ? copyTextToClipboard(selectedText) : copyWholeItem();
+      void copyOperation
+        .then(() => useCopyHud.getState().show())
+        .catch((error) => console.error("Failed to copy preview content:", error));
+    };
+
+    document.addEventListener("selectionchange", publishSelection);
+    document.addEventListener("copy", handleCopy);
+    let active = true;
+    const unlistenClear = listen<PreviewSelectionClearPayload>(
+      PREVIEW_SELECTION_CLEAR_EVENT,
+      (event) => {
+        generationRef.current = event.payload.generation;
+        window.getSelection()?.removeAllRanges();
+        void emit(
+          PREVIEW_SELECTION_CHANGED_EVENT,
+          emptyPreviewSelection(itemId, event.payload.generation),
+        );
+      },
+    );
+    void unlistenClear.then(() => {
+      if (active) void emit(PREVIEW_SELECTION_READY_EVENT);
+    });
+    return () => {
+      active = false;
+      document.removeEventListener("selectionchange", publishSelection);
+      document.removeEventListener("copy", handleCopy);
+      unlistenClear.then((fn) => fn());
+      const generation = generationRef.current;
+      if (generation !== null) {
+        void emit(PREVIEW_SELECTION_CHANGED_EVENT, emptyPreviewSelection(itemId, generation));
+      }
+    };
+  }, [itemId]);
+
   return (
     <div className="w-full h-full p-3">
-      <div className="w-full h-full overflow-y-auto rounded-xl bg-card/60 p-4">{children}</div>
+      <div
+        ref={contentRef}
+        className="w-full h-full overflow-y-auto rounded-xl bg-card/60 p-4 select-text cursor-text"
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -297,10 +383,12 @@ function getFileExtension(path?: string, name?: string): string {
 }
 
 function FileContent({
+  itemId,
   filePath,
   fileName,
   contentSize,
 }: {
+  itemId: string;
   filePath?: string;
   fileName?: string;
   contentSize: number;
@@ -313,7 +401,7 @@ function FileContent({
 
   if (TEXT_EXTENSIONS.has(ext) && filePath) {
     return (
-      <ReadableCard>
+      <ReadableCard itemId={itemId}>
         <TextFilePreview filePath={filePath} />
       </ReadableCard>
     );
@@ -337,13 +425,26 @@ function FileContent({
 }
 
 function TextFilePreview({ filePath }: { filePath: string }) {
-  const [data, setData] = useState<FilePreviewData | null>(null);
-  const [error, setError] = useState(false);
+  const [result, setResult] = useState<{
+    filePath: string;
+    data: FilePreviewData | null;
+    error: boolean;
+  }>({ filePath, data: null, error: false });
+  const data = result.filePath === filePath ? result.data : null;
+  const error = result.filePath === filePath && result.error;
 
   useEffect(() => {
+    let cancelled = false;
     invoke<FilePreviewData>("read_file_preview", { path: filePath })
-      .then(setData)
-      .catch(() => setError(true));
+      .then((nextData) => {
+        if (!cancelled) setResult({ filePath, data: nextData, error: false });
+      })
+      .catch(() => {
+        if (!cancelled) setResult({ filePath, data: null, error: true });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [filePath]);
 
   if (error) {

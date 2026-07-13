@@ -32,6 +32,14 @@ pub fn platform_preview_top_inset() -> f64 {
     preview_top_inset_for_target(platform_menu_bar_height(), cfg!(target_os = "macos"))
 }
 
+#[cfg_attr(target_os = "macos", allow(dead_code))]
+pub(crate) fn should_hide_after_recopy_focus_check(
+    main_focused: bool,
+    preview_focused: bool,
+) -> bool {
+    !main_focused && !preview_focused
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) struct RectI32 {
     pub left: i32,
@@ -76,7 +84,10 @@ pub(crate) fn outer_rect_for_visible_rect(
 
 #[cfg(test)]
 mod tests {
-    use super::{outer_rect_for_visible_rect, preview_top_inset_for_target, FrameOffsets, RectI32};
+    use super::{
+        outer_rect_for_visible_rect, preview_top_inset_for_target,
+        should_hide_after_recopy_focus_check, FrameOffsets, RectI32,
+    };
 
     #[test]
     fn preview_top_inset_is_zero_when_safe_top_is_not_reserved() {
@@ -88,6 +99,17 @@ mod tests {
     fn preview_top_inset_preserves_macos_fallback() {
         assert_eq!(preview_top_inset_for_target(0.0, true), 37.0);
         assert_eq!(preview_top_inset_for_target(28.0, true), 28.0);
+    }
+
+    #[test]
+    fn focus_group_stays_open_when_any_recopy_window_is_focused() {
+        assert!(!should_hide_after_recopy_focus_check(true, false));
+        assert!(!should_hide_after_recopy_focus_check(false, true));
+    }
+
+    #[test]
+    fn focus_group_hides_when_all_recopy_windows_are_unfocused() {
+        assert!(should_hide_after_recopy_focus_check(false, false));
     }
 
     #[test]
