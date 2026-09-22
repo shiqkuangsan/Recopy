@@ -162,6 +162,7 @@ export function ClipboardList() {
   // normal (sentinel at bottom, scroll down) and Top mode (sentinel at visual top
   // via flex-col-reverse, scroll up).
   // isVertical in deps ensures re-attach when layout mode switches (different sentinel DOM element).
+  const hasItems = items.length > 0;
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el || !hasMore) return;
@@ -176,7 +177,7 @@ export function ClipboardList() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, fetchMore, isVertical, flatModeTB]);
+  }, [hasMore, hasItems, fetchMore, isVertical, flatModeTB]);
 
   // Group items by date (used by T/B grouped mode only)
   const groups = useMemo(() => {

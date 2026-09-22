@@ -239,62 +239,58 @@ pub fn run() {
             // Setup focus-loss hiding for main window
             setup_blur_hide(app.handle());
 
-            // Start clipboard monitoring
-            let app_handle = app.handle().clone();
-            start_clipboard_monitor(app_handle);
-
-            // Cleanup orphan image files left from previous sessions (best-effort)
-            let app_handle_gc = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                commands::clipboard::cleanup_orphan_images(&app_handle_gc).await;
-            });
-
-            // Run retention cleanup on startup (FR-018)
+            // Finish startup file cleanup before capture can save new image files.
             let app_handle_ret = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                let pool = match app_handle_ret.try_state::<db::DbPool>() {
-                    Some(p) => p,
-                    None => return,
-                };
-                let policy = db::queries::get_setting(&pool.0, "retention_policy")
-                    .await
-                    .ok()
-                    .flatten()
-                    .unwrap_or_else(|| "unlimited".to_string());
-
-                if policy == "unlimited" {
-                    return;
-                }
-
-                let days = db::queries::get_setting(&pool.0, "retention_days")
-                    .await
-                    .ok()
-                    .flatten()
-                    .and_then(|v| v.parse::<i64>().ok())
-                    .unwrap_or(30);
-                let count = db::queries::get_setting(&pool.0, "retention_count")
-                    .await
-                    .ok()
-                    .flatten()
-                    .and_then(|v| v.parse::<i64>().ok())
-                    .unwrap_or(1000);
-
-                // Collect image paths before deleting rows
-                let image_paths =
-                    db::queries::get_retention_overflow_image_paths(&pool.0, &policy, days, count)
+                commands::clipboard::cleanup_orphan_images(&app_handle_ret).await;
+                async {
+                    let pool = match app_handle_ret.try_state::<db::DbPool>() {
+                        Some(p) => p,
+                        None => return,
+                    };
+                    let policy = db::queries::get_setting(&pool.0, "retention_policy")
                         .await
-                        .unwrap_or_default();
+                        .ok()
+                        .flatten()
+                        .unwrap_or_else(|| "unlimited".to_string());
 
-                match db::queries::cleanup_by_retention(&pool.0, &policy, days, count).await {
-                    Ok(deleted) if deleted > 0 => {
-                        log::info!("Startup retention cleanup: removed {} items", deleted);
-                        for path in image_paths {
-                            let _ = tokio::fs::remove_file(&path).await;
-                        }
+                    if policy == "unlimited" {
+                        return;
                     }
-                    Err(e) => log::warn!("Startup retention cleanup failed: {}", e),
-                    _ => {}
+
+                    let days = db::queries::get_setting(&pool.0, "retention_days")
+                        .await
+                        .ok()
+                        .flatten()
+                        .and_then(|v| v.parse::<i64>().ok())
+                        .unwrap_or(30);
+                    let count = db::queries::get_setting(&pool.0, "retention_count")
+                        .await
+                        .ok()
+                        .flatten()
+                        .and_then(|v| v.parse::<i64>().ok())
+                        .unwrap_or(1000);
+
+                    // Collect image paths before deleting rows
+                    let image_paths = db::queries::get_retention_overflow_image_paths(
+                        &pool.0, &policy, days, count,
+                    )
+                    .await
+                    .unwrap_or_default();
+
+                    match db::queries::cleanup_by_retention(&pool.0, &policy, days, count).await {
+                        Ok(deleted) if deleted > 0 => {
+                            log::info!("Startup retention cleanup: removed {} items", deleted);
+                            for path in image_paths {
+                                let _ = tokio::fs::remove_file(&path).await;
+                            }
+                        }
+                        Err(e) => log::warn!("Startup retention cleanup failed: {}", e),
+                        _ => {}
+                    }
                 }
+                .await;
+                start_clipboard_monitor(app_handle_ret);
             });
 
             Ok(())

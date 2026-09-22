@@ -45,6 +45,83 @@ describe("useClipboardStore", () => {
     });
   });
 
+  it("does not restart a coalesced refresh after deletion", async () => {
+    const pending = deferred<ClipboardItem[]>();
+    mockedInvoke.mockReturnValueOnce(pending.promise).mockResolvedValueOnce(null);
+    const first = useClipboardStore.getState().refreshOnChange();
+    const second = useClipboardStore.getState().refreshOnChange();
+    await useClipboardStore.getState().deleteItem("test-id-1");
+    pending.resolve([mockItem()]);
+    await Promise.all([first, second]);
+    expect(mockedInvoke).toHaveBeenCalledTimes(2);
+    expect(useClipboardStore.getState().items).toEqual([]);
+    expect(useClipboardStore.getState().loading).toBe(false);
+  });
+
+  it("does not restart a superseded panel-open request after a newer refresh", async () => {
+    const old = deferred<ClipboardItem[]>();
+    const fresh = deferred<ClipboardItem[]>();
+    mockedInvoke.mockReturnValueOnce(old.promise).mockReturnValueOnce(fresh.promise);
+    const opening = useClipboardStore.getState().onPanelShow("latest");
+    const refreshing = useClipboardStore.getState().refreshOnChange();
+    old.resolve([mockItem({ id: "old" })]);
+    await opening;
+    expect(mockedInvoke).toHaveBeenCalledTimes(2);
+    fresh.resolve([mockItem({ id: "fresh" })]);
+    await refreshing;
+    expect(useClipboardStore.getState().items[0].id).toBe("fresh");
+  });
+
+  it("coalesces changes during a refresh into one trailing query", async () => {
+    const first = deferred<ClipboardItem[]>();
+    mockedInvoke
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValueOnce([mockItem({ id: "new" })]);
+    const request = useClipboardStore.getState().refreshOnChange();
+    const repeated = useClipboardStore.getState().refreshOnChange();
+    const repeatedAgain = useClipboardStore.getState().refreshOnChange();
+    expect(mockedInvoke).toHaveBeenCalledTimes(1);
+    first.resolve([mockItem()]);
+    await Promise.all([request, repeated, repeatedAgain]);
+    expect(mockedInvoke).toHaveBeenCalledTimes(2);
+    expect(useClipboardStore.getState().items[0].id).toBe("new");
+    expect(useClipboardStore.getState().dirty).toBe(false);
+  });
+
+  it("keeps a dirty event that arrives after a query started", async () => {
+    const pending = deferred<ClipboardItem[]>();
+    mockedInvoke.mockReturnValueOnce(pending.promise);
+    const request = useClipboardStore.getState().fetchItems();
+    useClipboardStore.getState().markDirty();
+    pending.resolve([mockItem()]);
+    await request;
+    expect(useClipboardStore.getState().dirty).toBe(true);
+  });
+
+  it("clears pending loading flags when deletion invalidates an older request", async () => {
+    const pending = deferred<ClipboardItem[]>();
+    mockedInvoke.mockReturnValueOnce(pending.promise).mockResolvedValueOnce(null);
+    const request = useClipboardStore.getState().fetchItems();
+    await useClipboardStore.getState().deleteItem("test-id-1");
+    pending.resolve([mockItem()]);
+    await request;
+    expect(useClipboardStore.getState().items).toEqual([]);
+    expect(useClipboardStore.getState().loading).toBe(false);
+    expect(useClipboardStore.getState().isFetchingMore).toBe(false);
+  });
+
+  it("preserves the search scope when refreshing or reopening pins", async () => {
+    useClipboardStore.setState({ viewMode: "pins", searchQuery: "needle" });
+    mockedInvoke.mockResolvedValue([]);
+    await useClipboardStore.getState().refreshOnChange();
+    await useClipboardStore.getState().onPanelShow();
+    expect(mockedInvoke.mock.calls.every(([cmd]) => cmd === "search_clipboard_items")).toBe(true);
+    expect(mockedInvoke).toHaveBeenCalledWith(
+      "search_clipboard_items",
+      expect.objectContaining({ query: "needle", favoritesOnly: true }),
+    );
+  });
+
   it("should have correct initial state", () => {
     const state = useClipboardStore.getState();
     expect(state.items).toEqual([]);

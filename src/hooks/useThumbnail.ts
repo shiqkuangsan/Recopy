@@ -46,7 +46,8 @@ function lruSet(key: string, value: string): void {
  */
 export function useThumbnail(id: string | null): string | null {
   // Pure read — no LRU promotion during render (React 19 may speculatively render)
-  const [url, setUrl] = useState<string | null>(() => (id && thumbnailCache.get(id)) ?? null);
+  const [loaded, setLoaded] = useState<{ id: string; url: string } | null>(null);
+  const url = id ? (thumbnailCache.get(id) ?? (loaded?.id === id ? loaded.url : null)) : null;
   const retryRef = useRef(0);
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export function useThumbnail(id: string | null): string | null {
     }
 
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     retryRef.current = 0;
 
     const fetchThumbnail = () => {
@@ -70,11 +72,11 @@ export function useThumbnail(id: string | null): string | null {
             const blob = new Blob([bytes], { type: "image/png" });
             const objectUrl = URL.createObjectURL(blob);
             lruSet(id, objectUrl);
-            setUrl(objectUrl);
+            setLoaded({ id, url: objectUrl });
           } else if (retryRef.current < 3) {
             // Thumbnail not ready yet (async generation), retry after delay
             retryRef.current += 1;
-            setTimeout(() => {
+            retryTimer = setTimeout(() => {
               if (!cancelled) fetchThumbnail();
             }, 500);
           }
@@ -88,6 +90,7 @@ export function useThumbnail(id: string | null): string | null {
 
     return () => {
       cancelled = true;
+      clearTimeout(retryTimer);
     };
   }, [id]);
 

@@ -45,8 +45,10 @@ interface SelectionSnapshot {
 export const useClipboardStore = create<ClipboardState>((set, get) => {
   // Ensure only the latest in-flight query can update UI state.
   let latestRequestToken = 0;
+  let changeVersion = 0;
+  let refreshVersion = 0;
   let loadedScopeKey: string | null = null;
-  let inFlightFirstPage: { key: string; promise: Promise<void> } | null = null;
+  let inFlightFirstPage: { key: string; promise: Promise<void>; owner: symbol } | null = null;
   const nextRequestToken = () => {
     latestRequestToken += 1;
     return latestRequestToken;
@@ -84,6 +86,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
       selectFirst?: boolean;
       scopeKey?: string;
       clearDirty?: boolean;
+      loadedChangeVersion?: number;
       bumpPanelShowVersion?: boolean;
     },
   ) => {
@@ -95,7 +98,8 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
       loading: false,
       hasMore: options.hasMore,
       isFetchingMore: false,
-      dirty: options.clearDirty ? false : state.dirty,
+      dirty:
+        options.clearDirty && options.loadedChangeVersion === changeVersion ? false : state.dirty,
       panelShowVersion: options.bumpPanelShowVersion
         ? state.panelShowVersion + 1
         : state.panelShowVersion,
@@ -125,12 +129,24 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
       return inFlightFirstPage.promise;
     }
 
-    const promise = loader().finally(() => {
+    const scope = currentScopeKey();
+    const owner = Symbol();
+    const promise = (async () => {
+      let startedRefresh: number;
+      do {
+        startedRefresh = refreshVersion;
+        await loader();
+      } while (
+        startedRefresh !== refreshVersion &&
+        currentScopeKey() === scope &&
+        inFlightFirstPage?.owner === owner
+      );
+    })().finally(() => {
       if (inFlightFirstPage?.promise === promise) {
         inFlightFirstPage = null;
       }
     });
-    inFlightFirstPage = { key, promise };
+    inFlightFirstPage = { key, promise, owner };
     return promise;
   };
   const loadHistoryPage = async (
@@ -145,6 +161,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
     const inFlightKey = `${scopeKey}:${preserveSelection ? "p" : "r"}:${selectFirst ? "f" : "k"}:${bumpPanelShowVersion ? "show" : "load"}`;
     return runFirstPageRequest(inFlightKey, async () => {
       const requestToken = nextRequestToken();
+      const loadedChangeVersion = changeVersion;
       const selectionSnapshot = preserveSelection ? takeSelectionSnapshot() : null;
       set({ loading: true });
       try {
@@ -160,6 +177,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
           selectFirst,
           scopeKey,
           clearDirty,
+          loadedChangeVersion,
           bumpPanelShowVersion,
         });
       } catch (e) {
@@ -183,6 +201,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
     const inFlightKey = `${scopeKey}:${preserveSelection ? "p" : "r"}:${selectFirst ? "f" : "k"}:${bumpPanelShowVersion ? "show" : "load"}`;
     return runFirstPageRequest(inFlightKey, async () => {
       const requestToken = nextRequestToken();
+      const loadedChangeVersion = changeVersion;
       const selectionSnapshot = preserveSelection ? takeSelectionSnapshot() : null;
       set({ loading: true });
       try {
@@ -200,6 +219,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
           selectFirst,
           scopeKey,
           clearDirty,
+          loadedChangeVersion,
           bumpPanelShowVersion,
         });
       } catch (e) {
@@ -221,6 +241,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
     const inFlightKey = `${scopeKey}:${preserveSelection ? "p" : "r"}:${selectFirst ? "f" : "k"}:${bumpPanelShowVersion ? "show" : "load"}`;
     return runFirstPageRequest(inFlightKey, async () => {
       const requestToken = nextRequestToken();
+      const loadedChangeVersion = changeVersion;
       const selectionSnapshot = preserveSelection ? takeSelectionSnapshot() : null;
       set({ loading: true });
       try {
@@ -236,6 +257,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
           selectFirst,
           scopeKey,
           clearDirty,
+          loadedChangeVersion,
           bumpPanelShowVersion,
         });
       } catch (e) {
@@ -280,15 +302,12 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
       loadedScopeKey = null;
       set({ filterType: filter, selectedIndex: 0, items: [] });
       const { searchQuery, viewMode } = get();
-      if (viewMode === "history") {
-        const trimmedQuery = searchQuery.trim();
-        if (trimmedQuery) {
-          get().searchItems(trimmedQuery);
-        } else {
-          get().fetchItems();
-        }
+      if (searchQuery.trim()) {
+        void get().searchItems(searchQuery.trim());
       } else if (viewMode === "pins") {
-        get().fetchFavorites();
+        void get().fetchFavorites();
+      } else {
+        void get().fetchItems();
       }
     },
 
@@ -317,9 +336,18 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
         await invoke("delete_clipboard_item", { id });
         // Bump token so any in-flight fetch won't resurrect the deleted item.
         nextRequestToken();
-        set((state) => ({
-          items: state.items.filter((item) => item.id !== id),
-        }));
+        inFlightFirstPage = null;
+        changeVersion += 1;
+        set((state) => {
+          const items = state.items.filter((item) => item.id !== id);
+          return {
+            items,
+            selectedIndex: clampSelectedIndex(state.selectedIndex, items),
+            loading: false,
+            isFetchingMore: false,
+            dirty: true,
+          };
+        });
       } catch (e) {
         console.error("Failed to delete item:", e);
       }
@@ -335,20 +363,23 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
     },
 
     refreshOnChange: async () => {
+      changeVersion += 1;
+      refreshVersion += 1;
+      set({ dirty: true });
       const { searchQuery, viewMode } = get();
-      if (viewMode === "pins") {
+      if (searchQuery.trim()) {
+        await loadSearchResults(searchQuery.trim(), true, false, false, true);
+      } else if (viewMode === "pins") {
         await loadFavoritesPage(true, false, false, true);
       } else {
-        const trimmedQuery = searchQuery.trim();
-        if (trimmedQuery) {
-          await loadSearchResults(trimmedQuery, true, false, false, true);
-        } else {
-          await loadHistoryPage(true, false, false, true);
-        }
+        await loadHistoryPage(true, false, false, true);
       }
     },
 
-    markDirty: () => set({ dirty: true }),
+    markDirty: () => {
+      changeVersion += 1;
+      set({ dirty: true });
+    },
 
     fetchFavorites: async () => loadFavoritesPage(false, false, false, true),
 
@@ -401,15 +432,12 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
         return;
       }
 
-      if (viewMode === "pins") {
+      if (searchQuery.trim()) {
+        await loadSearchResults(searchQuery.trim(), preserveSelection, selectFirst, true, true);
+      } else if (viewMode === "pins") {
         await loadFavoritesPage(preserveSelection, selectFirst, true, true);
       } else {
-        const trimmedQuery = searchQuery.trim();
-        if (trimmedQuery) {
-          await loadSearchResults(trimmedQuery, preserveSelection, selectFirst, true, true);
-        } else {
-          await loadHistoryPage(preserveSelection, selectFirst, true, true);
-        }
+        await loadHistoryPage(preserveSelection, selectFirst, true, true);
       }
     },
   };

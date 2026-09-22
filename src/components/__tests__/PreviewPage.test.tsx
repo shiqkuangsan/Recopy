@@ -89,6 +89,45 @@ describe("PreviewPage text selection", () => {
     }) as typeof listen);
   });
 
+  it("polls without overlapping requests and sends the last loaded id", async () => {
+    vi.useFakeTimers();
+    try {
+      const first = deferred<{ detail: ItemDetail; closing: boolean }>();
+      mockedInvoke.mockImplementation((command) =>
+        command === "get_current_preview" ? first.promise : Promise.resolve({}),
+      );
+      const { unmount } = render(<PreviewPage />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(mockedInvoke.mock.calls.filter(([cmd]) => cmd === "get_current_preview")).toHaveLength(
+        1,
+      );
+      await act(async () => {
+        first.resolve({ detail: plainTextDetail, closing: false });
+      });
+      mockedInvoke.mockImplementation((command) =>
+        command === "get_current_preview"
+          ? Promise.resolve({ detail: null, closing: true })
+          : Promise.resolve({}),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(mockedInvoke).toHaveBeenCalledWith("get_current_preview", { knownId: "item-1" });
+      expect(screen.getByText(plainTextDetail.plain_text)).toBeInTheDocument();
+      expect(document.querySelector(".preview-exit")).not.toBeNull();
+      unmount();
+      mockedInvoke.mockClear();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(mockedInvoke).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("announces readiness and acknowledges the main-owned generation", async () => {
     mockPreview(plainTextDetail);
     render(<PreviewPage />);

@@ -27,6 +27,20 @@ async function importFresh() {
 }
 
 describe("useThumbnail", () => {
+  it("switches cached ids and clears the result for null", async () => {
+    const { useThumbnail, __test__ } = await importFresh();
+    __test__.lruSet("a", "blob:a");
+    __test__.lruSet("b", "blob:b");
+    const { result, rerender } = renderHook(({ id }: { id: string | null }) => useThumbnail(id), {
+      initialProps: { id: "a" as string | null },
+    });
+    expect(result.current).toBe("blob:a");
+    rerender({ id: "b" });
+    expect(result.current).toBe("blob:b");
+    rerender({ id: null });
+    expect(result.current).toBeNull();
+  });
+
   it("should return null initially when no thumbnail cached", async () => {
     const { useThumbnail } = await importFresh();
     const { result } = renderHook(() => useThumbnail("item-1"));

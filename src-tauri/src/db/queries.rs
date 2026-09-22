@@ -63,7 +63,8 @@ pub async fn find_and_bump_by_hash(
 }
 
 /// Get clipboard items with optional type filter, ordered by updated_at desc.
-/// Excludes thumbnail blobs for fast IPC transfer.
+/// Returns bounded text previews and excludes thumbnail blobs for fast IPC transfer.
+/// Full text remains available through detail and paste queries; links stay intact.
 pub async fn get_items(
     pool: &SqlitePool,
     content_type: Option<&str>,
@@ -72,7 +73,7 @@ pub async fn get_items(
 ) -> Result<Vec<ClipboardItem>, sqlx::Error> {
     let items = if let Some(ct) = content_type {
         sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(
-            "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
+            "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
              FROM clipboard_items WHERE content_type = ? ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?",
         )
         .bind(ct)
@@ -82,7 +83,7 @@ pub async fn get_items(
         .await?
     } else {
         sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(
-            "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
+            "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
              FROM clipboard_items ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?",
         )
         .bind(limit)
@@ -270,7 +271,8 @@ pub async fn delete_item(pool: &SqlitePool, id: &str) -> Result<(), sqlx::Error>
 }
 
 /// Search clipboard items using fuzzy token matching.
-/// Excludes thumbnail blobs for fast IPC transfer.
+/// Returns bounded text previews and excludes thumbnail blobs for fast IPC transfer.
+/// Full text remains available through detail and paste queries; links stay intact.
 pub async fn search_items(
     pool: &SqlitePool,
     query: &str,
@@ -306,7 +308,8 @@ fn literal_like_pattern(value: &str) -> String {
 }
 
 /// Fuzzy search using LIKE with multi-token AND matching.
-/// Excludes thumbnail blobs for fast IPC transfer.
+/// Returns bounded text previews and excludes thumbnail blobs for fast IPC transfer.
+/// Full text remains available through detail and paste queries; links stay intact.
 async fn search_items_like(
     pool: &SqlitePool,
     query: &str,
@@ -329,7 +332,7 @@ async fn search_items_like(
     }
 
     let mut q = QueryBuilder::<Sqlite>::new(
-        "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
+        "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
          FROM clipboard_items WHERE ",
     );
 
@@ -435,7 +438,8 @@ pub async fn update_thumbnail(
 // ---- Favorites ----
 
 /// Get all favorited items, optionally filtered by content type.
-/// Excludes thumbnail blobs for fast IPC transfer.
+/// Returns bounded text previews and excludes thumbnail blobs for fast IPC transfer.
+/// Full text remains available through detail and paste queries; links stay intact.
 pub async fn get_favorited_items(
     pool: &SqlitePool,
     content_type: Option<&str>,
@@ -443,10 +447,10 @@ pub async fn get_favorited_items(
     offset: i64,
 ) -> Result<Vec<super::models::ClipboardItem>, sqlx::Error> {
     let sql = if content_type.is_some() {
-        "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
+        "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
          FROM clipboard_items WHERE is_favorited = 1 AND content_type = ? ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
     } else {
-        "SELECT id, content_type, plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
+        "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
          FROM clipboard_items WHERE is_favorited = 1 ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
     };
 
@@ -669,6 +673,65 @@ pub async fn cleanup_by_retention(
 mod tests {
     use super::*;
     use crate::db::{models::ContentType, test_pool};
+
+    #[tokio::test]
+    async fn list_payloads_are_bounded_but_search_and_detail_use_full_text() {
+        let pool = test_pool().await;
+        let full_text = format!("{}needle-at-end", "中🙂".repeat(2000));
+        let item = NewClipboardItem {
+            content_type: ContentType::PlainText,
+            plain_text: full_text.clone(),
+            rich_content: None,
+            thumbnail: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            source_app: String::new(),
+            source_app_name: String::new(),
+            content_size: full_text.len() as i64,
+            content_hash: "large-text".into(),
+        };
+        let id = insert_item(&pool, &item).await.unwrap();
+        sqlx::query("UPDATE clipboard_items SET is_favorited = 1 WHERE id = ?")
+            .bind(&id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        for rows in [
+            get_items(&pool, None, 10, 0).await.unwrap(),
+            get_favorited_items(&pool, None, 10, 0).await.unwrap(),
+            search_items(&pool, "needle-at-end", None, 10, false)
+                .await
+                .unwrap(),
+        ] {
+            assert_eq!(rows.len(), 1);
+            assert_eq!(
+                rows[0].plain_text,
+                full_text.chars().take(1024).collect::<String>()
+            );
+            assert_eq!(rows[0].content_size, full_text.len() as i64);
+        }
+        assert_eq!(
+            get_item_by_id(&pool, &id).await.unwrap().unwrap().1,
+            full_text
+        );
+        assert_eq!(
+            get_item_detail(&pool, &id).await.unwrap().unwrap().1,
+            full_text
+        );
+        let url = format!("https://example.com/{}", "a".repeat(2000));
+        let link = NewClipboardItem {
+            content_type: ContentType::Link,
+            plain_text: url.clone(),
+            content_hash: "long-link".into(),
+            ..item
+        };
+        insert_item(&pool, &link).await.unwrap();
+        assert_eq!(
+            get_items(&pool, Some("link"), 10, 0).await.unwrap()[0].plain_text,
+            url
+        );
+    }
 
     #[tokio::test]
     async fn test_insert_and_get() {

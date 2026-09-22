@@ -78,6 +78,20 @@ pub struct ItemDetail {
 /// Shared state holding the current preview item detail.
 pub struct PreviewState(pub std::sync::Mutex<Option<ItemDetail>>);
 
+impl PreviewState {
+    /// Clipboard content is immutable for an ID; callers keep their last detail.
+    pub fn snapshot(&self, known_id: Option<&str>, closing: bool) -> PreviewResponse {
+        let state = self.0.lock().unwrap();
+        PreviewResponse {
+            detail: state
+                .as_ref()
+                .filter(|item| Some(item.id.as_str()) != known_id)
+                .cloned(),
+            closing,
+        }
+    }
+}
+
 /// Atomic flag: true while preview exit animation is playing.
 pub struct PreviewClosing(pub std::sync::atomic::AtomicBool);
 
@@ -114,6 +128,29 @@ pub struct NewClipboardItem {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preview_poll_omits_unchanged_content_but_keeps_closing_signal() {
+        let state = PreviewState(std::sync::Mutex::new(Some(ItemDetail {
+            id: "large".into(),
+            content_type: "plain_text".into(),
+            plain_text: "x".repeat(1024 * 1024),
+            rich_content: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            content_size: 1024 * 1024,
+        })));
+        assert!(state.snapshot(None, false).detail.is_some());
+        assert!(state.snapshot(Some("other"), false).detail.is_some());
+        for _ in 0..100 {
+            let response = state.snapshot(Some("large"), true);
+            assert!(response.detail.is_none());
+            assert!(response.closing);
+            assert!(serde_json::to_vec(&response).unwrap().len() < 64);
+        }
+        assert!(!state.snapshot(Some("large"), false).closing);
+    }
 
     #[test]
     fn test_content_type_as_str() {

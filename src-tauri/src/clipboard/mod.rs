@@ -4,8 +4,8 @@ use std::io::Cursor;
 /// Default max item size: 10MB
 pub const DEFAULT_MAX_ITEM_SIZE_MB: usize = 10;
 
-/// Thumbnail max width in pixels.
-const THUMBNAIL_WIDTH: u32 = 400;
+/// Thumbnail max edge in pixels.
+const THUMBNAIL_EDGE: u32 = 400;
 
 /// Compute SHA-256 hash of content bytes, returning hex string.
 pub fn compute_hash(data: &[u8]) -> String {
@@ -31,20 +31,16 @@ pub fn exceeds_size_limit(size: usize, limit_mb: usize) -> bool {
 }
 
 /// Generate a thumbnail from image bytes.
-/// Returns (thumbnail_bytes, original_width, original_height).
-/// The thumbnail is resized to THUMBNAIL_WIDTH while maintaining aspect ratio.
+/// Bounds both dimensions to THUMBNAIL_EDGE while maintaining aspect ratio.
 /// Output format is PNG.
 pub fn generate_thumbnail(image_data: &[u8]) -> Result<Vec<u8>, String> {
     let img =
         image::load_from_memory(image_data).map_err(|e| format!("Failed to load image: {}", e))?;
 
-    let (w, h) = (img.width(), img.height());
-
-    let thumb = if w > THUMBNAIL_WIDTH {
-        let new_height = (THUMBNAIL_WIDTH as f64 / w as f64 * h as f64) as u32;
+    let thumb = if img.width() > THUMBNAIL_EDGE || img.height() > THUMBNAIL_EDGE {
         img.resize(
-            THUMBNAIL_WIDTH,
-            new_height,
+            THUMBNAIL_EDGE,
+            THUMBNAIL_EDGE,
             image::imageops::FilterType::Lanczos3,
         )
     } else {
@@ -84,6 +80,19 @@ pub fn save_original_image(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn thumbnail_bounds_both_dimensions() {
+        for (width, height) in [(100, 10000), (10000, 100), (1, 1000)] {
+            let img = image::DynamicImage::new_rgb8(width, height);
+            let mut bytes = Cursor::new(Vec::new());
+            img.write_to(&mut bytes, image::ImageFormat::Png).unwrap();
+            let thumbnail = generate_thumbnail(bytes.get_ref()).unwrap();
+            let decoded = image::load_from_memory(&thumbnail).unwrap();
+            assert!(decoded.width() <= 400 && decoded.height() <= 400);
+            assert!(decoded.width() > 0 && decoded.height() > 0);
+        }
+    }
 
     #[test]
     fn test_compute_hash() {
@@ -133,7 +142,7 @@ mod tests {
 
     #[test]
     fn test_thumbnail_small_image_no_resize() {
-        // Create a 200x100 image (smaller than THUMBNAIL_WIDTH)
+        // Create a 200x100 image (smaller than THUMBNAIL_EDGE)
         let img = image::RgbImage::from_fn(200, 100, |_, _| image::Rgb([0u8, 255, 0]));
         let mut buf = Vec::new();
         let dyn_img = image::DynamicImage::ImageRgb8(img);

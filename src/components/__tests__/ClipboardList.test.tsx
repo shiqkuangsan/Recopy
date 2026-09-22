@@ -131,6 +131,14 @@ describe("ClipboardList", () => {
     });
   });
 
+  it("attaches pagination after the initially empty list loads", () => {
+    useClipboardStore.setState({ items: [], hasMore: true, loading: true });
+    render(<ClipboardList />);
+    expect(IntersectionObserver).not.toHaveBeenCalled();
+    act(() => useClipboardStore.setState({ items: [mockItem()], loading: false }));
+    expect(IntersectionObserver).toHaveBeenCalledTimes(1);
+  });
+
   it("does not re-scroll the selected group when older grouped items append", () => {
     const todayA = mockItem({
       id: "today-a",

@@ -33,36 +33,32 @@ export function PreviewPage() {
   // Event-based delivery doesn't work for hidden NSPanel WebViews,
   // so we use polling via invoke() which is always reliable.
   useEffect(() => {
-    const poll = () => {
-      invoke<PreviewResponse>("get_current_preview")
-        .then((resp) => {
-          // Handle closing animation signal
-          if (resp.closing && !closing) {
-            setClosing(true);
-          } else if (!resp.closing && closing) {
-            setClosing(false);
-          }
-
-          const d = resp.detail;
-          if (d && d.id !== lastIdRef.current) {
-            lastIdRef.current = d.id;
-            setDetail(d);
-            setClosing(false); // Reset closing on new content
-            setLoading(false);
-          } else if (!d && loading) {
-            setLoading(false);
-          }
-        })
-        .catch(() => {});
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const resp = await invoke<PreviewResponse>("get_current_preview", {
+          knownId: lastIdRef.current,
+        });
+        if (!active) return;
+        setClosing(resp.closing);
+        if (resp.detail) {
+          lastIdRef.current = resp.detail.id;
+          setDetail(resp.detail);
+        }
+        setLoading(false);
+      } catch {
+        // Retry transient IPC failures without overlapping slow requests.
+      } finally {
+        if (active) timer = setTimeout(poll, 100);
+      }
     };
-
-    // Initial fetch
-    poll();
-
-    // Poll interval
-    const timer = setInterval(poll, 100);
-    return () => clearInterval(timer);
-  }, [closing, loading]);
+    void poll();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, []);
 
   if (loading || !detail) {
     return (

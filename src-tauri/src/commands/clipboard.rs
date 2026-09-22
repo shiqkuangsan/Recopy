@@ -732,11 +732,12 @@ pub fn hide_preview_window(app: AppHandle) {
 pub fn get_current_preview(
     preview_state: State<'_, PreviewState>,
     closing: State<'_, PreviewClosing>,
+    known_id: Option<String>,
 ) -> Result<PreviewResponse, String> {
-    Ok(PreviewResponse {
-        detail: preview_state.0.lock().unwrap().clone(),
-        closing: closing.0.load(std::sync::atomic::Ordering::SeqCst),
-    })
+    Ok(preview_state.snapshot(
+        known_id.as_deref(),
+        closing.0.load(std::sync::atomic::Ordering::SeqCst),
+    ))
 }
 
 /// Animate preview close: set closing flag, wait for CSS animation, then hide.

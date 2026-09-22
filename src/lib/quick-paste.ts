@@ -26,13 +26,15 @@ export function getGroupedQuickPasteTargets(
   const selectedLabel = dateGroupLabel(items[selectedIndex].updated_at);
   const groupItems: Array<{ item: ClipboardItem; flatIndex: number }> = [];
 
-  items.forEach((item, flatIndex) => {
+  for (let flatIndex = 0; flatIndex < items.length; flatIndex++) {
+    const item = items[flatIndex];
     if (dateGroupLabel(item.updated_at) === selectedLabel) {
       groupItems.push({ item, flatIndex });
+      if (groupItems.length === QUICK_PASTE_LIMIT) break;
     }
-  });
+  }
 
-  return groupItems.slice(0, QUICK_PASTE_LIMIT).map(({ item, flatIndex }, index) => ({
+  return groupItems.map(({ item, flatIndex }, index) => ({
     item,
     flatIndex,
     quickIndex: index + 1,
