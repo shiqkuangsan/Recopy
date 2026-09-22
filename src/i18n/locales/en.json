@@ -17,7 +17,11 @@
     "link": "Link"
   },
   "search": {
-    "placeholder": "Search clipboard history..."
+    "placeholder": "Search clipboard history...",
+    "recent": "Recent searches",
+    "clear": "Clear search",
+    "clearHistory": "Clear history",
+    "removeHistory": "Remove search: {{query}}"
   },
   "list": {
     "loading": "Loading...",
@@ -81,7 +85,11 @@
       "flatModeTBDesc": "Disable date grouping, show all items in one row",
       "showTrayIcon": "Show Tray Icon",
       "showTrayIconDesc": "Show Recopy icon in the menu bar",
-      "trayIconRequiresShortcut": "Set a global shortcut in Shortcuts before hiding the tray icon"
+      "trayIconRequiresShortcut": "Set a global shortcut in Shortcuts before hiding the tray icon",
+      "clearSearchAfterUse": "Clear search after use",
+      "clearSearchAfterUseDesc": "Clear the query after using a result and automatically hiding the panel. Keep the current filter and view.",
+      "searchHistoryEnabled": "Remember recent searches",
+      "searchHistoryEnabledDesc": "Keep the last 10 searches on this device. Turning this off stops recording and hides existing history without deleting it."
     },
     "shortcuts": {
       "title": "Shortcuts",
@@ -138,7 +146,7 @@
       "accessibilityDesc": "Recopy needs Accessibility permission to simulate paste (Cmd+V) after selecting a clipboard item. Without this permission, items will be copied to clipboard but won't be auto-pasted.",
       "accessibilityPath": "System Settings \u2192 Privacy & Security \u2192 Accessibility \u2192 Enable Recopy",
       "dataStorage": "Data Storage",
-      "dataStorageDesc": "All data is stored 100% locally in a SQLite database. There is no cloud sync and no network requests are made (except for automatic update checks). When you delete an item, its associated local files are also removed.",
+      "dataStorageDesc": "Clipboard data and recent searches are stored only on this device. There is no cloud sync and no network requests are made (except for automatic update checks). When you delete an item, its associated local files are also removed.",
       "exclusionList": "App Exclusion List",
       "exclusionListDesc": "Clipboard from these apps won't be recorded (Coming soon)",
       "comingSoon": "Coming soon"

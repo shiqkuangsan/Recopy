@@ -520,6 +520,8 @@ pub fn show_main_window(app: &tauri::AppHandle) {
     let panel_position = cached_setting(app, "panel_position", "bottom");
     let flat_mode_tb = cached_setting(app, "flat_mode_tb", "false");
     let panel_open_selection = cached_setting(app, "panel_open_selection", "preserve");
+    let clear_search_after_use = cached_setting(app, "clear_search_after_use", "false");
+    let search_history_enabled = cached_setting(app, "search_history_enabled", "true");
 
     // Detect the monitor containing the cursor for multi-display setups.
     // Use physical placement from the target monitor so hidden-window stale
@@ -579,6 +581,8 @@ pub fn show_main_window(app: &tauri::AppHandle) {
             "panel_position": panel_position,
             "flat_mode_tb": flat_mode_tb,
             "panel_open_selection": panel_open_selection,
+            "clear_search_after_use": clear_search_after_use,
+            "search_history_enabled": search_history_enabled,
             "menu_bar_height": menu_bar_height,
         }),
     );

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import type { ClipboardItem, FilterType, ViewMode } from "../lib/types";
+import { useSearchHistoryStore } from "./search-history-store";
 
 const DEFAULT_PAGE_SIZE = 500;
 type PanelOpenSelection = "preserve" | "latest";
@@ -20,6 +21,7 @@ interface ClipboardState {
 
   // Actions
   setSearchQuery: (query: string) => void;
+  clearSearch: () => Promise<void>;
   setFilterType: (filter: FilterType) => void;
   setViewMode: (mode: ViewMode) => void;
   setSelectedIndex: (index: number) => void;
@@ -191,6 +193,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
           favoritesOnly,
         });
         if (!isLatestRequest(requestToken)) return;
+        useSearchHistoryStore.getState().executed(query);
         applyLoadedItems(items, {
           hasMore: false,
           selectionSnapshot,
@@ -256,7 +259,22 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
     isFetchingMore: false,
     dirty: true,
 
-    setSearchQuery: (query: string) => set({ searchQuery: query, selectedIndex: 0 }),
+    setSearchQuery: (query: string) => {
+      if (query !== get().searchQuery) {
+        nextRequestToken();
+        inFlightFirstPage = null;
+        useSearchHistoryStore.getState().begin(query);
+      }
+      set({ searchQuery: query, selectedIndex: 0 });
+    },
+
+    clearSearch: async () => {
+      useSearchHistoryStore.getState().finish();
+      get().setSearchQuery("");
+      loadedScopeKey = null;
+      set({ items: [], selectedIndex: 0, dirty: true });
+      await get().onPanelShow("latest");
+    },
 
     setFilterType: (filter: FilterType) => {
       loadedScopeKey = null;

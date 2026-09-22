@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { SettingsPage } from "../SettingsPage";
@@ -45,8 +45,30 @@ describe("SettingsPage", () => {
         flat_mode_tb: "false",
         panel_open_selection: "preserve",
         show_tray_icon: "true",
+        clear_search_after_use: "false",
+        search_history_enabled: "true",
       },
       loaded: true,
+    });
+  });
+
+  it("persists both search preferences from their switches", async () => {
+    render(<SettingsPage />);
+    const reset = screen.getByRole("switch", { name: "Clear search after use" });
+    const history = screen.getByRole("switch", { name: "Remember recent searches" });
+    expect(reset).not.toBeChecked();
+    expect(history).toBeChecked();
+    await act(async () => {
+      fireEvent.click(reset);
+      fireEvent.click(history);
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("set_setting", {
+      key: "clear_search_after_use",
+      value: "true",
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("set_setting", {
+      key: "search_history_enabled",
+      value: "false",
     });
   });
 

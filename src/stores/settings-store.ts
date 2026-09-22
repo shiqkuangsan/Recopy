@@ -25,6 +25,8 @@ export interface Settings {
   flat_mode_tb: string;
   panel_open_selection: PanelOpenSelection;
   show_tray_icon: string;
+  clear_search_after_use: string;
+  search_history_enabled: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -42,6 +44,8 @@ const DEFAULT_SETTINGS: Settings = {
   flat_mode_tb: "false",
   panel_open_selection: "preserve",
   show_tray_icon: "true",
+  clear_search_after_use: "false",
+  search_history_enabled: "true",
 };
 
 export interface ShowEventPayload {
@@ -52,6 +56,8 @@ export interface ShowEventPayload {
   flat_mode_tb?: string;
   panel_open_selection?: PanelOpenSelection;
   menu_bar_height?: number;
+  clear_search_after_use?: string;
+  search_history_enabled?: string;
 }
 
 interface SettingsState {
@@ -110,6 +116,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         panel_open_selection:
           (raw.panel_open_selection as PanelOpenSelection) ?? DEFAULT_SETTINGS.panel_open_selection,
         show_tray_icon: raw.show_tray_icon ?? DEFAULT_SETTINGS.show_tray_icon,
+        clear_search_after_use:
+          raw.clear_search_after_use ?? DEFAULT_SETTINGS.clear_search_after_use,
+        search_history_enabled:
+          raw.search_history_enabled ?? DEFAULT_SETTINGS.search_history_enabled,
       };
       set({ settings, loaded: true });
       applyTheme(settings.theme);
@@ -210,6 +220,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       set((state) => ({
         settings: { ...state.settings, panel_open_selection },
       }));
+    }
+    for (const key of ["clear_search_after_use", "search_history_enabled"] as const) {
+      if (payload[key] !== undefined) {
+        set((state) => ({ settings: { ...state.settings, [key]: payload[key] } }));
+      }
     }
     if (menu_bar_height != null) {
       set({ menuBarHeight: menu_bar_height });

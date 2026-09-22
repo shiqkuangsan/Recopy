@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { pasteItem, copyTextToClipboard, copyToClipboard, pasteAsPlainText } from "../paste";
 import type { ClipboardItem } from "../types";
+import { useClipboardStore } from "../../stores/clipboard-store";
+import { useSettingsStore } from "../../stores/settings-store";
 
 const mockedInvoke = vi.mocked(invoke);
 
@@ -17,6 +19,100 @@ const mockItem = (overrides: Partial<ClipboardItem> = {}): ClipboardItem => ({
   created_at: "2026-02-23 10:00:00",
   updated_at: "2026-02-23 10:00:00",
   ...overrides,
+});
+
+describe("search reset after use", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedInvoke.mockResolvedValue([]);
+    useSettingsStore.setState((state) => ({
+      settings: { ...state.settings, clear_search_after_use: "true" },
+    }));
+    useClipboardStore.setState({
+      searchQuery: "order",
+      items: [mockItem()],
+      selectedIndex: 0,
+      viewMode: "history",
+      filterType: "all",
+    });
+  });
+
+  it.each([pasteItem, pasteAsPlainText])(
+    "clears search after successful use and restores the first item",
+    async (useItem) => {
+      await useItem(mockItem());
+      expect(useClipboardStore.getState().searchQuery).toBe("");
+      expect(useClipboardStore.getState().selectedIndex).toBe(0);
+      expect(mockedInvoke).toHaveBeenCalledWith("get_clipboard_items", expect.anything());
+    },
+  );
+
+  it("preserves search when only copying", async () => {
+    await copyToClipboard(mockItem());
+    expect(useClipboardStore.getState().searchQuery).toBe("order");
+  });
+
+  it("keeps the favorites view and type filter when clearing", async () => {
+    useClipboardStore.setState({ viewMode: "pins", filterType: "image" });
+    await pasteItem(mockItem());
+    expect(useClipboardStore.getState()).toMatchObject({
+      searchQuery: "",
+      viewMode: "pins",
+      filterType: "image",
+      selectedIndex: 0,
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith(
+      "get_favorited_items",
+      expect.objectContaining({ contentType: "image" }),
+    );
+  });
+
+  it("ignores an old search response that arrives after successful use", async () => {
+    let resolveSearch!: (items: ClipboardItem[]) => void;
+    mockedInvoke.mockImplementation((command) =>
+      command === "search_clipboard_items"
+        ? new Promise<ClipboardItem[]>((resolve) => {
+            resolveSearch = resolve;
+          })
+        : Promise.resolve([]),
+    );
+    const search = useClipboardStore.getState().searchItems("order");
+    await pasteItem(mockItem());
+    resolveSearch([mockItem({ id: "stale" })]);
+    await search;
+    expect(useClipboardStore.getState()).toMatchObject({ searchQuery: "", items: [] });
+  });
+
+  it("preserves search on failure", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockedInvoke.mockRejectedValueOnce(new Error("clipboard unavailable"));
+    await pasteItem(mockItem());
+    expect(useClipboardStore.getState().searchQuery).toBe("order");
+    spy.mockRestore();
+  });
+
+  it("preserves search when disabled", async () => {
+    useSettingsStore.setState((state) => ({
+      settings: { ...state.settings, clear_search_after_use: "false" },
+    }));
+    await pasteItem(mockItem());
+    expect(useClipboardStore.getState().searchQuery).toBe("order");
+  });
+
+  it("does not clear a newer search while the paste is pending", async () => {
+    let resolve!: () => void;
+    mockedInvoke.mockImplementationOnce(
+      () =>
+        new Promise<void>((done) => {
+          resolve = done;
+        }),
+    );
+    const pending = pasteItem(mockItem());
+    useClipboardStore.getState().setSearchQuery("new query");
+    resolve();
+    await pending;
+    expect(useClipboardStore.getState().searchQuery).toBe("new query");
+  });
 });
 
 describe("pasteItem", () => {

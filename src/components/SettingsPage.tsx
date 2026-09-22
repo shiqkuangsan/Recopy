@@ -225,6 +225,27 @@ function GeneralSettings({
         />
       </SettingRow>
 
+      <SettingRow
+        label={t("settings.general.clearSearchAfterUse")}
+        description={t("settings.general.clearSearchAfterUseDesc")}
+      >
+        <Switch
+          aria-label={t("settings.general.clearSearchAfterUse")}
+          checked={settings.clear_search_after_use === "true"}
+          onCheckedChange={(checked) => updateSetting("clear_search_after_use", String(checked))}
+        />
+      </SettingRow>
+      <SettingRow
+        label={t("settings.general.searchHistoryEnabled")}
+        description={t("settings.general.searchHistoryEnabledDesc")}
+      >
+        <Switch
+          aria-label={t("settings.general.searchHistoryEnabled")}
+          checked={settings.search_history_enabled === "true"}
+          onCheckedChange={(checked) => updateSetting("search_history_enabled", String(checked))}
+        />
+      </SettingRow>
+
       {(settings.panel_position === "top" || settings.panel_position === "bottom") && (
         <SettingRow
           label={t("settings.general.flatModeTB")}

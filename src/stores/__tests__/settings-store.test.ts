@@ -45,6 +45,8 @@ const DEFAULT_SETTINGS: Settings = {
   flat_mode_tb: "false",
   panel_open_selection: "preserve",
   show_tray_icon: "true",
+  clear_search_after_use: "false",
+  search_history_enabled: "true",
 };
 
 describe("useSettingsStore", () => {
@@ -320,6 +322,14 @@ describe("useSettingsStore", () => {
       useSettingsStore.getState().syncSettingsFromEvent(payload);
 
       expect(useSettingsStore.getState().settings.flat_mode_tb).toBe("true");
+    });
+
+    it("syncs search preferences from another settings window on panel show", () => {
+      useSettingsStore
+        .getState()
+        .syncSettingsFromEvent({ clear_search_after_use: "true", search_history_enabled: "false" });
+      expect(useSettingsStore.getState().settings.clear_search_after_use).toBe("true");
+      expect(useSettingsStore.getState().settings.search_history_enabled).toBe("false");
     });
 
     it("should sync panel_open_selection from event payload", () => {

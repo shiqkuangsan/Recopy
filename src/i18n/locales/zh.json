@@ -17,7 +17,11 @@
     "link": "链接"
   },
   "search": {
-    "placeholder": "搜索剪贴板历史..."
+    "placeholder": "搜索剪贴板历史...",
+    "recent": "最近搜索",
+    "clear": "清空搜索",
+    "clearHistory": "清空记录",
+    "removeHistory": "删除搜索记录：{{query}}"
   },
   "list": {
     "loading": "加载中...",
@@ -81,7 +85,11 @@
       "flatModeTBDesc": "禁用日期分组，所有条目显示在同一行",
       "showTrayIcon": "显示托盘图标",
       "showTrayIconDesc": "在菜单栏显示 Recopy 图标",
-      "trayIconRequiresShortcut": "隐藏托盘图标前，请先在快捷键中设置全局快捷键"
+      "trayIconRequiresShortcut": "隐藏托盘图标前，请先在快捷键中设置全局快捷键",
+      "clearSearchAfterUse": "使用后清空搜索",
+      "clearSearchAfterUseDesc": "使用搜索结果并自动收起面板后，清空关键词，保留类型筛选和当前视图",
+      "searchHistoryEnabled": "记录搜索历史",
+      "searchHistoryEnabledDesc": "在本机保存最近 10 条搜索；关闭后不记录也不展示，已有记录保留"
     },
     "shortcuts": {
       "title": "快捷键",
@@ -138,7 +146,7 @@
       "accessibilityDesc": "Recopy 需要辅助功能权限来模拟粘贴 (Cmd+V)。如果没有此权限，内容会被复制到剪贴板但不会自动粘贴。",
       "accessibilityPath": "系统设置 → 隐私与安全 → 辅助功能 → 启用 Recopy",
       "dataStorage": "数据存储",
-      "dataStorageDesc": "所有数据 100% 存储在本地 SQLite 数据库中，没有任何云同步功能，也不会发起任何网络请求（除自动检查更新外）。删除条目时，对应的本地文件也会一并清除。",
+      "dataStorageDesc": "剪贴板内容和搜索记录均仅保存在本机，没有任何云同步功能，也不会发起任何网络请求（除自动检查更新外）。删除条目时，对应的本地文件也会一并清除。",
       "exclusionList": "应用排除列表",
       "exclusionListDesc": "这些应用的剪贴板内容将不会被记录（即将推出）",
       "comingSoon": "即将推出"
