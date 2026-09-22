@@ -1,3 +1,5 @@
+import { useNoteEditorStore } from "../stores/note-editor-store";
+import { Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Clipboard, ClipboardPaste, ExternalLink, FileText, Star, Trash2 } from "lucide-react";
 import type { ClipboardItem } from "../lib/types";
@@ -44,7 +46,12 @@ export function ItemContextMenu({ item, children }: ItemContextMenuProps) {
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="min-w-[180px]">
+      <ContextMenuContent
+        className="min-w-[180px]"
+        onCloseAutoFocus={(event) => {
+          if (useNoteEditorStore.getState().editing) event.preventDefault();
+        }}
+      >
         <ContextMenuItem onSelect={handlePaste}>
           <ClipboardPaste size={14} />
           {t("context.paste")}
@@ -70,6 +77,10 @@ export function ItemContextMenu({ item, children }: ItemContextMenuProps) {
         <ContextMenuItem onSelect={handleToggleFavorite}>
           <Star size={14} />
           {item.is_favorited ? t("context.unfavorite") : t("context.favorite")}
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => useNoteEditorStore.getState().open(item)}>
+          <Pencil size={14} />
+          {item.note_title ? t("note.edit") : t("note.add")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onSelect={handleDelete}>

@@ -1,5 +1,6 @@
+import { useNoteEditorStore } from "../../stores/note-editor-store";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ClipboardCard } from "../ClipboardCard";
 import { useClipboardStore } from "../../stores/clipboard-store";
@@ -38,6 +39,15 @@ const mockItem = (overrides: Partial<ClipboardItem> = {}): ClipboardItem => ({
 describe("ClipboardCard", () => {
   beforeEach(() => {
     useClipboardStore.setState({ modifierHeld: false } as never);
+  });
+
+  it("opens the note editor from the toolbar without activating the card", () => {
+    const onClick = vi.fn();
+    render(<ClipboardCard item={mockItem()} selected={false} onClick={onClick} />);
+    fireEvent.click(screen.getByRole("button", { name: "Add note" }));
+    expect(useNoteEditorStore.getState().editing?.id).toBe("1");
+    expect(onClick).not.toHaveBeenCalled();
+    useNoteEditorStore.getState().close();
   });
 
   it("renders quick-paste badge when modifier is held", () => {

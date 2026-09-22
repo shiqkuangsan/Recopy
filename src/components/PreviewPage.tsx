@@ -1,3 +1,4 @@
+import { NoteTitle } from "./NoteTitle";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -45,6 +46,12 @@ export function PreviewPage() {
         if (resp.detail) {
           lastIdRef.current = resp.detail.id;
           setDetail(resp.detail);
+        } else if (resp.note_title != null) {
+          setDetail((previous) =>
+            previous && previous.note_title !== resp.note_title
+              ? { ...previous, note_title: resp.note_title! }
+              : previous,
+          );
         }
         setLoading(false);
       } catch {
@@ -78,6 +85,21 @@ export function PreviewPage() {
 }
 
 function PreviewContent({ detail }: { detail: ItemDetail }) {
+  return (
+    <div className="flex h-full flex-col">
+      {detail.note_title && (
+        <div className="max-h-24 shrink-0 overflow-y-auto px-3 py-2 select-none">
+          <NoteTitle title={detail.note_title} expanded />
+        </div>
+      )}
+      <div className="min-h-0 flex-1">
+        <ItemPreviewBody detail={detail} />
+      </div>
+    </div>
+  );
+}
+
+function ItemPreviewBody({ detail }: { detail: ItemDetail }) {
   switch (detail.content_type) {
     case "plain_text":
       return (

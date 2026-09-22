@@ -18,6 +18,18 @@ const mockItem = (overrides: Partial<ClipboardItem> = {}): ClipboardItem => ({
 });
 
 describe("TextCard", () => {
+  it("shows the note separately without replacing the copied content", () => {
+    render(
+      <TextCard
+        item={mockItem({ note_title: "Company VPN account", plain_text: "82719406" })}
+        selected={false}
+        onClick={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Company VPN account")).toHaveAttribute("title", "Company VPN account");
+    expect(screen.getByText("82719406")).toBeInTheDocument();
+  });
+
   it("renders plain text content", () => {
     render(<TextCard item={mockItem()} selected={false} onClick={vi.fn()} />);
     expect(screen.getByText("Hello World")).toBeInTheDocument();

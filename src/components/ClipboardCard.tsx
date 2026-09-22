@@ -1,6 +1,8 @@
+import { useTranslation } from "react-i18next";
+import { useNoteEditorStore } from "../stores/note-editor-store";
 import type { ClipboardItem } from "../lib/types";
 import { copyToClipboard } from "../lib/paste";
-import { X } from "lucide-react";
+import { SquarePen, X } from "lucide-react";
 import { useCopyHud } from "../stores/copy-hud-store";
 import { useClipboardStore } from "../stores/clipboard-store";
 import { FavoriteStar } from "./FavoriteStar";
@@ -19,6 +21,7 @@ interface ClipboardCardProps {
 }
 
 export function ClipboardCard({ item, selected, onClick, quickIndex }: ClipboardCardProps) {
+  const { t } = useTranslation();
   const showHud = useCopyHud((s) => s.show);
   const deleteItem = useClipboardStore((s) => s.deleteItem);
   const modifierHeld = useClipboardStore((s) => s.modifierHeld);
@@ -46,23 +49,48 @@ export function ClipboardCard({ item, selected, onClick, quickIndex }: Clipboard
 
   return (
     <ItemContextMenu item={item}>
-      <div className="group relative h-full" onDoubleClick={handleDoubleClick}>
+      <div
+        data-note-item-id={item.id}
+        className="group relative h-full"
+        onDoubleClick={handleDoubleClick}
+      >
         {card}
         {modifierHeld && quickIndex ? (
           <span className="absolute bottom-2 left-2 z-20 flex h-5 w-5 items-center justify-center rounded bg-primary/85 text-xs font-medium text-primary-foreground backdrop-blur-sm">
             {quickIndex}
           </span>
         ) : null}
-        <FavoriteStar itemId={item.id} isFavorited={item.is_favorited} />
-        <button
-          className="absolute top-1.5 right-2 z-20 hidden group-hover:flex items-center justify-center text-white/70 hover:text-destructive transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteItem(item.id);
-          }}
+        <div
+          className="absolute top-3 right-3 z-20 flex items-center gap-0.5"
+          onDoubleClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
-          <X size={14} />
-        </button>
+          <button
+            type="button"
+            aria-label={item.note_title ? t("note.edit") : t("note.add")}
+            title={item.note_title ? t("note.edit") : t("note.add")}
+            className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+            onClick={(e) => {
+              e.stopPropagation();
+              useNoteEditorStore.getState().open(item);
+            }}
+          >
+            <SquarePen size={14} />
+          </button>
+          <FavoriteStar itemId={item.id} isFavorited={item.is_favorited} />
+          <button
+            type="button"
+            aria-label={t("context.delete")}
+            title={t("context.delete")}
+            className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-destructive focus-visible:outline-2 focus-visible:outline-ring"
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteItem(item.id);
+            }}
+          >
+            <X size={14} />
+          </button>
+        </div>
       </div>
     </ItemContextMenu>
   );

@@ -61,11 +61,20 @@ async fn load_item_detail(db: &DbPool, id: &str) -> Result<ItemDetail, String> {
         .map_err(|e| e.to_string())?
         .ok_or("Item not found")?;
 
-    let (content_type, plain_text, rich_content, image_path, file_path, file_name, content_size) =
-        row;
+    let (
+        content_type,
+        plain_text,
+        rich_content,
+        image_path,
+        file_path,
+        file_name,
+        content_size,
+        note_title,
+    ) = row;
 
     Ok(ItemDetail {
         id: id.to_string(),
+        note_title,
         content_type,
         plain_text,
         rich_content,
@@ -192,6 +201,47 @@ pub async fn copy_text_to_clipboard(text: String) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+fn normalize_note_title(title: &str) -> Result<String, String> {
+    let trimmed = title.trim();
+    if trimmed.chars().count() > 80
+        || trimmed
+            .chars()
+            .any(|ch| ch.is_control() || matches!(ch, '\u{2028}' | '\u{2029}'))
+    {
+        return Err("Note name must be a single line of at most 80 characters".into());
+    }
+    Ok(trimmed.to_string())
+}
+
+/// Save a note without modifying the content that will be copied or pasted.
+#[tauri::command]
+pub async fn set_note_title(
+    app: AppHandle,
+    db: State<'_, DbPool>,
+    id: String,
+    title: String,
+) -> Result<String, String> {
+    let title = normalize_note_title(&title)?;
+    if !queries::update_note_title(&db.0, &id, &title)
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        return Err("Item not found".into());
+    }
+    if let Some(preview) = app.try_state::<PreviewState>() {
+        if let Some(detail) = preview
+            .0
+            .lock()
+            .unwrap()
+            .as_mut()
+            .filter(|detail| detail.id == id)
+        {
+            detail.note_title = title.clone();
+        }
+    }
+    Ok(title)
 }
 
 /// Toggle favorite status of a clipboard item.
@@ -1346,4 +1396,23 @@ pub fn set_tray_visible(app: AppHandle, visible: bool) -> Result<(), String> {
         .tray_by_id("recopy_tray")
         .ok_or_else(|| "Tray icon not found".to_string())?;
     tray.set_visible(visible).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod note_title_tests {
+    use super::normalize_note_title;
+
+    #[test]
+    fn note_title_validation_supports_unicode_and_rejects_multiline_or_oversized_names() {
+        assert_eq!(
+            normalize_note_title("  公司 VPN 账号  ").unwrap(),
+            "公司 VPN 账号"
+        );
+        assert_eq!(normalize_note_title("   ").unwrap(), "");
+        assert!(normalize_note_title(&"账".repeat(80)).is_ok());
+        assert!(normalize_note_title(&"账".repeat(81)).is_err());
+        assert!(normalize_note_title("first\nsecond").is_err());
+        assert!(normalize_note_title("first\u{2028}second").is_err());
+        assert!(normalize_note_title("first\0second").is_err());
+    }
 }

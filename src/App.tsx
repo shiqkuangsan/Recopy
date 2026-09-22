@@ -7,6 +7,7 @@ import { BrandLogo } from "./components/BrandLogo";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "./components/ui/button";
 import { CopyHudView } from "./components/CopyHud";
+import { NoteEditor } from "./components/NoteEditor";
 import { SearchBar } from "./components/SearchBar";
 import { TypeFilter } from "./components/TypeFilter";
 import { ViewTabs } from "./components/ViewTabs";
@@ -226,6 +227,7 @@ function MainApp() {
           <ClipboardList />
         </div>
       </div>
+      <NoteEditor />
     </div>
   );
 }

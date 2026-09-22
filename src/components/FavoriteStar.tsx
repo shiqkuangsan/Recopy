@@ -15,36 +15,15 @@ export function FavoriteStar({ itemId, isFavorited }: FavoriteStarProps) {
     toggleFavorite(itemId);
   };
 
-  if (isFavorited) {
-    return (
-      <>
-        {/* Non-hover: star at right-2 */}
-        <button
-          onClick={handleClick}
-          className="absolute top-1.5 right-2 z-20 flex group-hover:hidden items-center justify-center text-yellow-500 hover:opacity-50 transition-opacity cursor-pointer"
-          aria-label="Remove from favorites"
-        >
-          <Star size={14} fill="currentColor" />
-        </button>
-        {/* Hover: star shifts left to make room for X */}
-        <button
-          onClick={handleClick}
-          className="absolute top-1.5 right-8 z-20 hidden group-hover:flex items-center justify-center text-yellow-500 hover:opacity-50 transition-opacity cursor-pointer"
-          aria-label="Remove from favorites"
-        >
-          <Star size={14} fill="currentColor" />
-        </button>
-      </>
-    );
-  }
-
   return (
     <button
+      type="button"
       onClick={handleClick}
-      className="absolute top-1.5 right-8 z-20 hidden group-hover:flex items-center justify-center text-white/70 hover:text-yellow-500 transition-colors cursor-pointer"
-      aria-label="Add to favorites"
+      className={`flex size-6 items-center justify-center rounded-md transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring ${isFavorited ? "text-yellow-500" : "text-muted-foreground hover:text-foreground"}`}
+      aria-label={isFavorited ? "Remove from favorites" : "Add to favorites"}
+      title={isFavorited ? "Remove from favorites" : "Add to favorites"}
     >
-      <Star size={14} />
+      <Star size={14} fill={isFavorited ? "currentColor" : "none"} />
     </button>
   );
 }

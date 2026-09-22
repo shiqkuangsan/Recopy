@@ -2,6 +2,7 @@ export type ContentType = "plain_text" | "rich_text" | "image" | "file" | "link"
 
 export interface ClipboardItem {
   id: string;
+  note_title?: string;
   content_type: ContentType;
   /** Card preview for text/rich text; full content is loaded by ID. Links remain complete. */
   plain_text: string;
@@ -20,6 +21,7 @@ export interface ClipboardItem {
 
 export interface ItemDetail {
   id: string;
+  note_title?: string;
   content_type: ContentType;
   plain_text: string;
   rich_content?: string;
@@ -33,6 +35,7 @@ export interface PreviewResponse {
   /** Null also means unchanged when knownId was supplied. */
   detail: ItemDetail | null;
   closing: boolean;
+  note_title?: string | null;
 }
 
 export interface FilePreviewData {

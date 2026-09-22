@@ -39,6 +39,7 @@ impl ContentType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClipboardItem {
     pub id: String,
+    pub note_title: String,
     pub content_type: String,
     pub plain_text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -62,6 +63,7 @@ pub struct ClipboardItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ItemDetail {
     pub id: String,
+    pub note_title: String,
     pub content_type: String,
     pub plain_text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -88,6 +90,7 @@ impl PreviewState {
                 .filter(|item| Some(item.id.as_str()) != known_id)
                 .cloned(),
             closing,
+            note_title: state.as_ref().map(|item| item.note_title.clone()),
         }
     }
 }
@@ -100,6 +103,7 @@ pub struct PreviewClosing(pub std::sync::atomic::AtomicBool);
 pub struct PreviewResponse {
     pub detail: Option<ItemDetail>,
     pub closing: bool,
+    pub note_title: Option<String>,
 }
 
 /// Data returned by read_file_preview command.
@@ -133,6 +137,7 @@ mod tests {
     fn preview_poll_omits_unchanged_content_but_keeps_closing_signal() {
         let state = PreviewState(std::sync::Mutex::new(Some(ItemDetail {
             id: "large".into(),
+            note_title: String::new(),
             content_type: "plain_text".into(),
             plain_text: "x".repeat(1024 * 1024),
             rich_content: None,
@@ -150,6 +155,25 @@ mod tests {
             assert!(serde_json::to_vec(&response).unwrap().len() < 64);
         }
         assert!(!state.snapshot(Some("large"), false).closing);
+    }
+
+    #[test]
+    fn preview_poll_sends_changed_note_without_resending_unchanged_content() {
+        let state = PreviewState(std::sync::Mutex::new(Some(ItemDetail {
+            id: "note-item".into(),
+            note_title: "Original".into(),
+            content_type: "plain_text".into(),
+            plain_text: "82719406".into(),
+            rich_content: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            content_size: 8,
+        })));
+        state.0.lock().unwrap().as_mut().unwrap().note_title = "Company VPN".into();
+        let response = state.snapshot(Some("note-item"), false);
+        assert!(response.detail.is_none());
+        assert_eq!(response.note_title.as_deref(), Some("Company VPN"));
     }
 
     #[test]

@@ -94,6 +94,44 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    async fn note_migration_preserves_legacy_data_and_applies_once() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        let legacy = sqlx::migrate::Migrator {
+            migrations: std::borrow::Cow::Owned(
+                MIGRATOR
+                    .migrations
+                    .iter()
+                    .filter(|m| m.version < 5)
+                    .cloned()
+                    .collect(),
+            ),
+            ..sqlx::migrate::Migrator::DEFAULT
+        };
+        legacy.run(&pool).await.unwrap();
+        sqlx::query("INSERT INTO clipboard_items (id, content_type, plain_text, rich_content, thumbnail, content_hash, is_favorited, created_at, updated_at) VALUES ('legacy', 'plain_text', '82719406', X'4142', X'0102', 'hash', 1, '2000-01-01', '2000-01-02')").execute(&pool).await.unwrap();
+        MIGRATOR.run(&pool).await.unwrap();
+        MIGRATOR.run(&pool).await.unwrap();
+        let row: (String, Vec<u8>, Vec<u8>, String, bool, String, String, String) = sqlx::query_as("SELECT plain_text, rich_content, thumbnail, content_hash, is_favorited, created_at, updated_at, note_title FROM clipboard_items WHERE id = 'legacy'").fetch_one(&pool).await.unwrap();
+        assert_eq!(
+            row,
+            (
+                "82719406".into(),
+                vec![65, 66],
+                vec![1, 2],
+                "hash".into(),
+                true,
+                "2000-01-01".into(),
+                "2000-01-02".into(),
+                String::new()
+            )
+        );
+    }
+
+    #[tokio::test]
     async fn test_tables_exist() {
         let pool = test_pool().await;
 

@@ -1,3 +1,4 @@
+import { useNoteEditorStore } from "./note-editor-store";
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import type { ClipboardItem, FilterType, ViewMode } from "../lib/types";
@@ -30,6 +31,7 @@ interface ClipboardState {
   searchItems: (query: string) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
+  updateNoteTitle: (id: string, title: string) => Promise<void>;
   refreshOnChange: () => Promise<void>;
   markDirty: () => void;
   fetchFavorites: () => Promise<void>;
@@ -355,11 +357,28 @@ export const useClipboardStore = create<ClipboardState>((set, get) => {
 
     toggleFavorite: async (id: string) => {
       try {
-        await invoke("toggle_favorite", { id });
+        const item = get().items.find((item) => item.id === id);
+        const favorited = await invoke<boolean>("toggle_favorite", { id });
+        if (favorited) useNoteEditorStore.getState().offer({ id, note_title: item?.note_title });
+        else if (useNoteEditorStore.getState().prompt?.id === id)
+          useNoteEditorStore.getState().dismissPrompt();
         await get().refreshOnChange();
       } catch (e) {
         console.error("Failed to toggle favorite:", e);
       }
+    },
+
+    updateNoteTitle: async (id, title) => {
+      const noteTitle = await invoke<string>("set_note_title", { id, title });
+      // Invalidate reads started before the mutation so old metadata cannot reappear.
+      nextRequestToken();
+      inFlightFirstPage = null;
+      set((state) => ({
+        items: state.items.map((item) =>
+          item.id === id ? { ...item, note_title: noteTitle } : item,
+        ),
+      }));
+      await get().refreshOnChange();
     },
 
     refreshOnChange: async () => {

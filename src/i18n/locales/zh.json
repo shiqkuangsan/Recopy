@@ -16,6 +16,22 @@
     "file": "文件",
     "link": "链接"
   },
+  "note": {
+    "caption": "备注",
+    "favorited": "已收藏",
+    "add": "添加备注",
+    "edit": "编辑备注",
+    "label": "备注名称",
+    "description": "起一个便于识别和搜索的名字，不影响复制内容。",
+    "placeholder": "例如：快递地址",
+    "hint": "最多 80 个字符，留空可移除备注。",
+    "invalid": "请输入不超过 80 个字符的单行名称。",
+    "saveFailed": "保存失败，备注仍保留在这里，请重试。",
+    "save": "保存",
+    "saving": "保存中…",
+    "cancel": "取消",
+    "dismiss": "关闭提示"
+  },
   "search": {
     "placeholder": "搜索剪贴板历史...",
     "recent": "最近搜索",

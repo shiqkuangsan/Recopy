@@ -16,6 +16,22 @@
     "file": "File",
     "link": "Link"
   },
+  "note": {
+    "caption": "Note",
+    "favorited": "Saved to favorites",
+    "add": "Add note",
+    "edit": "Edit note",
+    "label": "Note name",
+    "description": "Give this item a recognizable, searchable name. Copied content stays unchanged.",
+    "placeholder": "e.g. Shipping address",
+    "hint": "Up to 80 characters. Leave blank to remove the note.",
+    "invalid": "Use a single line of up to 80 characters.",
+    "saveFailed": "Could not save. Your draft is still here; please try again.",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "dismiss": "Dismiss hint"
+  },
   "search": {
     "placeholder": "Search clipboard history...",
     "recent": "Recent searches",

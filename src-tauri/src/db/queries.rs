@@ -72,8 +72,8 @@ pub async fn get_items(
     offset: i64,
 ) -> Result<Vec<ClipboardItem>, sqlx::Error> {
     let items = if let Some(ct) = content_type {
-        sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(
-            "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
+        sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String, String)>(
+            "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at, note_title
              FROM clipboard_items WHERE content_type = ? ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?",
         )
         .bind(ct)
@@ -82,8 +82,8 @@ pub async fn get_items(
         .fetch_all(pool)
         .await?
     } else {
-        sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String)>(
-            "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
+        sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, String, String, i64, String, bool, String, String, String)>(
+            "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at, note_title
              FROM clipboard_items ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?",
         )
         .bind(limit)
@@ -109,6 +109,7 @@ pub async fn get_items(
             is_favorited: r.10,
             created_at: r.11,
             updated_at: r.12,
+            note_title: r.13,
         })
         .collect())
 }
@@ -148,6 +149,7 @@ pub async fn get_item_detail(
         Option<String>,
         Option<String>,
         i64,
+        String,
     )>,
     sqlx::Error,
 > {
@@ -161,17 +163,18 @@ pub async fn get_item_detail(
         Option<String>,
         Option<String>,
         i64,
+        String,
     )> = sqlx::query_as(
-        "SELECT content_type, plain_text, rich_content, image_path, file_path, file_name, content_size
+        "SELECT content_type, plain_text, rich_content, image_path, file_path, file_name, content_size, note_title
          FROM clipboard_items WHERE id = ?",
     )
     .bind(id)
     .fetch_optional(pool)
     .await?;
 
-    Ok(row.map(|(ct, pt, rc, ip, fp, fn_, cs)| {
+    Ok(row.map(|(ct, pt, rc, ip, fp, fn_, cs, note_title)| {
         let rich_str = rc.map(|bytes| String::from_utf8_lossy(&bytes).to_string());
-        (ct, pt, rich_str, ip, fp, fn_, cs)
+        (ct, pt, rich_str, ip, fp, fn_, cs, note_title)
     }))
 }
 
@@ -332,16 +335,18 @@ async fn search_items_like(
     }
 
     let mut q = QueryBuilder::<Sqlite>::new(
-        "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
+        "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at, note_title
          FROM clipboard_items WHERE ",
     );
 
-    // Bind each token's pattern 3 times (for plain_text, file_name, source_app_name)
+    // Each token can match either user metadata or the original searchable fields.
     for (index, pattern) in binds.iter().enumerate() {
         if index > 0 {
             q.push(" AND ");
         }
-        q.push("(plain_text LIKE ")
+        q.push("(note_title LIKE ")
+            .push_bind(pattern)
+            .push(" ESCAPE '\\' OR plain_text LIKE ")
             .push_bind(pattern)
             .push(" ESCAPE '\\' OR file_name LIKE ")
             .push_bind(pattern)
@@ -356,7 +361,11 @@ async fn search_items_like(
         q.push(" AND is_favorited = 1");
     }
 
-    q.push(" ORDER BY CASE WHEN (plain_text LIKE ")
+    q.push(" ORDER BY CASE WHEN note_title = ")
+        .push_bind(query.trim())
+        .push(" COLLATE NOCASE THEN -2 WHEN note_title LIKE ")
+        .push_bind(&exact_pattern)
+        .push(" ESCAPE '\\' THEN -1 WHEN (plain_text LIKE ")
         .push_bind(&exact_pattern)
         .push(" ESCAPE '\\' OR file_name LIKE ")
         .push_bind(&exact_pattern)
@@ -386,6 +395,7 @@ async fn search_items_like(
             bool,
             String,
             String,
+            String,
         )>()
         .fetch_all(pool)
         .await?;
@@ -407,6 +417,7 @@ async fn search_items_like(
             is_favorited: r.10,
             created_at: r.11,
             updated_at: r.12,
+            note_title: r.13,
         })
         .collect())
 }
@@ -447,10 +458,10 @@ pub async fn get_favorited_items(
     offset: i64,
 ) -> Result<Vec<super::models::ClipboardItem>, sqlx::Error> {
     let sql = if content_type.is_some() {
-        "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
+        "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at, note_title
          FROM clipboard_items WHERE is_favorited = 1 AND content_type = ? ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
     } else {
-        "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at
+        "SELECT id, content_type, CASE WHEN content_type IN ('plain_text', 'rich_text') THEN substr(plain_text, 1, 1024) ELSE plain_text END AS plain_text, image_path, file_path, file_name, source_app, source_app_name, content_size, content_hash, is_favorited, created_at, updated_at, note_title
          FROM clipboard_items WHERE is_favorited = 1 ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
     };
 
@@ -469,6 +480,7 @@ pub async fn get_favorited_items(
                 i64,
                 String,
                 bool,
+                String,
                 String,
                 String,
             ),
@@ -493,6 +505,7 @@ pub async fn get_favorited_items(
                 i64,
                 String,
                 bool,
+                String,
                 String,
                 String,
             ),
@@ -520,8 +533,23 @@ pub async fn get_favorited_items(
             is_favorited: r.10,
             created_at: r.11,
             updated_at: r.12,
+            note_title: r.13,
         })
         .collect())
+}
+
+/// Update only user metadata; clipboard content, hashes and recency stay unchanged.
+pub async fn update_note_title(
+    pool: &SqlitePool,
+    id: &str,
+    title: &str,
+) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query("UPDATE clipboard_items SET note_title = ? WHERE id = ?")
+        .bind(title)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(result.rows_affected() == 1)
 }
 
 // ---- Settings ----
@@ -1376,7 +1404,7 @@ mod tests {
         let detail = get_item_detail(&pool, &id).await.unwrap();
         assert!(detail.is_some());
 
-        let (ct, pt, rc, _ip, _fp, _fn, cs) = detail.unwrap();
+        let (ct, pt, rc, _ip, _fp, _fn, cs, _) = detail.unwrap();
         assert_eq!(ct, "rich_text");
         assert_eq!(pt, "Hello World");
         assert_eq!(rc, Some(rich_html.to_string()));
@@ -1402,7 +1430,144 @@ mod tests {
         let cjk_detail = get_item_detail(&pool, &cjk_id).await.unwrap();
         assert!(cjk_detail.is_some());
 
-        let (_, _, cjk_rc, _, _, _, _) = cjk_detail.unwrap();
+        let (_, _, cjk_rc, _, _, _, _, _) = cjk_detail.unwrap();
         assert_eq!(cjk_rc, Some(cjk_html.to_string()));
+    }
+    #[tokio::test]
+    async fn note_names_are_searchable_and_exact_names_rank_first() {
+        let pool = test_pool().await;
+        for (id, body, favorite) in [
+            ("note", "82719406", true),
+            ("body", "公司 VPN 账号", true),
+            ("other", "unrelated", false),
+        ] {
+            sqlx::query("INSERT INTO clipboard_items (id, content_type, plain_text, content_hash, is_favorited) VALUES (?, 'plain_text', ?, ?, ?)")
+                .bind(id).bind(body).bind(id).bind(favorite).execute(&pool).await.unwrap();
+        }
+        sqlx::query("UPDATE clipboard_items SET note_title = '公司 VPN 账号', updated_at = '2000-01-01' WHERE id IN ('note', 'other')").execute(&pool).await.unwrap();
+        let found = search_items(&pool, "公司 VPN 账号", None, 10, true)
+            .await
+            .unwrap();
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].id, "note");
+        assert_eq!(found[0].plain_text, "82719406");
+        assert_eq!(
+            search_items(&pool, "VPN", None, 10, false)
+                .await
+                .unwrap()
+                .len(),
+            3
+        );
+        assert!(search_items(&pool, "VPN", Some("image"), 10, true)
+            .await
+            .unwrap()
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn note_metadata_survives_dedup_and_unfavorite_without_changing_content_or_recency() {
+        let pool = test_pool().await;
+        sqlx::query("INSERT INTO clipboard_items (id, content_type, plain_text, rich_content, thumbnail, content_hash, is_favorited, updated_at) VALUES ('note-life', 'rich_text', '82719406', X'4142', X'0102', 'note-hash', 1, '2000-01-01')").execute(&pool).await.unwrap();
+        assert!(update_note_title(&pool, "note-life", "Company VPN")
+            .await
+            .unwrap());
+        let row: (String, Vec<u8>, Vec<u8>, String, bool, String) = sqlx::query_as("SELECT plain_text, rich_content, thumbnail, content_hash, is_favorited, updated_at FROM clipboard_items WHERE id = 'note-life'").fetch_one(&pool).await.unwrap();
+        assert_eq!(
+            row,
+            (
+                "82719406".into(),
+                vec![65, 66],
+                vec![1, 2],
+                "note-hash".into(),
+                true,
+                "2000-01-01".into()
+            )
+        );
+        assert_eq!(
+            get_items(&pool, None, 10, 0).await.unwrap()[0].note_title,
+            "Company VPN"
+        );
+        assert_eq!(
+            get_favorited_items(&pool, None, 10, 0).await.unwrap()[0].note_title,
+            "Company VPN"
+        );
+        assert_eq!(
+            get_item_detail(&pool, "note-life")
+                .await
+                .unwrap()
+                .unwrap()
+                .7,
+            "Company VPN"
+        );
+        assert_eq!(
+            get_item_by_id(&pool, "note-life").await.unwrap().unwrap().1,
+            "82719406"
+        );
+        assert_eq!(
+            find_and_bump_by_hash(&pool, "note-hash").await.unwrap(),
+            Some("note-life".into())
+        );
+        sqlx::query("UPDATE clipboard_items SET is_favorited = 0 WHERE id = 'note-life'")
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            search_items(&pool, "Company VPN", None, 10, false)
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(search_items(&pool, "Company VPN", None, 10, true)
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(update_note_title(&pool, "note-life", "").await.unwrap());
+        assert!(search_items(&pool, "Company VPN", None, 10, false)
+            .await
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            get_item_by_id(&pool, "note-life").await.unwrap().unwrap().1,
+            "82719406"
+        );
+        assert!(!update_note_title(&pool, "missing", "title").await.unwrap());
+        delete_item(&pool, "note-life").await.unwrap();
+        assert!(get_items(&pool, None, 10, 0).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn note_search_escapes_wildcards_and_allows_duplicate_names_across_types() {
+        let pool = test_pool().await;
+        for (id, ct) in [("n1", "image"), ("n2", "file")] {
+            sqlx::query(
+                "INSERT INTO clipboard_items (id, content_type, content_hash) VALUES (?, ?, ?)",
+            )
+            .bind(id)
+            .bind(ct)
+            .bind(id)
+            .execute(&pool)
+            .await
+            .unwrap();
+            update_note_title(&pool, id, "VPN 100%_home").await.unwrap();
+        }
+        assert_eq!(
+            search_items(&pool, "100%_home", None, 10, false)
+                .await
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            search_items(&pool, "vpn", Some("image"), 10, false)
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(search_items(&pool, "100%_work", None, 10, false)
+            .await
+            .unwrap()
+            .is_empty());
     }
 }

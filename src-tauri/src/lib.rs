@@ -126,6 +126,7 @@ pub fn run() {
             clip_cmd::paste_as_plain_text,
             clip_cmd::copy_text_to_clipboard,
             clip_cmd::toggle_favorite,
+            clip_cmd::set_note_title,
             clip_cmd::get_favorited_items,
             clip_cmd::get_settings,
             clip_cmd::get_setting,

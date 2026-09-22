@@ -1,3 +1,4 @@
+import { useNoteEditorStore } from "../stores/note-editor-store";
 import { useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
@@ -104,6 +105,8 @@ export function useKeyboardNav() {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      // The note dialog owns Enter, Escape, Tab and editing shortcuts while open.
+      if (useNoteEditorStore.getState().editing) return;
       // Skip all keyboard shortcuts during IME composition (e.g. Chinese input)
       if (e.isComposing || e.keyCode === 229) return;
 

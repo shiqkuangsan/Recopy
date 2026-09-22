@@ -1,3 +1,4 @@
+import { NoteTitle } from "./NoteTitle";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
@@ -69,13 +70,14 @@ export function LinkCard({ item, selected, onClick }: LinkCardProps) {
       }}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
-      className={`relative flex flex-col gap-1.5 rounded-lg border p-2.5 cursor-pointer transition-colors h-full overflow-hidden
+      className={`relative flex flex-col gap-1.5 rounded-lg border p-3 cursor-pointer transition-colors h-full overflow-hidden
         ${selected ? "border-primary bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
     >
-      <div className="flex items-center gap-1.5 text-muted-foreground pr-8">
+      <div className="flex items-center gap-1.5 text-muted-foreground min-h-6 pr-[84px]">
         <Globe size={13} />
         <span className="text-sm">{t("card.link")}</span>
       </div>
+      <NoteTitle title={item.note_title} />
       {hostname && <div className="text-sm text-foreground/70 truncate">{hostname}</div>}
       <pre
         title={url}
