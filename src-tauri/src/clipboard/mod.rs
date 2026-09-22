@@ -1,3 +1,5 @@
+pub mod storage;
+
 use sha2::{Digest, Sha256};
 use std::io::Cursor;
 
@@ -7,11 +9,33 @@ pub const DEFAULT_MAX_ITEM_SIZE_MB: usize = 10;
 /// Thumbnail max edge in pixels.
 const THUMBNAIL_EDGE: u32 = 400;
 
-/// Compute SHA-256 hash of content bytes, returning hex string.
+/// Legacy identity used only for verified compatibility lookup.
 pub fn compute_hash(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
     bytes_to_lower_hex(&hasher.finalize())
+}
+
+/// Versioned, length-framed identity for new captures only. Legacy hashes are untouched.
+pub fn content_identity(kind: &str, content: &[u8], rich: Option<&[u8]>) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"recopy-content-v2\0");
+    for part in [kind.as_bytes(), content] {
+        hasher.update((part.len() as u64).to_le_bytes());
+        hasher.update(part);
+    }
+    hasher.update([u8::from(rich.is_some())]);
+    if let Some(bytes) = rich {
+        hasher.update((bytes.len() as u64).to_le_bytes());
+        hasher.update(bytes);
+    }
+    format!("v2:{}", bytes_to_lower_hex(&hasher.finalize()))
+}
+
+pub fn payload_size(content: &[u8], rich: Option<&[u8]>) -> usize {
+    content
+        .len()
+        .saturating_add(rich.map_or(0, |bytes| bytes.len()))
 }
 
 fn bytes_to_lower_hex(bytes: &[u8]) -> String {
@@ -27,7 +51,7 @@ fn bytes_to_lower_hex(bytes: &[u8]) -> String {
 
 /// Check if content size exceeds the limit.
 pub fn exceeds_size_limit(size: usize, limit_mb: usize) -> bool {
-    size > limit_mb * 1024 * 1024
+    size > limit_mb.saturating_mul(1024 * 1024)
 }
 
 /// Generate a thumbnail from image bytes.
@@ -72,7 +96,20 @@ pub fn save_original_image(
     let filename = format!("{}.{}", uuid::Uuid::new_v4(), ext);
     let path = dir.join(&filename);
 
-    std::fs::write(&path, image_data).map_err(|e| format!("Failed to write image: {}", e))?;
+    // Own only a newly-created file; remove a partial write on failure.
+    use std::io::Write;
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|e| format!("Failed to create image: {}", e))?;
+    if let Err(error) = file.write_all(image_data) {
+        drop(file);
+        if let Err(cleanup) = std::fs::remove_file(&path) {
+            log::warn!("Failed to clean partial image: {}", cleanup);
+        }
+        return Err(format!("Failed to write image: {}", error));
+    }
 
     Ok(path.to_string_lossy().to_string())
 }
@@ -80,6 +117,40 @@ pub fn save_original_image(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn identity_includes_type_format_and_unambiguous_boundaries() {
+        let rich = content_identity("rich_text", b"hello", Some(b"<b>hello</b>"));
+        assert_eq!(
+            rich,
+            content_identity("rich_text", b"hello", Some(b"<b>hello</b>"))
+        );
+        assert_ne!(
+            rich,
+            content_identity("rich_text", b"hello", Some(b"<i>hello</i>"))
+        );
+        assert_ne!(rich, content_identity("plain_text", b"hello", None));
+        assert_ne!(
+            content_identity("plain_text", b"hello", None),
+            compute_hash(b"hello")
+        );
+        assert_ne!(
+            content_identity("rich_text", b"a", Some(b"bc")),
+            content_identity("rich_text", b"ab", Some(b"c"))
+        );
+        assert_ne!(
+            content_identity("file", b"hello", None),
+            content_identity("plain_text", b"hello", None)
+        );
+    }
+
+    #[test]
+    fn rich_payload_is_counted_in_limit() {
+        let html = vec![b'x'; 1024 * 1024];
+        assert!(exceeds_size_limit(payload_size(b"x", Some(&html)), 1));
+        assert!(!exceeds_size_limit(payload_size(b"", Some(&html)), 1));
+        assert_eq!(payload_size(b"abc", Some(b"def")), 6);
+    }
 
     #[test]
     fn thumbnail_bounds_both_dimensions() {

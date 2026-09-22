@@ -62,6 +62,29 @@ pub async fn find_and_bump_by_hash(
     Ok(row.map(|(id,)| id))
 }
 
+/// Reuse an exact legacy record without rewriting its hash, favorites, or metadata.
+/// Legacy hashes covered only content bytes, so type and rich bytes must also match.
+pub async fn find_and_bump_legacy(
+    pool: &SqlitePool,
+    hash: &str,
+    kind: &str,
+    rich: Option<&[u8]>,
+) -> Result<Option<String>, sqlx::Error> {
+    let row: Option<(String,)> = sqlx::query_as(
+        "UPDATE clipboard_items SET updated_at = datetime('now')
+         WHERE id = (SELECT id FROM clipboard_items WHERE content_hash = ?
+           AND content_type = ? AND rich_content IS ?
+           AND (content_type != 'image' OR image_path IS NOT NULL)
+           ORDER BY updated_at DESC, id DESC LIMIT 1) RETURNING id",
+    )
+    .bind(hash)
+    .bind(kind)
+    .bind(rich)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|(id,)| id))
+}
+
 /// Get clipboard items with optional type filter, ordered by updated_at desc.
 /// Returns bounded text previews and excludes thumbnail blobs for fast IPC transfer.
 /// Full text remains available through detail and paste queries; links stay intact.

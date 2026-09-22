@@ -74,7 +74,7 @@ impl SettingsCache {
 
 /// Helper to create a test pool with in-memory SQLite and run migrations.
 #[cfg(test)]
-async fn test_pool() -> SqlitePool {
+pub(crate) async fn test_pool() -> SqlitePool {
     let options = SqliteConnectOptions::from_str("sqlite::memory:")
         .unwrap()
         .create_if_missing(true);

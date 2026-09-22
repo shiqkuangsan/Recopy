@@ -243,6 +243,16 @@ pub fn run() {
             // Finish startup file cleanup before capture can save new image files.
             let app_handle_ret = app.handle().clone();
             tauri::async_runtime::spawn(async move {
+                if let Ok(data) = app_handle_ret.path().app_data_dir() {
+                    match tauri::async_runtime::spawn_blocking(move || {
+                        clipboard::storage::cleanup_staging(&data.join("capture-staging"))
+                    })
+                    .await
+                    {
+                        Ok(Ok(_)) => {}
+                        result => log::warn!("Startup staging cleanup failed: {:?}", result),
+                    }
+                }
                 commands::clipboard::cleanup_orphan_images(&app_handle_ret).await;
                 async {
                     let pool = match app_handle_ret.try_state::<db::DbPool>() {
@@ -1106,17 +1116,39 @@ async fn extract_clipboard_content(
         }
     }
 
-    // Try image
+    // The plugin writes PNGs to disk. Own a per-capture directory and reclaim it
+    // before dedup/storage, including oversize and producer/read failure paths.
     if let Ok(true) = tauri_plugin_clipboard_x::has_image().await {
-        if let Ok(img_result) = tauri_plugin_clipboard_x::read_image(app.clone(), None).await {
-            // Read the saved image file
-            if let Ok(img_data) = tokio::fs::read(&img_result.path).await {
-                if clipboard::exceeds_size_limit(img_data.len(), max_size_mb) {
-                    log::info!("Skipping large image: {}B", img_data.len());
-                    return None;
-                }
-                return Some((ContentType::Image, img_data, None, None, None, None));
+        let app_clone = app.clone();
+        let captured = tauri::async_runtime::spawn_blocking(move || {
+            let root = app_clone
+                .path()
+                .app_data_dir()
+                .map_err(|e| e.to_string())?
+                .join("capture-staging");
+            clipboard::storage::read_staged_image(
+                &root,
+                max_size_mb.saturating_mul(1024 * 1024),
+                |directory| {
+                    tauri::async_runtime::block_on(tauri_plugin_clipboard_x::read_image(
+                        app_clone,
+                        Some(directory.to_path_buf()),
+                    ))
+                    .map(|image| image.path)
+                },
+            )
+        })
+        .await;
+        match captured {
+            Ok(Ok(Some(bytes))) => {
+                return Some((ContentType::Image, bytes, None, None, None, None))
             }
+            Ok(Ok(None)) => {
+                log::info!("Skipping image exceeding configured size limit");
+                return None;
+            }
+            Ok(Err(error)) => log::warn!("Failed to capture image: {}", error),
+            Err(error) => log::warn!("Image capture task failed: {}", error),
         }
     }
 

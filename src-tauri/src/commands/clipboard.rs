@@ -289,7 +289,7 @@ async fn write_to_clipboard(
                         .map_err(|e| format!("Failed to write image: {}", e))?;
                 }
             } else {
-                log::warn!("Paste image: image_path is None!");
+                return Err("Image original is unavailable".into());
             }
         }
         "file" => {
@@ -1127,17 +1127,19 @@ pub async fn process_clipboard_change(
         .unwrap_or(None)
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(clip_util::DEFAULT_MAX_ITEM_SIZE_MB);
-    if clip_util::exceeds_size_limit(content.len(), max_size_mb) {
+    let payload_bytes = clip_util::payload_size(&content, rich_content.as_deref());
+    if clip_util::exceeds_size_limit(payload_bytes, max_size_mb) {
         log::info!(
             "Clipboard content exceeds size limit ({}B > {}MB), skipping",
-            content.len(),
+            payload_bytes,
             max_size_mb
         );
         return Ok(None);
     }
 
     // Compute hash for dedup
-    let hash = clip_util::compute_hash(&content);
+    let hash =
+        clip_util::content_identity(content_type.as_str(), &content, rich_content.as_deref());
 
     // Dedup check
     if let Some(existing_id) = queries::find_and_bump_by_hash(&db.0, &hash)
@@ -1148,18 +1150,29 @@ pub async fn process_clipboard_change(
         return Ok(Some(existing_id));
     }
 
+    // Preserve exact pre-v2 records and their notes/favorites without rewriting history.
+    if let Some(existing_id) = queries::find_and_bump_legacy(
+        &db.0,
+        &clip_util::compute_hash(&content),
+        content_type.as_str(),
+        rich_content.as_deref(),
+    )
+    .await
+    .map_err(|e| e.to_string())?
+    {
+        return Ok(Some(existing_id));
+    }
+
     // Process image: generate thumbnail and save original (off the async runtime)
     // Note: For file-type images, thumbnail is generated asynchronously after insert (see below)
     let (thumbnail, image_path) = if content_type == ContentType::Image {
         let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
-        let content_for_img = content.clone();
-        tokio::task::spawn_blocking(move || {
-            let thumb = clip_util::generate_thumbnail(&content_for_img).ok();
-            let path = clip_util::save_original_image(&app_data, &content_for_img, "png").ok();
-            (thumb, path)
+        let (thumb, path) = tokio::task::spawn_blocking(move || {
+            clip_util::storage::prepare_image(&app_data, &content)
         })
         .await
-        .unwrap_or((None, None))
+        .map_err(|e| format!("Image preparation task failed: {}", e))??;
+        (thumb, Some(path))
     } else {
         (None, None)
     };
@@ -1170,11 +1183,11 @@ pub async fn process_clipboard_change(
             Some(fp) => tokio::fs::metadata(fp)
                 .await
                 .map(|m| m.len() as i64)
-                .unwrap_or(content.len() as i64),
-            None => content.len() as i64,
+                .unwrap_or(payload_bytes as i64),
+            None => payload_bytes as i64,
         }
     } else {
-        content.len() as i64
+        payload_bytes as i64
     };
 
     let new_item = NewClipboardItem {
@@ -1191,9 +1204,7 @@ pub async fn process_clipboard_change(
         content_hash: hash,
     };
 
-    let id = queries::insert_item(&db.0, &new_item)
-        .await
-        .map_err(|e| e.to_string())?;
+    let id = clip_util::storage::insert_captured_item(&db.0, &new_item).await?;
 
     log::info!(
         "New clipboard item stored: {} ({})",
