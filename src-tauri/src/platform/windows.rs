@@ -1,10 +1,14 @@
+use std::cell::RefCell;
 use std::sync::{
     atomic::{AtomicBool, AtomicIsize, AtomicU32, Ordering},
-    Mutex, OnceLock,
+    Arc, Mutex, OnceLock,
 };
 use tauri::{Emitter, Manager};
 
-use super::{outer_rect_for_visible_rect, FrameOffsets, RectI32};
+use super::{
+    hook_session::{HookRegistry, HookSession},
+    outer_rect_for_visible_rect, FrameOffsets, RectI32,
+};
 
 // ---------------------------------------------------------------------------
 // Win32 FFI declarations (raw, no external crate dependency)
@@ -219,6 +223,13 @@ mod win32 {
         pub fn GetCurrentProcessId() -> u32;
         pub fn GetCurrentThreadId() -> u32;
         pub fn GetWindowThreadProcessId(hwnd: HWND, pid: *mut u32) -> u32;
+        pub fn PeekMessageW(
+            msg: *mut MSG,
+            hwnd: HWND,
+            filter_min: u32,
+            filter_max: u32,
+            remove: u32,
+        ) -> i32;
         pub fn GetMessageW(msg: *mut MSG, hwnd: HWND, filter_min: u32, filter_max: u32) -> i32;
         pub fn PostThreadMessageW(thread_id: u32, msg: u32, wparam: WPARAM, lparam: LPARAM) -> i32;
         pub fn SetWindowLongPtrW(hwnd: HWND, index: i32, new_long: isize) -> isize;
@@ -255,11 +266,17 @@ mod win32 {
 /// App handle for the keyboard hook callback to emit Tauri events.
 static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
 
-/// Handle of the installed WH_KEYBOARD_LL hook (0 = no hook).
-static HOOK_HANDLE: AtomicIsize = AtomicIsize::new(0);
-
-/// Handle of the installed WH_MOUSE_LL hook (0 = no hook).
-static MOUSE_HOOK_HANDLE: AtomicIsize = AtomicIsize::new(0);
+struct NativeHooks {
+    keyboard: isize,
+    mouse: isize,
+    thread: u32,
+}
+type Session = HookSession<NativeHooks>;
+static CURRENT_SESSION: HookRegistry<NativeHooks> = HookRegistry::new();
+thread_local! {
+    static CALLBACK_SESSION: RefCell<Option<Arc<Session>>> = const { RefCell::new(None) };
+}
+static PREVIEW_HWND: AtomicIsize = AtomicIsize::new(0);
 
 /// HWND of the previous foreground window (saved before showing Recopy).
 static PREV_FOREGROUND: AtomicIsize = AtomicIsize::new(0);
@@ -276,14 +293,6 @@ static MAIN_HWND: AtomicIsize = AtomicIsize::new(0);
 /// Desired visible rect for the main panel in physical pixels. Windows
 /// `SetWindowPos` moves the outer HWND rect, but users see DWM's extended frame.
 static MAIN_DESIRED_VISIBLE_RECT: Mutex<Option<RectI32>> = Mutex::new(None);
-
-/// Thread ID of the dedicated hook message-pump thread (0 = no thread).
-static HOOK_THREAD_ID: AtomicU32 = AtomicU32::new(0);
-
-/// Manually tracked modifier key state (updated by hook callback).
-/// Required because GetAsyncKeyState is unreliable inside hook callbacks.
-static CTRL_DOWN: AtomicBool = AtomicBool::new(false);
-static SHIFT_DOWN: AtomicBool = AtomicBool::new(false);
 
 /// Preview focus guard: skip main's blur while preview is opening.
 static PREVIEW_FOCUS_GUARD: AtomicBool = AtomicBool::new(false);
@@ -321,7 +330,7 @@ fn get_hwnd(window: &tauri::WebviewWindow) -> Option<isize> {
 }
 
 fn is_hook_active() -> bool {
-    HOOK_HANDLE.load(Ordering::SeqCst) != 0
+    CURRENT_SESSION.is_running()
 }
 
 fn rect_from_win32(rect: win32::RECT) -> RectI32 {
@@ -623,92 +632,106 @@ unsafe extern "system" fn nchittest_wndproc(
 // Keyboard hook
 // ---------------------------------------------------------------------------
 
+fn callback_session() -> Option<Arc<Session>> {
+    CALLBACK_SESSION.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .filter(|session| !session.is_stopped())
+            .cloned()
+    })
+}
+
+fn close_hooks(hooks: NativeHooks, wake_thread: bool) {
+    unsafe {
+        if hooks.keyboard != 0 {
+            win32::UnhookWindowsHookEx(hooks.keyboard);
+        }
+        if hooks.mouse != 0 {
+            win32::UnhookWindowsHookEx(hooks.mouse);
+        }
+        if wake_thread && win32::PostThreadMessageW(hooks.thread, win32::WM_QUIT, 0, 0) == 0 {
+            log::warn!("Failed to wake stopped hook thread {}", hooks.thread);
+        }
+    }
+}
+
+fn stop_session(session: &Session) {
+    if let Some(hooks) = session.stop() {
+        close_hooks(hooks, true);
+    }
+}
+
 /// Spawn a dedicated thread with a Win32 message pump and install hooks there.
 /// Both WH_KEYBOARD_LL and WH_MOUSE_LL require a message loop on the installing
 /// thread — tokio worker threads don't have one, so we use a dedicated std::thread.
 /// Blocks until hooks are confirmed installed (or fail).
 fn install_keyboard_hook() {
-    if is_hook_active() {
-        return;
+    let (session, create) = CURRENT_SESSION.reserve();
+    if create {
+        let worker = session.clone();
+        let spawned = std::thread::Builder::new()
+            .name("recopy-hooks".into())
+            .spawn(move || unsafe {
+                CALLBACK_SESSION.with(|slot| *slot.borrow_mut() = Some(worker.clone()));
+                let thread_id = win32::GetCurrentThreadId();
+                // Create the queue before publishing its ID; stop can now reliably post WM_QUIT.
+                let mut msg: win32::MSG = std::mem::zeroed();
+                win32::PeekMessageW(&mut msg, 0, 0, 0, 0);
+                let hmod = win32::GetModuleHandleW(std::ptr::null());
+                let keyboard = win32::SetWindowsHookExW(
+                    win32::WH_KEYBOARD_LL,
+                    Some(keyboard_hook_proc),
+                    hmod,
+                    0,
+                );
+                if keyboard == 0 {
+                    worker.stop();
+                    CALLBACK_SESSION.with(|slot| *slot.borrow_mut() = None);
+                    return;
+                }
+                let mouse =
+                    win32::SetWindowsHookExW(win32::WH_MOUSE_LL, Some(mouse_hook_proc), hmod, 0);
+                if mouse == 0 {
+                    log::warn!("Failed to install mouse hook");
+                }
+                let hooks = NativeHooks {
+                    keyboard,
+                    mouse,
+                    thread: thread_id,
+                };
+                if let Err(hooks) = worker.publish(hooks) {
+                    close_hooks(hooks, false);
+                } else {
+                    while win32::GetMessageW(&mut msg, 0, 0, 0) > 0 {}
+                    // Never touch CURRENT_SESSION or a successor's resources on late exit.
+                    if let Some(hooks) = worker.stop() {
+                        close_hooks(hooks, false);
+                    }
+                }
+                CALLBACK_SESSION.with(|slot| *slot.borrow_mut() = None);
+            });
+        if let Err(error) = spawned {
+            session.stop();
+            log::warn!("Failed to start hook thread: {}", error);
+        }
     }
-    let (tx, rx) = std::sync::mpsc::sync_channel::<bool>(1);
-    std::thread::spawn(move || unsafe {
-        let thread_id = win32::GetCurrentThreadId();
-        let hmod = win32::GetModuleHandleW(std::ptr::null());
-        let kb_hook =
-            win32::SetWindowsHookExW(win32::WH_KEYBOARD_LL, Some(keyboard_hook_proc), hmod, 0);
-        if kb_hook == 0 {
-            let _ = tx.send(false);
-            return;
-        }
-        HOOK_HANDLE.store(kb_hook, Ordering::SeqCst);
-
-        // Mouse hook for click-outside-to-close (non-activating window never gets blur)
-        let mouse_hook =
-            win32::SetWindowsHookExW(win32::WH_MOUSE_LL, Some(mouse_hook_proc), hmod, 0);
-        if mouse_hook != 0 {
-            MOUSE_HOOK_HANDLE.store(mouse_hook, Ordering::SeqCst);
-        }
-
-        HOOK_THREAD_ID.store(thread_id, Ordering::SeqCst);
-        let _ = tx.send(true);
-
-        // Message pump — keeps the hooks alive.
-        // GetMessage returns 0 on WM_QUIT, ending the loop.
-        let mut msg: win32::MSG = std::mem::zeroed();
-        while win32::GetMessageW(&mut msg, 0, 0, 0) > 0 {}
-
-        // Cleanup (in case remove_keyboard_hook didn't already clear these)
-        let h = HOOK_HANDLE.swap(0, Ordering::SeqCst);
-        if h != 0 {
-            win32::UnhookWindowsHookEx(h);
-        }
-        let mh = MOUSE_HOOK_HANDLE.swap(0, Ordering::SeqCst);
-        if mh != 0 {
-            win32::UnhookWindowsHookEx(mh);
-        }
-        HOOK_THREAD_ID.store(0, Ordering::SeqCst);
-        CTRL_DOWN.store(false, Ordering::SeqCst);
-        SHIFT_DOWN.store(false, Ordering::SeqCst);
-    });
-    // Wait for hook installation before returning — ensures is_hook_active()
-    // is accurate immediately after this call.
-    match rx.recv() {
-        Ok(true) => {}
-        Ok(false) => log::warn!("Failed to install keyboard hook"),
-        Err(_) => log::warn!("Hook thread terminated unexpectedly"),
+    if !session.wait_ready() {
+        log::warn!("Hook installation failed or was cancelled");
     }
 }
 
-/// Unhook immediately (synchronous) and signal the message-pump thread to exit.
+/// Cancel atomically with removal; close native resources outside the registry lock.
 fn remove_keyboard_hook() {
-    let handle = HOOK_HANDLE.swap(0, Ordering::SeqCst);
-    if handle != 0 {
-        unsafe {
-            win32::UnhookWindowsHookEx(handle);
-        }
+    if let Some(hooks) = CURRENT_SESSION.stop_current() {
+        close_hooks(hooks, true);
     }
-    let mh = MOUSE_HOOK_HANDLE.swap(0, Ordering::SeqCst);
-    if mh != 0 {
-        unsafe {
-            win32::UnhookWindowsHookEx(mh);
-        }
-    }
-    let tid = HOOK_THREAD_ID.swap(0, Ordering::SeqCst);
-    if tid != 0 {
-        unsafe {
-            win32::PostThreadMessageW(tid, win32::WM_QUIT, 0, 0);
-        }
-    }
-    CTRL_DOWN.store(false, Ordering::SeqCst);
-    SHIFT_DOWN.store(false, Ordering::SeqCst);
 }
 
 /// Low-level keyboard hook procedure.
 /// Intercepts navigation keys and forwards them as `platform-keydown` Tauri
 /// events so the frontend can drive the same logic as native keydown.
 ///
-/// Modifier state is tracked manually via CTRL_DOWN / SHIFT_DOWN atomics
+/// Modifier state is tracked in the callback thread's own session
 /// because GetAsyncKeyState is unreliable inside hook callbacks (MSDN:
 /// "the hook is called before the async key state is updated").
 unsafe extern "system" fn keyboard_hook_proc(
@@ -716,10 +739,12 @@ unsafe extern "system" fn keyboard_hook_proc(
     wparam: win32::WPARAM,
     lparam: win32::LPARAM,
 ) -> win32::LRESULT {
-    if code < 0 {
+    let session = callback_session();
+    if code < 0 || session.is_none() {
         return win32::CallNextHookEx(0, code, wparam, lparam);
     }
 
+    let session = session.unwrap();
     let msg = wparam as u32;
     let is_down = msg == win32::WM_KEYDOWN || msg == win32::WM_SYSKEYDOWN;
     let is_up = msg == win32::WM_KEYUP || msg == win32::WM_SYSKEYUP;
@@ -738,7 +763,7 @@ unsafe extern "system" fn keyboard_hook_proc(
     // --- Track modifier state (handles both left/right and generic VK codes) ---
     match vk {
         win32::VK_CONTROL | win32::VK_LCONTROL | win32::VK_RCONTROL => {
-            CTRL_DOWN.store(is_down, Ordering::SeqCst);
+            session.ctrl.store(is_down, Ordering::SeqCst);
             if recopy_not_foreground {
                 emit_platform_key_event(
                     if is_down {
@@ -748,13 +773,13 @@ unsafe extern "system" fn keyboard_hook_proc(
                     },
                     "Control",
                     is_down,
-                    SHIFT_DOWN.load(Ordering::SeqCst),
+                    session.shift.load(Ordering::SeqCst),
                 );
             }
             return win32::CallNextHookEx(0, code, wparam, lparam);
         }
         win32::VK_SHIFT | win32::VK_LSHIFT | win32::VK_RSHIFT => {
-            SHIFT_DOWN.store(is_down, Ordering::SeqCst);
+            session.shift.store(is_down, Ordering::SeqCst);
             return win32::CallNextHookEx(0, code, wparam, lparam);
         }
         _ => {}
@@ -771,8 +796,8 @@ unsafe extern "system" fn keyboard_hook_proc(
         return win32::CallNextHookEx(0, code, wparam, lparam);
     }
 
-    let ctrl = CTRL_DOWN.load(Ordering::SeqCst);
-    let shift = SHIFT_DOWN.load(Ordering::SeqCst);
+    let ctrl = session.ctrl.load(Ordering::SeqCst);
+    let shift = session.shift.load(Ordering::SeqCst);
 
     // Map VK to DOM key name (matching KeyboardEvent.key)
     let key: Option<&str> = match vk {
@@ -800,21 +825,8 @@ unsafe extern "system" fn keyboard_hook_proc(
         win32::VK_F if ctrl => {
             // Ctrl+F → activate the window so the SearchBar can receive
             // real keyboard input, then forward the event.
-            // Unhook both keyboard and mouse hooks + post WM_QUIT to exit message pump.
-            let h = HOOK_HANDLE.swap(0, Ordering::SeqCst);
-            if h != 0 {
-                win32::UnhookWindowsHookEx(h);
-            }
-            let mh = MOUSE_HOOK_HANDLE.swap(0, Ordering::SeqCst);
-            if mh != 0 {
-                win32::UnhookWindowsHookEx(mh);
-            }
-            let tid = HOOK_THREAD_ID.swap(0, Ordering::SeqCst);
-            if tid != 0 {
-                win32::PostThreadMessageW(tid, win32::WM_QUIT, 0, 0);
-            }
-            CTRL_DOWN.store(false, Ordering::SeqCst);
-            SHIFT_DOWN.store(false, Ordering::SeqCst);
+            // Stop only the session that delivered this callback.
+            stop_session(&session);
 
             let main = MAIN_HWND.load(Ordering::SeqCst);
             if main != 0 {
@@ -846,7 +858,7 @@ unsafe extern "system" fn mouse_hook_proc(
     wparam: win32::WPARAM,
     lparam: win32::LPARAM,
 ) -> win32::LRESULT {
-    if code >= 0 {
+    if code >= 0 && callback_session().is_some() {
         let msg = wparam as u32;
         if msg == win32::WM_LBUTTONDOWN || msg == win32::WM_RBUTTONDOWN {
             let ms = &*(lparam as *const win32::MSLLHOOKSTRUCT);
@@ -856,16 +868,10 @@ unsafe extern "system" fn mouse_hook_proc(
             let main = MAIN_HWND.load(Ordering::SeqCst);
             if main != 0 && win32::IsWindowVisible(main) != 0 && !point_in_window(x, y, main) {
                 // Also check preview window
-                let mut on_recopy_window = false;
-                if let Some(app) = APP_HANDLE.get() {
-                    if let Some(preview) = app.get_webview_window("preview") {
-                        if let Some(phwnd) = get_hwnd(&preview) {
-                            if win32::IsWindowVisible(phwnd) != 0 && point_in_window(x, y, phwnd) {
-                                on_recopy_window = true;
-                            }
-                        }
-                    }
-                }
+                let preview = PREVIEW_HWND.load(Ordering::SeqCst);
+                let on_recopy_window = preview != 0
+                    && win32::IsWindowVisible(preview) != 0
+                    && point_in_window(x, y, preview);
 
                 if !on_recopy_window {
                     if let Some(app) = APP_HANDLE.get() {
@@ -990,12 +996,21 @@ fn restore_foreground() {
 // Preview window (non-activating in floating mode, focus-dance in active mode)
 // ---------------------------------------------------------------------------
 
-pub fn init_preview_panel(_app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+pub fn init_preview_panel(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(window) = app.get_webview_window("preview") {
+        PREVIEW_HWND.store(get_hwnd(&window).unwrap_or(0), Ordering::SeqCst);
+        window.on_window_event(|event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                PREVIEW_HWND.store(0, Ordering::SeqCst);
+            }
+        });
+    }
     Ok(())
 }
 
 pub fn platform_show_preview(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("preview") {
+        PREVIEW_HWND.store(get_hwnd(&window).unwrap_or(0), Ordering::SeqCst);
         if is_hook_active() {
             // Floating mode: show preview without activating (no focus change)
             if let Some(hwnd) = get_hwnd(&window) {

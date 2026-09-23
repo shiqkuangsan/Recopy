@@ -1,3 +1,6 @@
+#[cfg(any(target_os = "windows", test))]
+mod hook_session;
+
 #[cfg(target_os = "macos")]
 pub mod nspanel;
 
