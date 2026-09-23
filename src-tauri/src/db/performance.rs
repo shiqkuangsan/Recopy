@@ -29,6 +29,11 @@ async fn search_cost_baseline() {
             queries::insert_item(&pool, &item).await.unwrap();
         }
         let insert_ms = start.elapsed().as_secs_f64() * 1000.0;
+        // Recreate the retired index ONLY in this synthetic DB to measure its cost.
+        sqlx::query("CREATE VIRTUAL TABLE clipboard_fts USING fts5(item_id UNINDEXED, plain_text, file_name, source_app_name, tokenize='trigram')")
+            .execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO clipboard_fts (item_id, plain_text, file_name, source_app_name) SELECT id, plain_text, file_name, source_app_name FROM clipboard_items")
+            .execute(&pool).await.unwrap();
         // Exercise note ranking and favorites on a reproducible subset.
         sqlx::query("UPDATE clipboard_items SET note_title = '中文备注', is_favorited = 1 WHERE rowid % 10 = 0")
             .execute(&pool).await.unwrap();
@@ -112,7 +117,7 @@ async fn search_cost_baseline() {
         println!(
             "SEARCH_BASELINE {}",
             serde_json::json!({"rows":rows,"body_bytes":text.len(),
-            "actual_insert_total_ms":insert_ms,"fts_rebuild_median_ms":rebuild_ms[2],
+            "actual_insert_without_fts_total_ms":insert_ms,"fts_rebuild_median_ms":rebuild_ms[2],
             "fts_reclaimed_pages_bytes":(after-before)*page_size,"searches":timings,
             "same_ordered_ids_without_fts":true,"fts_rcp_hits":fts_hits})
         );

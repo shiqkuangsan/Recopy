@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use super::models::{ClipboardItem, NewClipboardItem};
 
-/// Insert a new clipboard item and sync FTS index (transactional).
+/// Insert a new clipboard item (transactional).
 pub async fn insert_item(
     pool: &SqlitePool,
     item: &NewClipboardItem,
@@ -28,16 +28,6 @@ pub async fn insert_item(
     .bind(&item.source_app_name)
     .bind(item.content_size)
     .bind(&item.content_hash)
-    .execute(&mut *tx)
-    .await?;
-
-    sqlx::query(
-        "INSERT INTO clipboard_fts (item_id, plain_text, file_name, source_app_name) VALUES (?, ?, ?, ?)",
-    )
-    .bind(&id)
-    .bind(&item.plain_text)
-    .bind(item.file_name.as_deref().unwrap_or(""))
-    .bind(&item.source_app_name)
     .execute(&mut *tx)
     .await?;
 
@@ -277,14 +267,9 @@ pub async fn get_all_image_paths(pool: &SqlitePool) -> Result<Vec<String>, sqlx:
     Ok(rows.into_iter().map(|(p,)| p).collect())
 }
 
-/// Delete a clipboard item and its FTS entry (transactional).
+/// Delete a clipboard item (transactional).
 pub async fn delete_item(pool: &SqlitePool, id: &str) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
-
-    sqlx::query("DELETE FROM clipboard_fts WHERE item_id = ?")
-        .bind(id)
-        .execute(&mut *tx)
-        .await?;
 
     sqlx::query("DELETE FROM clipboard_items WHERE id = ?")
         .bind(id)
@@ -603,15 +588,9 @@ pub async fn set_setting(pool: &SqlitePool, key: &str, value: &str) -> Result<()
     Ok(())
 }
 
-/// Clear all non-favorited clipboard items and their FTS entries (transactional).
+/// Clear all non-favorited clipboard items (transactional).
 pub async fn clear_history(pool: &SqlitePool) -> Result<i64, sqlx::Error> {
     let mut tx = pool.begin().await?;
-
-    sqlx::query(
-        "DELETE FROM clipboard_fts WHERE item_id IN (SELECT id FROM clipboard_items WHERE is_favorited = 0)",
-    )
-    .execute(&mut *tx)
-    .await?;
 
     sqlx::query(
         "DELETE FROM item_groups WHERE item_id IN (SELECT id FROM clipboard_items WHERE is_favorited = 0)",
@@ -641,17 +620,6 @@ pub async fn cleanup_by_retention(
             let days_str = format!("-{}", days);
 
             sqlx::query(
-                "DELETE FROM clipboard_fts WHERE item_id IN (
-                    SELECT id FROM clipboard_items
-                    WHERE is_favorited = 0
-                    AND created_at < datetime('now', ? || ' days')
-                )",
-            )
-            .bind(&days_str)
-            .execute(&mut *tx)
-            .await?;
-
-            sqlx::query(
                 "DELETE FROM item_groups WHERE item_id IN (
                     SELECT id FROM clipboard_items
                     WHERE is_favorited = 0
@@ -675,18 +643,6 @@ pub async fn cleanup_by_retention(
         }
         "count" if count > 0 => {
             let mut tx = pool.begin().await?;
-
-            sqlx::query(
-                "DELETE FROM clipboard_fts WHERE item_id IN (
-                    SELECT id FROM clipboard_items
-                    WHERE is_favorited = 0
-                    ORDER BY updated_at DESC, id DESC
-                    LIMIT -1 OFFSET ?
-                )",
-            )
-            .bind(count)
-            .execute(&mut *tx)
-            .await?;
 
             sqlx::query(
                 "DELETE FROM item_groups WHERE item_id IN (

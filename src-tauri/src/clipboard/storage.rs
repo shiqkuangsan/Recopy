@@ -338,8 +338,8 @@ mod tests {
         let saved = make_item();
         insert_captured_item(&pool, &saved).await.unwrap();
         assert!(Path::new(saved.image_path.as_ref().unwrap()).exists());
-        // FTS failure occurs after the main INSERT, exercising transaction rollback.
-        sqlx::query("DROP TABLE clipboard_fts")
+        // An AFTER trigger aborts the actual INSERT and exercises transaction rollback.
+        sqlx::query("CREATE TRIGGER reject_test_insert AFTER INSERT ON clipboard_items BEGIN SELECT RAISE(ABORT, 'injected insert failure'); END")
             .execute(&pool)
             .await
             .unwrap();

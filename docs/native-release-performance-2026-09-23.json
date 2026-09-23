@@ -1,0 +1,208 @@
+{
+  "manifest": {
+    "source_snapshot_sha256": "d8de53b0b92c68cbcc4b146db71bd20a7907a7de70a1d93f8798bf4115e98c05",
+    "frontend_readiness_gate_ms": 100,
+    "identifier": "com.recopy.perf.a3b6f67eb86c433fbcb57f7941372499",
+    "worktree": "/Users/zhuguidong/.codex/worktrees/native-release-performance/Recopy",
+    "source_head": "fb1ce873420fe54c76bc3bc7be760ba318229c5a",
+    "profile": "release Rust + Vite production",
+    "image_fixtures": true,
+    "rows": 10000,
+    "body_bytes": 768,
+    "disabled": [
+      "clipboard plugin and monitor",
+      "global shortcut registration",
+      "tray",
+      "automatic update checks"
+    ],
+    "binary_sha256": "dc77eae9b550cdd5563be5b9e29e117429472dedb0a13c59412a0ca39d27e084"
+  },
+  "fixture_readback": {
+    "rows": 10003,
+    "images": 3,
+    "non_fixture_rows": 0,
+    "migration_version": 6
+  },
+  "reported_runs": [
+    1,
+    2
+  ],
+  "limits": [
+    "release fixture, not before/after A/B",
+    "100ms readiness gate included",
+    "main PID RSS only; WebKit attribution unresolved",
+    "preview image load and twoRAF, not human visual acceptance",
+    "first run includes synthetic seeding and thumbnails",
+    "direct store search excludes debounce and IME"
+  ],
+  "runs": [
+    {
+      "index": 0,
+      "includes_initial_seed": true,
+      "launch_to_ready_observed_ms": 2344.514166994486,
+      "rust_run_to_ready_ms": 1935.55675,
+      "thumbnail_ready_ms": 48,
+      "search_median_ms": {
+        "rcp": 84,
+        "中文": 50,
+        "中文 rcp": 67.00000000000023,
+        "missingneedle": 33,
+        "中文备注": 33.00000000000023
+      },
+      "preview_ms_by_image": {
+        "fixture-image-0": [
+          110,
+          86,
+          80
+        ],
+        "fixture-image-1": [
+          215,
+          109,
+          111
+        ],
+        "fixture-image-2": [
+          163,
+          84,
+          84.99999999999909
+        ]
+      },
+      "image_dimensions": {
+        "fixture-image-0": [
+          1600,
+          1000
+        ],
+        "fixture-image-1": [
+          6000,
+          4000
+        ],
+        "fixture-image-2": [
+          400,
+          12000
+        ]
+      },
+      "frame_median_ms": 17.0,
+      "frame_p95_ms": 18.000000000000455,
+      "main_rss_peak_mib": 235.71875,
+      "confirmed_child_webkit_max_count": 0,
+      "webkit_attribution_complete": false,
+      "rendered_cards": 10,
+      "loaded_items": 1000,
+      "viewport": {
+        "height": 380,
+        "width": 2044
+      }
+    },
+    {
+      "index": 1,
+      "includes_initial_seed": false,
+      "launch_to_ready_observed_ms": 1237.3315830045613,
+      "rust_run_to_ready_ms": 1019.9210830000001,
+      "thumbnail_ready_ms": 49,
+      "search_median_ms": {
+        "rcp": 79,
+        "中文": 50,
+        "中文 rcp": 67,
+        "missingneedle": 33,
+        "中文备注": 34
+      },
+      "preview_ms_by_image": {
+        "fixture-image-0": [
+          107.99999999999908,
+          107.99999999999908,
+          85
+        ],
+        "fixture-image-1": [
+          214,
+          113,
+          105
+        ],
+        "fixture-image-2": [
+          107,
+          80,
+          85
+        ]
+      },
+      "image_dimensions": {
+        "fixture-image-0": [
+          1600,
+          1000
+        ],
+        "fixture-image-1": [
+          6000,
+          4000
+        ],
+        "fixture-image-2": [
+          400,
+          12000
+        ]
+      },
+      "frame_median_ms": 17.0,
+      "frame_p95_ms": 18.000000000000455,
+      "main_rss_peak_mib": 132.359375,
+      "confirmed_child_webkit_max_count": 0,
+      "webkit_attribution_complete": false,
+      "rendered_cards": 10,
+      "loaded_items": 1000,
+      "viewport": {
+        "height": 380,
+        "width": 2044
+      }
+    },
+    {
+      "index": 2,
+      "includes_initial_seed": false,
+      "launch_to_ready_observed_ms": 967.7345410018461,
+      "rust_run_to_ready_ms": 887.5002499999999,
+      "thumbnail_ready_ms": 42,
+      "search_median_ms": {
+        "rcp": 89.99999999999989,
+        "中文": 50,
+        "中文 rcp": 83,
+        "missingneedle": 33,
+        "中文备注": 34
+      },
+      "preview_ms_by_image": {
+        "fixture-image-0": [
+          135,
+          109.00000000000092,
+          108
+        ],
+        "fixture-image-1": [
+          214.0000000000009,
+          86,
+          84
+        ],
+        "fixture-image-2": [
+          295,
+          84.99999999999909,
+          85
+        ]
+      },
+      "image_dimensions": {
+        "fixture-image-0": [
+          1600,
+          1000
+        ],
+        "fixture-image-1": [
+          6000,
+          4000
+        ],
+        "fixture-image-2": [
+          400,
+          12000
+        ]
+      },
+      "frame_median_ms": 17.0,
+      "frame_p95_ms": 21,
+      "main_rss_peak_mib": 125.53125,
+      "confirmed_child_webkit_max_count": 0,
+      "webkit_attribution_complete": false,
+      "rendered_cards": 10,
+      "loaded_items": 1000,
+      "viewport": {
+        "height": 380,
+        "width": 2044
+      }
+    }
+  ]
+}

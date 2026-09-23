@@ -1,0 +1,211 @@
+{
+  "manifest": {
+    "identifier": "com.recopy.perf.cf09bd7bf2c54b329eb5877d8df38a98",
+    "worktree": "/Users/zhuguidong/.codex/worktrees/native-performance/Recopy",
+    "source_head": "fb1ce873420fe54c76bc3bc7be760ba318229c5a",
+    "profile": "debug Rust + Vite production",
+    "rows": 10000,
+    "body_bytes": 768,
+    "disabled": [
+      "clipboard plugin and monitor",
+      "global shortcut registration",
+      "tray",
+      "automatic update checks"
+    ],
+    "source_snapshot_sha256": "d8de53b0b92c68cbcc4b146db71bd20a7907a7de70a1d93f8798bf4115e98c05",
+    "frontend_readiness_gate_ms": 100
+  },
+  "fixture_readback": {
+    "rows": 10000,
+    "non_fixture_rows": 0,
+    "migration_version": 6
+  },
+  "excluded_runs": [
+    0
+  ],
+  "exclusion_reason": "First measurement after setup; warm-up and possible build contention. Two subsequent runs used for summary.",
+  "limits": [
+    "Rust debug + production Vite",
+    "100ms readiness gate included",
+    "Direct store search bypasses input debounce",
+    "Main PID RSS only; excludes WebKit services",
+    "Programmatic scroll frame intervals, not user input latency",
+    "No clipboard or preview acceptance"
+  ],
+  "runs": [
+    {
+      "index": 0,
+      "launch_to_ready_observed_ms": 1993.4899999934714,
+      "rust_run_to_ready_ms": 1304.37125,
+      "search_median_ms": {
+        "rcp": 150,
+        "中文": 101,
+        "中文 rcp": 167,
+        "missingneedle": 33.999999999999545,
+        "中文备注": 85
+      },
+      "search_result_counts": {
+        "rcp": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ],
+        "中文": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ],
+        "中文 rcp": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ],
+        "missingneedle": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "中文备注": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ]
+      },
+      "frame_median_ms": 17.0,
+      "frame_p95_ms": 18.00000000000091,
+      "main_rss_peak_mib": 140.28125,
+      "rendered_cards": 10,
+      "loaded_items": 1000,
+      "viewport": {
+        "height": 380,
+        "width": 2044
+      }
+    },
+    {
+      "index": 1,
+      "launch_to_ready_observed_ms": 878.9394579944201,
+      "rust_run_to_ready_ms": 850.0739590000001,
+      "search_median_ms": {
+        "rcp": 150,
+        "中文": 100.00000000000024,
+        "中文 rcp": 151.00000000000043,
+        "missingneedle": 33,
+        "中文备注": 84
+      },
+      "search_result_counts": {
+        "rcp": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ],
+        "中文": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ],
+        "中文 rcp": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ],
+        "missingneedle": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "中文备注": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ]
+      },
+      "frame_median_ms": 17.0,
+      "frame_p95_ms": 18,
+      "main_rss_peak_mib": 148.390625,
+      "rendered_cards": 10,
+      "loaded_items": 1000,
+      "viewport": {
+        "height": 380,
+        "width": 2044
+      }
+    },
+    {
+      "index": 2,
+      "launch_to_ready_observed_ms": 939.9765410053078,
+      "rust_run_to_ready_ms": 885.961334,
+      "search_median_ms": {
+        "rcp": 149.9999999999999,
+        "中文": 101,
+        "中文 rcp": 165,
+        "missingneedle": 33,
+        "中文备注": 84
+      },
+      "search_result_counts": {
+        "rcp": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ],
+        "中文": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ],
+        "中文 rcp": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ],
+        "missingneedle": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "中文备注": [
+          500,
+          500,
+          500,
+          500,
+          500
+        ]
+      },
+      "frame_median_ms": 17.0,
+      "frame_p95_ms": 18,
+      "main_rss_peak_mib": 145.859375,
+      "rendered_cards": 10,
+      "loaded_items": 1000,
+      "viewport": {
+        "height": 380,
+        "width": 2044
+      }
+    }
+  ]
+}

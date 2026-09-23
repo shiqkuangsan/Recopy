@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod fts_retirement;
 pub mod models;
 #[cfg(test)]
 mod performance;
@@ -207,8 +209,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_fts5_search() {
-        let pool = test_pool().await;
+    async fn test_legacy_fts5_search() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        fts_retirement::legacy_migrator().run(&pool).await.unwrap();
 
         // Insert test data into both clipboard_items and clipboard_fts
         let test_data = [
