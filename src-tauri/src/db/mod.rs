@@ -1,4 +1,6 @@
 pub mod models;
+#[cfg(test)]
+mod performance;
 pub mod queries;
 
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};

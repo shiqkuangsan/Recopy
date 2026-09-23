@@ -276,11 +276,14 @@ async fn write_to_clipboard(
     match content_type {
         "image" => {
             if let Some(path) = image_path {
-                let file_size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+                let file_size = tokio::fs::metadata(path)
+                    .await
+                    .map(|m| m.len())
+                    .unwrap_or(0);
                 log::info!("Pasting image from path: {} ({}B)", path, file_size);
                 #[cfg(target_os = "macos")]
                 {
-                    crate::platform::platform_write_image_to_pasteboard(path)?;
+                    crate::platform::platform_write_image_to_pasteboard(_app, path).await?;
                 }
                 #[cfg(not(target_os = "macos"))]
                 {

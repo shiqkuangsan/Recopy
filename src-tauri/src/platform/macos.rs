@@ -231,20 +231,35 @@ pub fn platform_hide_preview(app: &tauri::AppHandle) {
     });
 }
 
-/// Write raw image bytes directly to NSPasteboard, bypassing decode→encode cycle.
-/// Reads the PNG file from disk and writes it directly as NSPasteboardTypePNG.
-pub fn platform_write_image_to_pasteboard(path: &str) -> Result<(), String> {
-    let bytes = std::fs::read(path).map_err(|e| format!("Failed to read image file: {}", e))?;
+/// Read the PNG away from async workers, then await the native clipboard write.
+/// Focus restoration/paste must only run after this function succeeds.
+pub async fn platform_write_image_to_pasteboard(
+    app: &tauri::AppHandle,
+    path: &str,
+) -> Result<(), String> {
+    let bytes = tokio::fs::read(path)
+        .await
+        .map_err(|e| format!("Failed to read image file: {}", e))?;
+    let (send, receive) = tokio::sync::oneshot::channel();
+    app.run_on_main_thread(move || {
+        // Avoid a queued clipboard mutation after its caller was cancelled.
+        if !send.is_closed() {
+            let _ = send.send(write_image_bytes_to_pasteboard(&bytes));
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    receive.await.map_err(|e| e.to_string())?
+}
 
+fn write_image_bytes_to_pasteboard(bytes: &[u8]) -> Result<(), String> {
+    let _main_thread = MainThreadMarker::new().ok_or("Pasteboard write requires main thread")?;
     use objc2::runtime::ProtocolObject;
     use objc2_app_kit::{NSPasteboard, NSPasteboardItem, NSPasteboardTypePNG, NSPasteboardWriting};
     use objc2_foundation::{NSArray, NSData};
 
     unsafe {
         let pasteboard = NSPasteboard::generalPasteboard();
-        pasteboard.clearContents();
-
-        let ns_data = NSData::with_bytes(&bytes);
+        let ns_data = NSData::with_bytes(bytes);
         let item = NSPasteboardItem::new();
         let set_ok = item.setData_forType(&ns_data, NSPasteboardTypePNG);
         if !set_ok {
@@ -254,6 +269,7 @@ pub fn platform_write_image_to_pasteboard(path: &str) -> Result<(), String> {
         let proto_item: objc2::rc::Retained<ProtocolObject<dyn NSPasteboardWriting>> =
             ProtocolObject::from_retained(item);
         let items = NSArray::from_retained_slice(&[proto_item]);
+        pasteboard.clearContents();
         if !pasteboard.writeObjects(&items) {
             return Err("NSPasteboard writeObjects failed".to_string());
         }
@@ -349,4 +365,15 @@ pub fn platform_resign_before_paste(app: &tauri::AppHandle) {
     });
     // Wait for main thread to complete — ensures focus is resigned before simulate_paste()
     let _ = rx.recv();
+}
+
+#[cfg(test)]
+mod paste_thread_tests {
+    #[test]
+    fn native_image_write_rejects_worker_before_touching_pasteboard() {
+        let result = std::thread::spawn(|| super::write_image_bytes_to_pasteboard(b"unused"))
+            .join()
+            .unwrap();
+        assert_eq!(result.unwrap_err(), "Pasteboard write requires main thread");
+    }
 }
