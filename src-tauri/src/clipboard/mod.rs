@@ -261,15 +261,18 @@ mod tests {
 
     #[test]
     fn test_save_original_image() {
-        let temp_dir = std::env::temp_dir().join("recopy-test-images");
-        let _ = std::fs::remove_dir_all(&temp_dir);
+        let temp_dir =
+            std::env::temp_dir().join(format!("recopy-test-images-{}", uuid::Uuid::new_v4()));
 
         let image_data = vec![0u8; 100];
         let path = save_original_image(&temp_dir, &image_data, "png").unwrap();
 
-        assert!(std::path::Path::new(&path).exists());
-        assert!(path.ends_with(".png"));
-        assert!(path.contains("images/"));
+        let path = std::path::Path::new(&path);
+        assert!(path.is_file());
+        assert_eq!(path.extension(), Some(std::ffi::OsStr::new("png")));
+        // Compare path components, not a Unix-only separator in the string.
+        assert!(path.starts_with(temp_dir.join("images")));
+        assert_eq!(std::fs::read(path).unwrap(), image_data);
 
         // Cleanup
         let _ = std::fs::remove_dir_all(&temp_dir);
