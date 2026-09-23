@@ -8,6 +8,8 @@ use super::nspanel::{
 /// Convert the main window to NSPanel and configure it.
 /// Must be called in the setup closure after the window is created.
 pub fn init_platform(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    // Setup runs on the main thread; seed the cache for worker callers.
+    platform_menu_bar_height();
     let window = app
         .get_webview_window("main")
         .ok_or("Main window not found")?;
@@ -284,6 +286,12 @@ pub fn is_recopy_foreground() -> bool {
 /// Get the system menu bar height (accounts for notched Mac displays).
 /// Uses `[[NSApp mainMenu] menuBarHeight]` via raw objc_msgSend.
 pub fn platform_menu_bar_height() -> f64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static HEIGHT: AtomicU64 = AtomicU64::new(25.0_f64.to_bits());
+    // Show/position helpers may run on workers. Never enter AppKit from those callers.
+    if MainThreadMarker::new().is_none() {
+        return f64::from_bits(HEIGHT.load(Ordering::Relaxed));
+    }
     use std::ffi::{c_char, c_void};
 
     extern "C" {
@@ -317,7 +325,8 @@ pub fn platform_menu_bar_height() -> f64 {
         let sel = sel_registerName(c"menuBarHeight".as_ptr());
         let height = msg_f64(menu, sel);
 
-        if height > 0.0 {
+        if height.is_finite() && height > 0.0 {
+            HEIGHT.store(height.to_bits(), Ordering::Relaxed);
             height
         } else {
             25.0

@@ -35,6 +35,29 @@ pub fn platform_preview_top_inset() -> f64 {
     preview_top_inset_for_target(platform_menu_bar_height(), cfg!(target_os = "macos"))
 }
 
+pub async fn platform_preview_top_inset_async(app: &tauri::AppHandle) -> Result<f64, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let (send, receive) = tokio::sync::oneshot::channel();
+        app.run_on_main_thread(move || {
+            let _ = send.send(preview_top_inset_for_target(
+                platform_menu_bar_height(),
+                true,
+            ));
+        })
+        .map_err(|e| e.to_string())?;
+        receive.await.map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        Ok(preview_top_inset_for_target(
+            platform_menu_bar_height(),
+            false,
+        ))
+    }
+}
+
 #[cfg_attr(target_os = "macos", allow(dead_code))]
 pub(crate) fn should_hide_after_recopy_focus_check(
     main_focused: bool,

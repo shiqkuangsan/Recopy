@@ -1,3 +1,4 @@
+pub mod resources;
 pub mod storage;
 
 use sha2::{Digest, Sha256};
@@ -58,8 +59,27 @@ pub fn exceeds_size_limit(size: usize, limit_mb: usize) -> bool {
 /// Bounds both dimensions to THUMBNAIL_EDGE while maintaining aspect ratio.
 /// Output format is PNG.
 pub fn generate_thumbnail(image_data: &[u8]) -> Result<Vec<u8>, String> {
-    let img =
-        image::load_from_memory(image_data).map_err(|e| format!("Failed to load image: {}", e))?;
+    use image::ImageDecoder;
+    let mut reader = image::ImageReader::new(Cursor::new(image_data))
+        .with_guessed_format()
+        .map_err(|e| e.to_string())?;
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(32768);
+    limits.max_image_height = Some(32768);
+    limits.max_alloc = Some(128 * 1024 * 1024);
+    reader.limits(limits.clone());
+    let mut decoder = reader.into_decoder().map_err(|e| e.to_string())?;
+    let (width, height) = decoder.dimensions();
+    if u64::from(width) * u64::from(height) > 32_000_000
+        || decoder.total_bytes() > 128 * 1024 * 1024
+    {
+        return Err("Image exceeds thumbnail decode budget".into());
+    }
+    limits
+        .reserve(decoder.total_bytes())
+        .map_err(|e| e.to_string())?;
+    decoder.set_limits(limits).map_err(|e| e.to_string())?;
+    let img = image::DynamicImage::from_decoder(decoder).map_err(|e| e.to_string())?;
 
     let thumb = if img.width() > THUMBNAIL_EDGE || img.height() > THUMBNAIL_EDGE {
         img.resize(
@@ -150,6 +170,17 @@ mod tests {
         assert!(exceeds_size_limit(payload_size(b"x", Some(&html)), 1));
         assert!(!exceeds_size_limit(payload_size(b"", Some(&html)), 1));
         assert_eq!(payload_size(b"abc", Some(b"def")), 6);
+    }
+
+    #[test]
+    fn oversized_header_is_rejected_before_pixel_decode() {
+        // Valid PPM headers without a pixel body: budget rejection must precede EOF.
+        let error = generate_thumbnail(b"P6\n6000 6000\n255\n").unwrap_err();
+        assert!(error.contains("budget"), "{error}");
+        assert!(generate_thumbnail(b"P6\n32769 1\n255\n").is_err());
+        // 25M RGB16 pixels pass the pixel ceiling but exceed the output-byte budget.
+        let error = generate_thumbnail(b"P6\n5000 5000\n65535\n").unwrap_err();
+        assert!(error.contains("budget"), "{error}");
     }
 
     #[test]

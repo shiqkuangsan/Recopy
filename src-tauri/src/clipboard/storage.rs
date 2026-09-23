@@ -212,6 +212,15 @@ mod tests {
     }
 
     #[test]
+    fn oversized_thumbnail_header_preserves_original_bytes() {
+        let root = TestDirectory::new();
+        let bytes = b"P6\n6000 6000\n255\n";
+        let (thumb, path) = prepare_image(&root.0, bytes).unwrap();
+        assert!(thumb.is_none());
+        assert_eq!(std::fs::read(path).unwrap(), bytes);
+    }
+
+    #[test]
     fn original_write_failure_is_fatal_but_thumbnail_failure_is_not() {
         let root = TestDirectory::new();
         let blocker = root.0.join("blocked");

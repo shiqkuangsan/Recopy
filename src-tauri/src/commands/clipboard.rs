@@ -637,52 +637,58 @@ pub async fn cleanup_orphan_images(app: &AppHandle) {
             }
         };
 
-    let images_dir = app_data_dir.join("images");
-    if !images_dir.exists() {
-        return;
-    }
-
-    // Walk `images/{YYYY-MM}/` subdirectories
-    let month_dirs = match std::fs::read_dir(&images_dir) {
-        Ok(d) => d,
-        Err(e) => {
-            log::warn!("cleanup_orphan_images: cannot read images dir: {}", e);
+    let scan = tokio::task::spawn_blocking(move || {
+        let images_dir = app_data_dir.join("images");
+        if !images_dir.exists() {
             return;
         }
-    };
 
-    let mut orphan_count = 0u32;
-    for month_entry in month_dirs.flatten() {
-        let month_path = month_entry.path();
-        if !month_path.is_dir() {
-            continue;
-        }
-        let files = match std::fs::read_dir(&month_path) {
+        // Walk `images/{YYYY-MM}/` subdirectories
+        let month_dirs = match std::fs::read_dir(&images_dir) {
             Ok(d) => d,
-            Err(_) => continue,
+            Err(e) => {
+                log::warn!("cleanup_orphan_images: cannot read images dir: {}", e);
+                return;
+            }
         };
-        for file_entry in files.flatten() {
-            let file_path = file_entry.path();
-            let path_str = file_path.to_string_lossy().to_string();
-            if !known_paths.contains(&path_str) {
-                if let Err(e) = std::fs::remove_file(&file_path) {
-                    log::warn!(
-                        "cleanup_orphan_images: failed to remove {}: {}",
-                        path_str,
-                        e
-                    );
-                } else {
-                    orphan_count += 1;
+
+        let mut orphan_count = 0u32;
+        for month_entry in month_dirs.flatten() {
+            let month_path = month_entry.path();
+            if !month_path.is_dir() {
+                continue;
+            }
+            let files = match std::fs::read_dir(&month_path) {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+            for file_entry in files.flatten() {
+                let file_path = file_entry.path();
+                let path_str = file_path.to_string_lossy().to_string();
+                if !known_paths.contains(&path_str) {
+                    if let Err(e) = std::fs::remove_file(&file_path) {
+                        log::warn!(
+                            "cleanup_orphan_images: failed to remove {}: {}",
+                            path_str,
+                            e
+                        );
+                    } else {
+                        orphan_count += 1;
+                    }
                 }
             }
         }
-    }
 
-    if orphan_count > 0 {
-        log::info!(
-            "cleanup_orphan_images: removed {} orphan file(s)",
-            orphan_count
-        );
+        if orphan_count > 0 {
+            log::info!(
+                "cleanup_orphan_images: removed {} orphan file(s)",
+                orphan_count
+            );
+        }
+    })
+    .await;
+    if let Err(error) = scan {
+        log::warn!("Image cleanup worker failed: {}", error);
     }
 }
 
@@ -708,7 +714,7 @@ pub async fn show_preview_window(
     // Calculate available space for preview based on panel position
     let gap = 24.0; // 8px gap + 16px margin
                     // Menu bar / notch height: preview must not extend above the menu bar
-    let top_safe = crate::platform::platform_preview_top_inset();
+    let top_safe = crate::platform::platform_preview_top_inset_async(&app).await?;
     let (available_w, available_h) = (|| -> Option<(f64, f64)> {
         let preview_win = app.get_webview_window("preview")?;
         let monitor = preview_win.current_monitor().ok()??;
@@ -1167,7 +1173,12 @@ pub async fn process_clipboard_change(
     // Note: For file-type images, thumbnail is generated asynchronously after insert (see below)
     let (thumbnail, image_path) = if content_type == ContentType::Image {
         let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
+        let permit = clip_util::resources::THUMBNAIL_SLOTS
+            .acquire()
+            .await
+            .map_err(|e| e.to_string())?;
         let (thumb, path) = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
             clip_util::storage::prepare_image(&app_data, &content)
         })
         .await
@@ -1220,22 +1231,19 @@ pub async fn process_clipboard_change(
                 let id_clone = id.clone();
                 let fp_clone = fp.clone();
                 let app_clone = app.clone();
+                let max_bytes = max_size_mb.min(100).saturating_mul(1024 * 1024) as u64;
+                // Admission happens before task creation and file reading.
+                let Some(task) =
+                    clip_util::resources::try_file_thumbnail(fp_clone.into(), max_bytes)
+                else {
+                    log::debug!("Skipping file thumbnail: image workers busy");
+                    return Ok(Some(id));
+                };
                 tauri::async_runtime::spawn(async move {
-                    let data = match tokio::fs::read(&fp_clone).await {
-                        Ok(d) => d,
-                        Err(e) => {
-                            log::warn!("Failed to read image file for thumbnail: {}", e);
-                            return;
-                        }
-                    };
-                    let thumb = match tokio::task::spawn_blocking(move || {
-                        clip_util::generate_thumbnail(&data)
-                    })
-                    .await
-                    {
+                    let thumb = match task.await {
                         Ok(Ok(t)) => t,
-                        _ => {
-                            log::warn!("Failed to generate thumbnail for file");
+                        error => {
+                            log::warn!("File thumbnail unavailable: {:?}", error);
                             return;
                         }
                     };
@@ -1367,37 +1375,41 @@ pub async fn open_url(url: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn get_storage_size(app: AppHandle) -> Result<u64, String> {
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let mut total: u64 = 0;
+    tokio::task::spawn_blocking(move || {
+        let mut total: u64 = 0;
 
-    // Database file + WAL/SHM
-    for name in ["recopy.db", "recopy.db-wal", "recopy.db-shm"] {
-        if let Ok(meta) = std::fs::metadata(app_data.join(name)) {
-            total += meta.len();
+        // Database file + WAL/SHM
+        for name in ["recopy.db", "recopy.db-wal", "recopy.db-shm"] {
+            if let Ok(meta) = std::fs::metadata(app_data.join(name)) {
+                total += meta.len();
+            }
         }
-    }
 
-    // Images directory (recursive)
-    let images_dir = app_data.join("images");
-    if images_dir.exists() {
-        fn dir_size(path: &std::path::Path) -> u64 {
-            let mut size = 0;
-            if let Ok(entries) = std::fs::read_dir(path) {
-                for entry in entries.flatten() {
-                    if let Ok(ft) = entry.file_type() {
-                        if ft.is_file() {
-                            size += entry.metadata().map(|m| m.len()).unwrap_or(0);
-                        } else if ft.is_dir() {
-                            size += dir_size(&entry.path());
+        // Images directory (recursive)
+        let images_dir = app_data.join("images");
+        if images_dir.exists() {
+            fn dir_size(path: &std::path::Path) -> u64 {
+                let mut size = 0;
+                if let Ok(entries) = std::fs::read_dir(path) {
+                    for entry in entries.flatten() {
+                        if let Ok(ft) = entry.file_type() {
+                            if ft.is_file() {
+                                size += entry.metadata().map(|m| m.len()).unwrap_or(0);
+                            } else if ft.is_dir() {
+                                size += dir_size(&entry.path());
+                            }
                         }
                     }
                 }
+                size
             }
-            size
+            total += dir_size(&images_dir);
         }
-        total += dir_size(&images_dir);
-    }
 
-    Ok(total)
+        total
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// Set tray icon visibility at runtime (macOS only).
