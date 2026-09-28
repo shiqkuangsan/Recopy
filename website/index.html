@@ -1,514 +1,1781 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Recopy — Every copy you make, always within reach.</title>
-  <meta name="description" content="A free, source-available clipboard history manager for macOS and Windows. Privacy-first, ranked fuzzy search, quick paste, and built-in auto-update.">
-  <link rel="icon" href="favicon.ico">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recopy — A little memory for your clipboard.</title>
+    <meta
+      name="description"
+      content="Find text, images, and links you copied before. Recopy is a free, source-available clipboard history app for macOS and Windows, with history stored on your device."
+    />
+    <link rel="icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 
-  <!-- OG Meta Tags -->
-  <meta property="og:title" content="Recopy — Every copy you make, always within reach.">
-  <meta property="og:description" content="A free, source-available clipboard history manager for macOS and Windows. Privacy-first, ranked fuzzy search, quick paste, and built-in auto-update.">
-  <meta property="og:type" content="website">
-  <meta property="og:image" content="images/preview-dark-en.webp">
+    <!-- OG Meta Tags -->
+    <meta property="og:title" content="Recopy — A little memory for your clipboard." />
+    <meta
+      property="og:description"
+      content="Find text, images, and links you copied before. Recopy is a free, source-available clipboard history app for macOS and Windows, with history stored on your device."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="images/recopy-ui-dark.png" />
 
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Recopy — Every copy you make, always within reach.">
-  <meta name="twitter:description" content="A free, source-available clipboard history manager for macOS and Windows. Privacy-first, ranked fuzzy search, quick paste, and built-in auto-update.">
-  <meta name="twitter:image" content="images/preview-dark-en.webp">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Recopy — A little memory for your clipboard." />
+    <meta
+      name="twitter:description"
+      content="Find text, images, and links you copied before. Recopy is a free, source-available clipboard history app for macOS and Windows, with history stored on your device."
+    />
+    <meta name="twitter:image" content="images/recopy-ui-dark.png" />
 
-  <!-- Theme init: prevent flash of wrong theme -->
-  <script>
-    (function() {
-      const saved = localStorage.getItem('theme');
-      const theme = saved === 'system' || !saved
-        ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-        : saved;
-      document.documentElement.setAttribute('data-theme', theme);
-    })();
-  </script>
+    <!-- Theme init: prevent flash of wrong theme -->
+    <script>
+      (function () {
+        const saved = localStorage.getItem('theme');
+        const theme =
+          saved === 'system' || !saved
+            ? matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : saved;
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
 
-  <link rel="stylesheet" href="style.css">
-
-  <!-- Blobity: hide default cursor -->
-  <style>
-    body.blobity-active,
-    body.blobity-active a,
-    body.blobity-active button,
-    body.blobity-active [data-blobity],
-    body.blobity-active [data-blobity-tooltip],
-    body.blobity-active .demo-window,
-    body.blobity-active .lightbox,
-    body.blobity-active .hero-brew-cmd {
-      cursor: none !important;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Nav -->
-  <nav class="nav">
-    <div class="nav-inner">
-      <a href="/" class="nav-logo">
-        <img src="images/icon-32.png" alt="Recopy" width="32" height="32">
-        <span>Recopy</span>
-      </a>
-      <div class="nav-actions">
-        <a href="https://github.com/shiqkuangsan/Recopy" target="_blank" class="nav-link">GitHub</a>
-        <a href="#sponsor" class="nav-link" data-en="Sponsor" data-zh="赞赏">Sponsor</a>
-        <button class="btn btn-sm" data-theme-icon onclick="toggleTheme()">&#9728;&#65039;</button>
-        <button id="lang-toggle" class="btn btn-sm" onclick="toggleLang()">&#20013;&#25991;</button>
-        <a href="/download/macos" id="download-btn" class="btn btn-primary btn-sm" data-en="Download" data-zh="&#19979;&#36733;">Download</a>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Hero -->
-  <section class="hero">
-    <div class="container">
-      <div class="hero-badge" data-en="Desktop App" data-zh="桌面应用">Desktop App</div>
-      <h1 class="hero-title" data-en="Every copy you make,<br>always within reach." data-zh="你的每一次复制，<br>都不会再丢失。">Every copy you make,<br>always within reach.</h1>
-      <p class="hero-desc" data-en="A free, source-available clipboard history manager for macOS and Windows. Privacy-first, ranked fuzzy search, quick paste, and built-in auto-update." data-zh="免费、源码开放的剪贴板历史管理工具，支持 macOS 和 Windows。隐私优先，支持排序模糊搜索、快速粘贴与内置自动更新。">A free, source-available clipboard history manager for macOS and Windows. Privacy-first, ranked fuzzy search, quick paste, and built-in auto-update.</p>
-      <div class="hero-actions">
-        <a href="/download/macos" class="btn btn-primary" id="hero-download-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-          <span data-en="Download for macOS" data-zh="下载 macOS 版">Download for macOS</span>
-        </a>
-        <a href="https://github.com/shiqkuangsan/Recopy" class="btn btn-outline">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-          <span data-en="View on GitHub" data-zh="在 GitHub 查看">View on GitHub</span>
-        </a>
-      </div>
-      <div class="hero-alt-download">
-        <span data-en="Also available:" data-zh="其他下载：">Also available:</span>
-        <a href="/download/macos" data-en="macOS (Apple Silicon)" data-zh="macOS (Apple Silicon)">macOS (Apple Silicon)</a>
-        <span class="hero-alt-sep">|</span>
-        <a href="/download/macos-x64" data-en="macOS (Intel)" data-zh="macOS (Intel)">macOS (Intel)</a>
-        <span class="hero-alt-sep">|</span>
-        <a href="/download/windows" data-en="Windows" data-zh="Windows">Windows</a>
-        <span class="hero-alt-sep">|</span>
-        <a href="https://github.com/shiqkuangsan/Recopy/releases" target="_blank" data-en="GitHub Releases" data-zh="GitHub Releases">GitHub Releases</a>
-      </div>
-      <div class="hero-brew">
-        <span data-en="or install via" data-zh="或通过">or install via</span>
-        <a href="https://github.com/shiqkuangsan/homebrew-recopy" target="_blank" class="hero-brew-link">Homebrew</a>
-      </div>
-      <div class="hero-brew-commands">
-        <div class="hero-brew-row">
-          <span class="hero-brew-label" data-en="Install" data-zh="安装">Install</span>
-          <code class="hero-brew-cmd" onclick="copyBrew(this, 'install')">brew install --cask shiqkuangsan/recopy/recopy</code>
+    <link rel="stylesheet" href="landing.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main"
+      ><span data-zh="跳到主要内容" data-en="Skip to content">Skip to content</span></a
+    >
+    <nav class="nav" aria-label="Main navigation">
+      <div class="nav-inner">
+        <a class="nav-logo" href="/"
+          ><img src="images/icon-32.png" alt="" width="32" height="32" /><span
+            >Recopy<span class="logo-dot">.</span></span
+          ></a
+        >
+        <div class="nav-links">
+          <a class="nav-link" href="#experience"
+            ><span data-zh="亲手体验" data-en="Try it">Try it</span
+            ><svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-arrow-up-right"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M7 7h10v10"></path>
+              <path d="M7 17 17 7"></path></svg></a
+          ><a class="nav-link" href="#why"
+            ><span data-zh="为什么用 Recopy" data-en="Why Recopy">Why Recopy</span
+            ><svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-arrow-up-right"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M7 7h10v10"></path>
+              <path d="M7 17 17 7"></path></svg
+          ></a>
         </div>
-        <div class="hero-brew-row">
-          <span class="hero-brew-label" data-en="Update" data-zh="更新">Update</span>
-          <code class="hero-brew-cmd" onclick="copyBrew(this, 'upgrade')">brew upgrade --cask recopy</code>
+        <div class="nav-actions">
+          <button
+            class="icon-button"
+            data-theme-icon
+            onclick="toggleTheme()"
+            aria-label="Change theme"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-monitor"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <rect width="20" height="14" x="2" y="3" rx="2"></rect>
+              <line x1="8" x2="16" y1="21" y2="21"></line>
+              <line x1="12" x2="12" y1="17" y2="21"></line>
+            </svg></button
+          ><button
+            id="lang-toggle"
+            class="language-button"
+            onclick="toggleLang()"
+            data-label-en="Switch to Chinese"
+            data-label-zh="Switch to English"
+          >
+            中文</button
+          ><a
+            id="download-btn"
+            class="btn btn-primary btn-sm"
+            href="#install"
+            data-en="Get Recopy"
+            data-zh="免费下载"
+            >Get Recopy</a
+          >
         </div>
       </div>
-      <p class="hero-note">
-        <span data-en="macOS note: Not yet code-signed. Run" data-zh="macOS 提示：尚未代码签名，运行">macOS note: Not yet code-signed. Run</span>
-        <code class="hero-note-cmd" onclick="copyCmd(this)">xattr -d com.apple.quarantine /Applications/Recopy.app</code>
-        <span data-en="on first launch." data-zh="即可启动。">on first launch.</span>
-        <a href="https://github.com/shiqkuangsan/Recopy/blob/main/docs/macos-unsigned-app.md" target="_blank" data-en="Details →" data-zh="详情 →">Details →</a>
-      </p>
-    </div>
-  </section>
+    </nav>
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-heading">
+        <div class="container hero-layout">
+          <div class="hero-copy">
+            <div class="hero-eyebrow">
+              <span class="eyebrow-dot"></span
+              ><span data-zh="给剪贴板，多一点记忆。" data-en="A LITTLE MEMORY FOR YOUR CLIPBOARD"
+                >A LITTLE MEMORY FOR YOUR CLIPBOARD</span
+              >
+            </div>
+            <h1
+              id="hero-heading"
+              class="hero-title"
+              data-zh="复制过的，&lt;br&gt;&lt;span&gt;都有迹可循。&lt;/span&gt;"
+              data-en="You copied it.&lt;br&gt;&lt;span&gt;Find it again.&lt;/span&gt;"
+            >
+              You copied it.<br /><span>Find it again.</span>
+            </h1>
+            <p
+              class="hero-desc"
+              data-zh="刚才的链接、之前的文字、那张灵感图。<br>Recopy 记下剪贴历史，搜一搜，找回你复制过的内容。"
+              data-en="That link from a minute ago. The text you copied earlier. Recopy keeps your clipboard history searchable, so you can find what you copied."
+            >
+              That link from a minute ago. The text you copied earlier. Recopy keeps your clipboard
+              history searchable, so you can find what you copied.
+            </p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" id="hero-download-btn" href="#install"
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-download"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M12 15V3"></path>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <path d="m7 10 5 5 5-5"></path></svg
+                ><span data-zh="下载 macOS 版" data-en="Download for macOS"
+                  >Download for macOS</span
+                ></a
+              ><button class="btn btn-outline" data-open-film>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-play"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"
+                  ></path></svg
+                ><span data-zh="看 60 秒小故事" data-en="Watch the 60s story"
+                  >Watch the 60s story</span
+                >
+              </button>
+            </div>
+            <div class="hero-trust">
+              <span data-zh="免费使用" data-en="Free to use">Free to use</span
+              ><span aria-hidden="true">·</span
+              ><span data-zh="记录保存在本机" data-en="History stays local"
+                >History stays local</span
+              ><span aria-hidden="true">·</span><span>macOS & Windows</span>
+            </div>
+            <a class="install-link" href="#install"
+              ><span data-zh="其他平台与安装说明" data-en="All platforms &amp; setup"
+                >All platforms & setup</span
+              ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-arrow-up-right"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M7 7h10v10"></path>
+                <path d="M7 17 17 7"></path></svg
+            ></a>
+          </div>
+          <figure class="film-card">
+            <div class="film-card-top">
+              <span>THE LITTLE BOOK OF COPIED IDEAS</span><span class="film-duration">01:00</span>
+            </div>
+            <button
+              class="film-cover"
+              type="button"
+              data-open-film
+              aria-label="Play the hand-drawn Recopy story"
+              data-label-en="Play the hand-drawn Recopy story"
+              data-label-zh="播放 Recopy 手绘小故事"
+            >
+              <img
+                src="media/recopy-film-poster.png"
+                width="1920"
+                height="1080"
+                alt=""
+                fetchpriority="high"
+              /><span class="film-play"
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-play"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"
+                  ></path></svg
+              ></span>
+            </button>
+            <figcaption>
+              <span
+                data-zh="复制过的，都有迹可循。"
+                data-en="Find your way back to what you copied."
+                >Find your way back to what you copied.</span
+              ><span class="film-caption-tag">ZH / EN</span>
+            </figcaption>
+            <span class="film-note" aria-hidden="true"
+              ><span data-zh="刚才那条，找回来了。" data-en="There it is.">There it is.</span></span
+            >
+          </figure>
+        </div>
+        <div class="container content-ribbon">
+          <p class="ribbon-label" data-zh="复制的，不止文字。" data-en="More than just text.">
+            More than just text.
+          </p>
+          <div class="type-list">
+            <span
+              ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-file-text"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"
+                ></path>
+                <path d="M14 2v5a1 1 0 0 0 1 1h5"></path>
+                <path d="M10 9H8"></path>
+                <path d="M16 13H8"></path>
+                <path d="M16 17H8"></path></svg
+              ><span data-zh="文字" data-en="Text">Text</span></span
+            ><span
+              ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-clipboard"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect>
+                <path
+                  d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                ></path></svg
+              ><span data-zh="富文本" data-en="Rich text">Rich text</span></span
+            ><span
+              ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-image"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+                <circle cx="9" cy="9" r="2"></circle>
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg
+              ><span data-zh="图片" data-en="Images">Images</span></span
+            ><span
+              ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-folder"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+                ></path></svg
+              ><span data-zh="文件" data-en="Files">Files</span></span
+            ><span
+              ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-link"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg
+              ><span data-zh="链接" data-en="Links">Links</span></span
+            >
+          </div>
+        </div>
+      </section>
+      <!-- Interactive demo: all data is synthetic and stays in this page -->
+      <section class="experience" id="experience" aria-labelledby="experience-heading">
+        <div class="container">
+          <div class="experience-heading">
+            <div>
+              <p class="section-kicker">01 / TRY IT YOURSELF</p>
+              <h2
+                id="experience-heading"
+                data-en="Find something you copied."
+                data-zh="刚才复制的，找回来。"
+              >
+                Find something you copied.
+              </h2>
+              <p
+                data-en="Search, choose, and paste. A small taste of your everyday flow."
+                data-zh="搜一搜、选一条、粘贴回去。试试每天都会用到的小动作。"
+              >
+                Search, choose, and paste. A small taste of your everyday flow.
+              </p>
+            </div>
+            <span
+              class="demo-sticker"
+              data-en="A little hands-on magic"
+              data-zh="不用安装，动手试试"
+              >A little hands-on magic</span
+            >
+          </div>
+          <div class="experience-layout">
+            <div
+              class="clipboard-demo"
+              role="region"
+              aria-label="Interactive clipboard demo"
+              data-label-en="Interactive clipboard demo"
+              data-label-zh="交互剪贴板演示"
+            >
+              <div class="clipboard-demo-title">
+                <span><img src="images/icon-32.png" alt="" width="24" height="24" />Recopy</span
+                ><span class="demo-label" data-en="INTERACTIVE DEMO" data-zh="交互体验版"
+                  >INTERACTIVE DEMO</span
+                >
+              </div>
+              <div class="demo-search-wrap">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-search"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="m21 21-4.34-4.34"></path>
+                  <circle cx="11" cy="11" r="8"></circle></svg
+                ><label
+                  for="demo-search"
+                  class="sr-only"
+                  data-en="Search sample clipboard history"
+                  data-zh="搜索示例剪贴记录"
+                  >Search sample clipboard history</label
+                ><input
+                  id="demo-search"
+                  type="search"
+                  autocomplete="off"
+                  data-placeholder-en="Search text, notes, filenames…"
+                  data-placeholder-zh="搜文字、备注、文件名…"
+                  placeholder="Search text, notes, filenames…"
+                /><button
+                  id="demo-suggestion"
+                  class="search-suggestion"
+                  type="button"
+                  data-en="Try ‘idea’"
+                  data-zh="试试「灵感」"
+                >
+                  Try ‘idea’
+                </button>
+              </div>
+              <div
+                class="demo-filters"
+                id="demo-filters"
+                role="group"
+                aria-label="Filter sample items"
+                data-label-en="Filter sample items"
+                data-label-zh="筛选示例条目"
+              ></div>
+              <div
+                class="demo-items"
+                id="demo-items"
+                role="group"
+                aria-label="Sample clipboard items"
+                data-label-en="Sample clipboard items"
+                data-label-zh="示例剪贴条目"
+              ></div>
+              <div class="demo-actions">
+                <button class="btn btn-primary" id="demo-paste" type="button">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-clipboard"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect>
+                    <path
+                      d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                    ></path></svg
+                  ><span data-en="Paste to note" data-zh="粘贴到便笺">Paste to note</span
+                  ><kbd aria-hidden="true">↵</kbd></button
+                ><button
+                  class="btn demo-action-icon"
+                  id="demo-pin"
+                  type="button"
+                  aria-pressed="false"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-star"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"
+                    ></path></svg
+                  ><span data-en="Pin" data-zh="收藏">Pin</span></button
+                ><button class="btn demo-action-icon" id="demo-preview-button" type="button">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-eye"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
+                    ></path>
+                    <circle cx="12" cy="12" r="3"></circle></svg
+                  ><span data-en="Preview" data-zh="预览">Preview</span>
+                </button>
+              </div>
+              <p id="demo-status" class="demo-status" role="status" aria-live="polite"></p>
+            </div>
+            <aside class="idea-note" aria-labelledby="note-title">
+              <div class="note-top">
+                <span>MY NEXT IDEA</span
+                ><button
+                  type="button"
+                  id="demo-reset"
+                  class="icon-button"
+                  data-label-en="Reset the demo"
+                  data-label-zh="重置演示"
+                  aria-label="Reset the demo"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-rotate-ccw"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <path d="M3 3v5h5"></path>
+                  </svg>
+                </button>
+              </div>
+              <h3 id="note-title" data-en="Found it. Back to work." data-zh="找回了，接着用。">
+                Found it. Back to work.
+              </h3>
+              <label
+                for="demo-note"
+                class="sr-only"
+                data-en="Simulated paste result"
+                data-zh="模拟粘贴结果"
+                >Simulated paste result</label
+              ><textarea
+                id="demo-note"
+                readonly
+                data-placeholder-en="Find a past copy here.
+  Pick a card, then paste it over."
+                data-placeholder-zh="找回的内容，
+  会出现在这里。"
+                placeholder="Find a past copy here.
+  Pick a card, then paste it over."
+              ></textarea>
+              <p
+                class="demo-boundary"
+                data-en="Sample content only. Your system clipboard is never read."
+                data-zh="虚构示例，仅在本页操作，不读取系统剪贴板。"
+              >
+                Sample content only. Your system clipboard is never read.
+              </p>
+            </aside>
+          </div>
+          <div class="experience-foot">
+            <p
+              data-en="On a card: ← → to choose · Space to preview · Enter to paste · F to pin"
+              data-zh="选中卡片后：← → 切换 · 空格预览 · Enter 粘贴 · F 收藏"
+            >
+              On a card: ← → to choose · Space to preview · Enter to paste · F to pin
+            </p>
+            <button class="text-button" id="open-product-preview" type="button">
+              <span class="" data-en="See the real app" data-zh="看看真实软件界面"
+                >See the real app</span
+              ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-arrow-up-right"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M7 7h10v10"></path>
+                <path d="M7 17 17 7"></path>
+              </svg>
+            </button>
+          </div>
+          <img
+            id="demo-preview"
+            src="images/recopy-ui-light.png"
+            alt="Recopy desktop interface"
+            hidden
+          />
+        </div>
+      </section>
 
-  <!-- Demo -->
-  <section class="demo">
-    <div class="container">
-      <div class="demo-window" onclick="openLightbox()">
-        <img id="demo-preview" src="images/preview-dark-en.webp" alt="Recopy Demo" class="demo-img" loading="lazy">
-        <div class="demo-zoom-hint">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/>
+      <section id="why" class="stories section-space">
+        <div class="container">
+          <div class="section-heading">
+            <p class="section-kicker">02 / LESS FRICTION, MORE FLOW</p>
+            <h2
+              data-zh="少一点来回，&lt;br&gt;多一点顺手。"
+              data-en="Less back and forth.&lt;br&gt;More in your flow."
+            >
+              Less back and forth.<br />More in your flow.
+            </h2>
+            <p class="section-intro">
+              <span
+                data-zh="让那些小小的重复动作，到这里就好。"
+                data-en="A few small things you shouldn’t have to do twice."
+                >A few small things you shouldn’t have to do twice.</span
+              >
+            </p>
+          </div>
+          <div class="story-grid">
+            <article class="story-card story-01">
+              <div class="story-art" aria-hidden="true">
+                <div class="mini-search">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-search"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="m21 21-4.34-4.34"></path>
+                    <circle cx="11" cy="11" r="8"></circle></svg
+                  ><span data-zh="会议地址" data-en="meeting address">meeting address</span>
+                </div>
+                <div class="mini-result">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-link"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path
+                      d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                    ></path></svg
+                  ><span
+                    ><strong data-zh="周五的见面地点" data-en="Friday’s meeting spot"
+                      >Friday’s meeting spot</strong
+                    ><small>maps.example / studio</small></span
+                  ><span class="result-check"
+                    ><svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="lucide lucide-check"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M20 6 9 17l-5-5"></path></svg
+                  ></span>
+                </div>
+              </div>
+              <div class="story-copy">
+                <span class="story-number">/01</span>
+                <h3
+                  data-zh="刚才复制的，不必再找一遍。"
+                  data-en="Find it. Without retracing your steps."
+                >
+                  Find it. Without retracing your steps.
+                </h3>
+                <p
+                  data-zh="复制过的文字、链接和文件，都有迹可循。输入关键词，就能从历史中找到需要的那条。"
+                  data-en="Search your history for copied text, links, and filenames. Pick up where you left off."
+                >
+                  Search your history for copied text, links, and filenames. Pick up where you left
+                  off.
+                </p>
+              </div>
+            </article>
+            <article class="story-card story-02">
+              <div class="story-art" aria-hidden="true">
+                <div class="mini-pin">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-star"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"
+                    ></path></svg
+                  ><strong data-zh="我的常用回复" data-en="My go-to reply">My go-to reply</strong>
+                  <p>
+                    <span
+                      data-zh="谢谢，已经收到！我会尽快看一下。"
+                      data-en="Thanks, got it! I’ll take a look shortly."
+                      >Thanks, got it! I’ll take a look shortly.</span
+                    >
+                  </p>
+                  <span class="mini-note"
+                    ><span data-zh="工作 / 常用开场白" data-en="Work / A friendly hello"
+                      >Work / A friendly hello</span
+                    ></span
+                  >
+                </div>
+              </div>
+              <div class="story-copy">
+                <span class="story-number">/02</span>
+                <h3 data-zh="常用的内容，给它留个位置。" data-en="Keep the things you reach for.">
+                  Keep the things you reach for.
+                </h3>
+                <p
+                  data-zh="把常用地址、回复和资料加入收藏，再写一点备注。下次需要时，少翻几次记录。"
+                  data-en="Pin your go-to replies, addresses, and references. Add a note to make them easier to find next time."
+                >
+                  Pin your go-to replies, addresses, and references. Add a note to make them easier
+                  to find next time.
+                </p>
+              </div>
+            </article>
+            <article class="story-card story-03">
+              <div class="story-art" aria-hidden="true">
+                <div class="mini-flow">
+                  <span
+                    ><svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="lucide lucide-eye"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path
+                        d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
+                      ></path>
+                      <circle cx="12" cy="12" r="3"></circle></svg
+                    ><span data-zh="预览" data-en="Preview">Preview</span></span
+                  ><svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-arrow-right"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M5 12h14"></path>
+                    <path d="m12 5 7 7-7 7"></path></svg
+                  ><kbd>↵</kbd>
+                </div>
+                <div class="mini-document">
+                  <span></span><span></span
+                  ><span class="inserted"
+                    ><span
+                      data-zh="好内容，接着用。"
+                      data-en="The good bit, right where it belongs."
+                      >The good bit, right where it belongs.</span
+                    ></span
+                  ><span></span>
+                </div>
+              </div>
+              <div class="story-copy">
+                <span class="story-number">/03</span>
+                <h3 data-zh="看清楚，再放回工作里。" data-en="A quick look. Then back to work.">
+                  A quick look. Then back to work.
+                </h3>
+                <p
+                  data-zh="先预览，再按 Enter 粘贴到正在使用的应用。手不用离开键盘，思路也不用中断。"
+                  data-en="Preview before you paste. Press Enter to put it into your active app and keep your train of thought."
+                >
+                  Preview before you paste. Press Enter to put it into your active app and keep your
+                  train of thought.
+                </p>
+              </div>
+            </article>
+          </div>
+          <div class="native-section">
+            <div class="native-heading">
+              <div>
+                <h3
+                  data-zh="在你的桌面上，它长这样。"
+                  data-en="Made to feel at home on your desktop."
+                >
+                  Made to feel at home on your desktop.
+                </h3>
+                <p
+                  data-zh="轻轻唤出，用完收起。支持顶部、底部、左侧和右侧布局。"
+                  data-en="Call it up, grab what you need, carry on. Position the panel at any edge of your screen."
+                >
+                  Call it up, grab what you need, carry on. Position the panel at any edge of your
+                  screen.
+                </p>
+              </div>
+              <button class="text-button" data-open-product>
+                <span data-zh="查看完整界面" data-en="View full interface">View full interface</span
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-arrow-up-right"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M7 7h10v10"></path>
+                  <path d="M7 17 17 7"></path>
+                </svg>
+              </button>
+            </div>
+            <button
+              class="native-preview"
+              data-open-product
+              data-label-en="Enlarge the Recopy desktop screenshot"
+              data-label-zh="放大 Recopy 桌面截图"
+              aria-label="Enlarge the Recopy desktop screenshot"
+            >
+              <img
+                data-product-image
+                src="images/recopy-ui-light.png"
+                width="4088"
+                height="732"
+                alt="Recopy desktop clipboard history panel"
+                loading="lazy"
+              />
+            </button>
+            <p class="native-caption">
+              <span
+                data-zh="新版真实界面 · 明暗主题 · 点击查看 4088 px 原图"
+                data-en="CURRENT APP · CHINESE INTERFACE · FULL-RESOLUTION IMAGE"
+                >CURRENT APP · CHINESE INTERFACE · FULL-RESOLUTION IMAGE</span
+              >
+            </p>
+          </div>
+          <div class="keyboard-strip">
+            <p>
+              <span data-zh="顺手，也顺键盘。" data-en="Keep your hands in the flow."
+                >Keep your hands in the flow.</span
+              ><span
+                ><span data-zh="小动作，不打断。" data-en="Small moves. No interruptions."
+                  >Small moves. No interruptions.</span
+                ></span
+              >
+            </p>
+            <div class="key-actions">
+              <div>
+                <kbd>⌘ / Ctrl</kbd><kbd>⇧</kbd><kbd>V</kbd
+                ><span data-zh="唤出面板" data-en="Open panel">Open panel</span>
+              </div>
+              <div>
+                <kbd>⌘ / Ctrl</kbd><kbd>F</kbd><span data-zh="搜索" data-en="Search">Search</span>
+              </div>
+              <div><kbd>Space</kbd><span data-zh="预览" data-en="Preview">Preview</span></div>
+              <div><kbd>Enter</kbd><span data-zh="粘贴" data-en="Paste">Paste</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="privacy-section" id="privacy">
+        <div class="container privacy-layout">
+          <div>
+            <p class="section-kicker">03 / YOUR CLIPBOARD, YOUR SPACE</p>
+            <h2
+              data-zh="你的剪贴板，&lt;br&gt;留在你的电脑里。"
+              data-en="Your clipboard.&lt;br&gt;Your little corner."
+            >
+              Your clipboard.<br />Your little corner.
+            </h2>
+            <p
+              class="privacy-subtitle"
+              data-zh="记住有用的，边界也清清楚楚。"
+              data-en="Keep what matters. Know where it stays."
+            >
+              Keep what matters. Know where it stays.
+            </p>
+            <a class="text-link" href="privacy.html"
+              ><span data-zh="阅读隐私说明" data-en="Read our privacy policy"
+                >Read our privacy policy</span
+              ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-arrow-up-right"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M7 7h10v10"></path>
+                <path d="M7 17 17 7"></path></svg
+            ></a>
+          </div>
+          <div class="privacy-promises">
+            <div class="privacy-promise">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-shield-check"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                ></path>
+                <path d="m9 12 2 2 4-4"></path>
+              </svg>
+              <div>
+                <h3 data-zh="记录留在本机" data-en="Your history stays local">
+                  Your history stays local
+                </h3>
+                <p
+                  data-zh="剪贴记录保存在本地，不上传到云端。"
+                  data-en="Clipboard history is stored on your device, not uploaded to the cloud."
+                >
+                  Clipboard history is stored on your device, not uploaded to the cloud.
+                </p>
+              </div>
+            </div>
+            <div class="privacy-promise">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-rotate-ccw"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <path d="M3 3v5h5"></path>
+              </svg>
+              <div>
+                <h3 data-zh="保留多久，你来决定" data-en="You choose what stays">
+                  You choose what stays
+                </h3>
+                <p
+                  data-zh="按天数、数量或无限保留。收藏项不受自动清理影响。"
+                  data-en="Keep history by age, count, or without a limit. Pins are exempt from automatic cleanup."
+                >
+                  Keep history by age, count, or without a limit. Pins are exempt from automatic
+                  cleanup.
+                </p>
+              </div>
+            </div>
+            <div class="privacy-promise">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-file-text"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"
+                ></path>
+                <path d="M14 2v5a1 1 0 0 0 1 1h5"></path>
+                <path d="M10 9H8"></path>
+                <path d="M16 13H8"></path>
+                <path d="M16 17H8"></path>
+              </svg>
+              <div>
+                <h3 data-zh="源码和许可都可查看" data-en="Source you can inspect">
+                  Source you can inspect
+                </h3>
+                <p
+                  data-zh="源码开放，使用 PolyForm Noncommercial 许可。"
+                  data-en="Source-available under the PolyForm Noncommercial license."
+                >
+                  Source-available under the PolyForm Noncommercial license.
+                </p>
+              </div>
+            </div>
+            <p class="privacy-footnote">
+              <span
+                data-zh="更新检查和安装包下载会连接发布服务器。"
+                data-en="Update checks and installer downloads connect to release servers."
+                >Update checks and installer downloads connect to release servers.</span
+              >
+            </p>
+          </div>
+        </div>
+      </section>
+      <section class="download-section section-space" id="download">
+        <div class="container download-layout">
+          <div class="download-copy">
+            <p class="section-kicker">04 / A LITTLE HELP, EVERY DAY</p>
+            <h2
+              data-zh="下一次要找时，&lt;br&gt;有迹可循。"
+              data-en="Copied before.&lt;br&gt;Find it when you need it."
+            >
+              Copied before.<br />Find it when you need it.
+            </h2>
+            <p
+              data-zh="从文字、图片到链接，让之前复制的内容更容易找回来。"
+              data-en="Keep text, images, and links in a searchable clipboard history."
+            >
+              Keep text, images, and links in a searchable clipboard history.
+            </p>
+            <div class="download-seal">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-download"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 15V3"></path>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <path d="m7 10 5 5 5-5"></path></svg
+              ><span
+                data-zh="免费使用 · macOS &amp; Windows"
+                data-en="Free to use · macOS &amp; Windows"
+                >Free to use · macOS & Windows</span
+              >
+            </div>
+          </div>
+          <div class="download-options">
+            <details open class="install-details" id="install">
+              <summary>
+                <span
+                  ><svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-download"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M12 15V3"></path>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <path d="m7 10 5 5 5-5"></path></svg
+                  ><span data-en="Choose your desktop version." data-zh="选择适合你的桌面版本。"
+                    >Choose your desktop version.</span
+                  ></span
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-chevron-down"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="m6 9 6 6 6-6"></path>
+                </svg>
+              </summary>
+              <div class="install-content">
+                <div class="platform-downloads">
+                  <a class="btn" href="/download/macos">macOS · Apple Silicon</a
+                  ><a class="btn" href="/download/macos-x64">macOS · Intel</a
+                  ><a class="btn" href="/download/windows">Windows · x64</a
+                  ><a
+                    class="text-button"
+                    href="https://github.com/shiqkuangsan/Recopy/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >GitHub Releases
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="lucide lucide-arrow-up-right"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M7 7h10v10"></path>
+                      <path d="M7 17 17 7"></path></svg
+                  ></a>
+                </div>
+                <div class="install-brew">
+                  <p data-en="Prefer Homebrew?" data-zh="习惯用 Homebrew？">Prefer Homebrew?</p>
+                  <button
+                    class="install-command"
+                    type="button"
+                    data-copy="brew install --cask shiqkuangsan/recopy/recopy"
+                  >
+                    <code>brew install --cask shiqkuangsan/recopy/recopy</code
+                    ><svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="lucide lucide-clipboard"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect>
+                      <path
+                        d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                      ></path>
+                    </svg>
+                  </button>
+                </div>
+                <p
+                  class="install-notice"
+                  data-en="First time on macOS? Recopy is not yet notarized. Follow the installation guide if macOS blocks it."
+                  data-zh="首次在 macOS 安装？Recopy 尚未公证。如被系统拦截，请按安装说明操作。"
+                >
+                  First time on macOS? Recopy is not yet notarized. Follow the installation guide if
+                  macOS blocks it.
+                </p>
+                <a
+                  class="text-button"
+                  href="https://github.com/shiqkuangsan/Recopy/blob/main/docs/macos-unsigned-app.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  ><span data-en="macOS installation guide" data-zh="macOS 安装说明"
+                    >macOS installation guide</span
+                  ><svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-arrow-up-right"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M7 7h10v10"></path>
+                    <path d="M7 17 17 7"></path></svg
+                ></a>
+                <p id="install-copy-status" role="status"></p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+      <section class="faq-section">
+        <div class="container faq-layout">
+          <div>
+            <p class="section-kicker">A FEW GOOD QUESTIONS</p>
+            <h2 data-zh="你可能还想知道。" data-en="A few things&lt;br&gt;you might wonder.">
+              A few things<br />you might wonder.
+            </h2>
+            <a class="text-link" href="https://github.com/shiqkuangsan/Recopy"
+              ><span data-zh="更多使用说明" data-en="More on GitHub">More on GitHub</span
+              ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-arrow-up-right"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M7 7h10v10"></path>
+                <path d="M7 17 17 7"></path></svg
+            ></a>
+          </div>
+          <div class="faq-list">
+            <details>
+              <summary>
+                <span data-zh="Recopy 免费吗？" data-en="Is Recopy free?">Is Recopy free?</span
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-chevron-down"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="m6 9 6 6 6-6"></path>
+                </svg>
+              </summary>
+              <p
+                data-zh="Recopy 免费提供下载。源码采用 PolyForm Noncommercial 许可，具体使用、修改与再分发条件请查看许可条款。"
+                data-en="Recopy is free to download. Its source is available under PolyForm Noncommercial; see the license for terms on use, modification, and redistribution."
+              >
+                Recopy is free to download. Its source is available under PolyForm Noncommercial;
+                see the license for terms on use, modification, and redistribution.
+              </p>
+            </details>
+            <details>
+              <summary>
+                <span
+                  data-zh="支持哪些系统和内容？"
+                  data-en="Which platforms and content types are supported?"
+                  >Which platforms and content types are supported?</span
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-chevron-down"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="m6 9 6 6 6-6"></path>
+                </svg>
+              </summary>
+              <p
+                data-zh="支持 macOS 和 Windows，可记录纯文本、富文本、图片、文件与链接。Mac 提供 Apple Silicon 和 Intel 安装包。"
+                data-en="Recopy supports macOS and Windows, with plain text, rich text, images, files, and links. Mac installers are available for Apple Silicon and Intel."
+              >
+                Recopy supports macOS and Windows, with plain text, rich text, images, files, and
+                links. Mac installers are available for Apple Silicon and Intel.
+              </p>
+            </details>
+            <details>
+              <summary>
+                <span
+                  data-zh="为什么有些内容没有记录？"
+                  data-en="Why might something not appear in history?"
+                  >Why might something not appear in history?</span
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-chevron-down"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="m6 9 6 6 6-6"></path>
+                </svg>
+              </summary>
+              <p
+                data-zh="文件夹以及超过设置中单条大小限制的内容会跳过。历史记录也会受到你选择的保留策略影响。"
+                data-en="Folders and items exceeding your configured size limit are skipped. Your chosen retention policy also determines which history is kept."
+              >
+                Folders and items exceeding your configured size limit are skipped. Your chosen
+                retention policy also determines which history is kept.
+              </p>
+            </details>
+            <details>
+              <summary>
+                <span data-zh="快捷键和界面能调整吗？" data-en="Can I make it feel more like me?"
+                  >Can I make it feel more like me?</span
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-chevron-down"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="m6 9 6 6 6-6"></path>
+                </svg>
+              </summary>
+              <p
+                data-zh="可以调整全局快捷键、明暗主题、中英文语言、面板位置和历史保留策略。打开设置，按自己的习惯来。"
+                data-en="Yes. Adjust the global shortcut, theme, language, panel position, and history retention in Settings."
+              >
+                Yes. Adjust the global shortcut, theme, language, panel position, and history
+                retention in Settings.
+              </p>
+            </details>
+            <details>
+              <summary>
+                <span
+                  data-zh="浏览器里的体验，会读取我的剪贴板吗？"
+                  data-en="Does this web demo read my clipboard?"
+                  >Does this web demo read my clipboard?</span
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-chevron-down"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="m6 9 6 6 6-6"></path>
+                </svg>
+              </summary>
+              <p
+                data-zh="不会。体验区只使用虚构示例，粘贴只写入页面便签。只有你点击复制 Homebrew 命令时，页面才会写入系统剪贴板。"
+                data-en="No. The demo uses synthetic samples and pastes only into its on-page note. The page writes to your system clipboard only if you explicitly copy the Homebrew command."
+              >
+                No. The demo uses synthetic samples and pastes only into its on-page note. The page
+                writes to your system clipboard only if you explicitly copy the Homebrew command.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-top">
+          <div>
+            <a class="nav-logo" href="/"
+              ><img src="images/icon-32.png" width="32" height="32" alt="" /><span
+                >Recopy<span class="logo-dot">.</span></span
+              ></a
+            >
+            <p
+              class="footer-tagline"
+              data-zh="给剪贴板，多一点记忆。"
+              data-en="A little memory for your clipboard."
+            >
+              A little memory for your clipboard.
+            </p>
+          </div>
+          <div class="footer-links">
+            <a href="https://github.com/shiqkuangsan/Recopy">GitHub</a
+            ><a class="footer-link" href="privacy.html"
+              ><span data-zh="隐私说明" data-en="Privacy">Privacy</span
+              ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-arrow-up-right"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M7 7h10v10"></path>
+                <path d="M7 17 17 7"></path></svg></a
+            ><a href="https://github.com/shiqkuangsan/Recopy/blob/main/LICENSE">PolyForm NC</a>
+          </div>
+        </div>
+        <details class="support-details">
+          <summary>
+            <span
+              data-zh="喜欢这个小工具？请作者喝杯咖啡。"
+              data-en="Enjoying this little tool? Buy the maker a coffee."
+              >Enjoying this little tool? Buy the maker a coffee.</span
+            ><svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-chevron-down"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="m6 9 6 6 6-6"></path>
+            </svg>
+          </summary>
+          <div class="support-content">
+            <figure>
+              <img
+                src="images/sponsor-alipay.jpg"
+                width="220"
+                height="220"
+                loading="lazy"
+                alt="Alipay donation QR code"
+              />
+              <figcaption><span data-zh="支付宝" data-en="Alipay">Alipay</span></figcaption>
+            </figure>
+            <figure>
+              <img
+                src="images/sponsor-wechat.jpg"
+                width="220"
+                height="220"
+                loading="lazy"
+                alt="WeChat Pay donation QR code"
+              />
+              <figcaption>
+                <span data-zh="微信支付" data-en="WeChat Pay">WeChat Pay</span>
+              </figcaption>
+            </figure>
+            <p
+              data-zh="谢谢你，让这个小工具继续生长。"
+              data-en="Thank you for helping this little tool grow."
+            >
+              Thank you for helping this little tool grow.
+            </p>
+          </div>
+        </details>
+        <div class="footer-bottom"><span>© 2026 Recopy</span><span>COPY. SEARCH. FIND.</span></div>
+      </div>
+    </footer>
+    <!-- Native dialogs provide focus containment and Escape handling. -->
+    <dialog class="media-dialog" id="film-dialog" aria-labelledby="film-dialog-title">
+      <div class="dialog-heading">
+        <h2
+          id="film-dialog-title"
+          data-en="A little story about finding what you copied"
+          data-zh="一个关于找回复制记录的小故事"
+        >
+          A little story about finding what you copied
+        </h2>
+        <button
+          class="icon-button"
+          type="button"
+          data-close-dialog="film-dialog"
+          data-label-en="Close film"
+          data-label-zh="关闭短片"
+          aria-label="Close film"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="lucide lucide-x"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
           </svg>
+        </button>
+      </div>
+      <video
+        id="recopy-film"
+        controls
+        playsinline
+        preload="none"
+        poster="media/recopy-film-poster.png"
+        data-src="media/recopy-film.mp4"
+      >
+        <p data-en="Your browser cannot play this video." data-zh="当前浏览器无法播放此视频。">
+          Your browser cannot play this video.
+        </p>
+      </video>
+      <p
+        class="dialog-caption"
+        data-en="60 seconds · Chinese + English captions · Original instrumental soundtrack"
+        data-zh="60 秒 · 中英双语字幕 · 原创器乐配乐"
+      >
+        60 seconds · Chinese + English captions · Original instrumental soundtrack
+      </p>
+    </dialog>
+    <dialog
+      class="media-dialog product-dialog"
+      id="lightbox"
+      aria-labelledby="product-dialog-title"
+    >
+      <div class="dialog-heading">
+        <h2 id="product-dialog-title" data-en="Recopy, on your desktop" data-zh="桌面上的 Recopy">
+          Recopy, on your desktop
+        </h2>
+        <button
+          class="icon-button"
+          type="button"
+          data-close-dialog="lightbox"
+          data-label-en="Close app preview"
+          data-label-zh="关闭软件预览"
+          aria-label="Close app preview"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="lucide lucide-x"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div
+        class="image-viewer-toolbar"
+        role="group"
+        aria-label="Image zoom controls"
+        data-label-en="Image zoom controls"
+        data-label-zh="图片缩放控制"
+      >
+        <button
+          type="button"
+          id="viewer-zoom-out"
+          class="viewer-control"
+          aria-label="Zoom out"
+          data-label-en="Zoom out"
+          data-label-zh="缩小"
+        >
+          −
+        </button>
+        <output
+          id="viewer-scale"
+          aria-label="Zoom level"
+          data-label-en="Zoom level"
+          data-label-zh="缩放比例"
+          >50%</output
+        >
+        <button
+          type="button"
+          id="viewer-zoom-in"
+          class="viewer-control"
+          aria-label="Zoom in"
+          data-label-en="Zoom in"
+          data-label-zh="放大"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          id="viewer-actual"
+          class="viewer-control"
+          data-en="100% · Actual size"
+          data-zh="100% · 原尺寸"
+        >
+          100% · Actual size
+        </button>
+        <button
+          type="button"
+          id="viewer-fit"
+          class="viewer-control"
+          data-en="Fit to window"
+          data-zh="适应窗口"
+        >
+          Fit to window
+        </button>
+        <a
+          id="viewer-original"
+          class="text-button"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-en="Open original ↗"
+          data-zh="打开原图 ↗"
+          >Open original ↗</a
+        >
+      </div>
+      <div
+        id="viewer-stage"
+        class="image-viewer-stage"
+        tabindex="0"
+        role="region"
+        aria-label="Screenshot. Drag or use arrow keys to pan; plus and minus to zoom."
+        data-label-en="Screenshot. Drag or use arrow keys to pan; plus and minus to zoom."
+        data-label-zh="截图区域。拖动或按方向键移动；加减键缩放。"
+        aria-describedby="viewer-status"
+      >
+        <div id="viewer-canvas">
+          <img
+            id="lightbox-img"
+            alt="Recopy desktop interface"
+            width="4088"
+            height="732"
+            draggable="false"
+          />
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- Features -->
-  <section class="features">
-    <div class="container">
-      <h2 class="section-title" data-en="Features" data-zh="功能特性">Features</h2>
-      <p class="section-subtitle" data-en="Everything you need to manage your clipboard history." data-zh="管理剪贴板历史所需的一切。">Everything you need to manage your clipboard history.</p>
-      <div class="features-grid">
-        <div class="feature-card" data-blobity>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-              <path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"/>
-              <path d="M12 11h4"/>
-              <path d="M12 16h4"/>
-              <path d="M8 11h.01"/>
-              <path d="M8 16h.01"/>
-            </svg>
-          </div>
-          <h3 data-en="Full-type Support" data-zh="全格式支持">Full-type Support</h3>
-          <p data-en="Plain text, rich text, images, files, and links — every clipboard format, captured." data-zh="纯文本、富文本、图片、文件、链接 — 所有剪贴板格式，一网打尽。">Plain text, rich text, images, files, and links — every clipboard format, captured.</p>
-        </div>
-        <div class="feature-card" data-blobity>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="4" width="20" height="16" rx="2"/>
-              <path d="M6 8h.001"/>
-              <path d="M10 8h.001"/>
-              <path d="M14 8h.001"/>
-              <path d="M18 8h.001"/>
-              <path d="M8 12h.001"/>
-              <path d="M12 12h.001"/>
-              <path d="M16 12h.001"/>
-              <path d="M7 16h10"/>
-            </svg>
-          </div>
-          <h3 data-en="Instant Recall" data-zh="即时召回">Instant Recall</h3>
-          <p data-en="Cmd/Ctrl+Shift+V to summon, Tab for Pins, F to favorite, Cmd/Ctrl+1-9 to quick paste. All from the keyboard." data-zh="Cmd/Ctrl+Shift+V 召唤，Tab 切换收藏，F 收藏，Cmd/Ctrl+1-9 快速粘贴。全键盘掌控。">Cmd/Ctrl+Shift+V to summon, Tab for Pins, F to favorite, Cmd/Ctrl+1-9 to quick paste. All from the keyboard.</p>
-        </div>
-        <div class="feature-card" data-blobity>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/>
-              <path d="M14 13.12c0 2.38 0 6.38-1 8.88"/>
-              <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/>
-              <path d="M2 12a10 10 0 0 1 18-6"/>
-              <path d="M2 16h.01"/>
-              <path d="M21.8 16c.2-2 .131-5.354 0-6"/>
-              <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/>
-              <path d="M8.65 22c.21-.66.45-1.32.57-2"/>
-              <path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>
-            </svg>
-          </div>
-          <h3 data-en="Smart Dedup" data-zh="智能去重">Smart Dedup</h3>
-          <p data-en="SHA-256 hashing detects duplicates automatically. Only the latest copy stays." data-zh="SHA-256 哈希自动检测重复，只保留最新一条。">SHA-256 hashing detects duplicates automatically. Only the latest copy stays.</p>
-        </div>
-        <div class="feature-card" data-blobity>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="m21 21-4.3-4.3"/>
-            </svg>
-          </div>
-          <h3 data-en="Ranked Fuzzy Search" data-zh="排序模糊搜索">Ranked Fuzzy Search</h3>
-          <p data-en="Multi-keyword search across text, filenames, and source apps. Exact and ordered matches rise to the top." data-zh="支持文本、文件名和来源 App 的多关键词搜索。精确匹配与有序模糊匹配优先展示。">Multi-keyword search across text, filenames, and source apps. Exact and ordered matches rise to the top.</p>
-        </div>
-        <div class="feature-card" data-blobity>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <path d="M3 9h18"/>
-              <path d="M9 21V9"/>
-            </svg>
-          </div>
-          <h3 data-en="Flexible Layout" data-zh="灵活布局">Flexible Layout</h3>
-          <p data-en="Place the panel at the bottom, top, left, or right. Top/bottom layouts can be grouped or one fast single row." data-zh="面板可置于屏幕底部、顶部、左侧或右侧。顶部/底部布局可按日期分组，也可切换为单行模式。">Place the panel at the bottom, top, left, or right. Top/bottom layouts can be grouped or one fast single row.</p>
-        </div>
-        <div class="feature-card" data-blobity>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="4" width="20" height="16" rx="2"/>
-              <path d="M10 4v4"/>
-              <path d="M2 8h20"/>
-              <path d="M6 4v4"/>
-            </svg>
-          </div>
-          <h3 data-en="Non-activating Panel" data-zh="无焦点面板">Non-activating Panel</h3>
-          <p data-en="NSPanel on macOS plus foreground restore and a keyboard hook on Windows keep your active app in focus." data-zh="macOS 使用 NSPanel，Windows 通过前台窗口恢复与键盘钩子处理输入，前台应用保持焦点。">NSPanel on macOS plus foreground restore and a keyboard hook on Windows keep your active app in focus.</p>
-        </div>
-        <div class="feature-card" data-blobity>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-              <path d="M12 7v5l4 2"/>
-            </svg>
-          </div>
-          <h3 data-en="Smart Retention" data-zh="智能留存">Smart Retention</h3>
-          <p data-en="Set retention by days, count, or keep everything. Auto-cleanup on launch, favorites are always safe." data-zh="按天数、数量或无限保留。启动时自动清理，收藏项永不删除。">Set retention by days, count, or keep everything. Auto-cleanup on launch, favorites are always safe.</p>
-        </div>
-        <div class="feature-card" data-blobity>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
-              <path d="m9 12 2 2 4-4"/>
-            </svg>
-          </div>
-          <h3 data-en="Privacy First" data-zh="隐私优先">Privacy First</h3>
-          <p data-en="All data stored locally in SQLite. Nothing is uploaded, nothing leaves your machine." data-zh="所有数据存储在本地 SQLite，不上传任何内容，数据不出你的电脑。">All data stored locally in SQLite. Nothing is uploaded, nothing leaves your machine.</p>
-        </div>
+      <p id="viewer-status" class="dialog-caption" role="status"></p>
+    </dialog>
+    <dialog class="sample-dialog" id="sample-dialog" aria-labelledby="sample-dialog-title">
+      <div class="dialog-heading">
+        <h2 id="sample-dialog-title"></h2>
+        <button
+          class="icon-button"
+          type="button"
+          data-close-dialog="sample-dialog"
+          data-label-en="Close preview"
+          data-label-zh="关闭预览"
+          aria-label="Close preview"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="lucide lucide-x"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
+          </svg>
+        </button>
       </div>
-    </div>
-  </section>
+      <div id="sample-dialog-content"></div>
+    </dialog>
 
-  <!-- How it Works — Timeline -->
-  <section class="how-it-works">
-    <div class="container">
-      <h2 class="section-title" data-en="How it Works" data-zh="使用流程">How it Works</h2>
-      <p class="section-subtitle" data-en="Three steps. That's all it takes." data-zh="三步搞定，就这么简单。">Three steps. That's all it takes.</p>
-      <div class="timeline">
-        <div class="timeline-line"></div>
-        <div class="timeline-step">
-          <div class="timeline-number">1</div>
-          <div class="timeline-content">
-            <div class="timeline-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
-              </svg>
-            </div>
-            <h3 data-en="Copy anything" data-zh="复制任何内容">Copy anything</h3>
-            <p data-en="Text, images, files — Recopy captures it all automatically in the background." data-zh="文本、图片、文件 — Recopy 在后台自动捕获一切。">Text, images, files — Recopy captures it all automatically in the background.</p>
-          </div>
-        </div>
-        <div class="timeline-step">
-          <div class="timeline-number">2</div>
-          <div class="timeline-content">
-            <div class="timeline-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/>
-              </svg>
-            </div>
-            <h3 data-en="Summon Recopy" data-zh="召唤 Recopy">Summon Recopy</h3>
-            <p data-en="Press Cmd/Ctrl+Shift+V to open the panel. Browse, search, or quick paste from your clipboard history." data-zh="按下 Cmd/Ctrl+Shift+V 打开面板。浏览、搜索，或从剪贴板历史中快速粘贴。">Press Cmd/Ctrl+Shift+V to open the panel. Browse, search, or quick paste from your clipboard history.</p>
-          </div>
-        </div>
-        <div class="timeline-step">
-          <div class="timeline-number">3</div>
-          <div class="timeline-content">
-            <div class="timeline-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11v6"/><path d="m9 14 3-3 3 3"/>
-              </svg>
-            </div>
-            <h3 data-en="Paste it back" data-zh="粘贴回去">Paste it back</h3>
-            <p data-en="Select an item and press Enter. Content is pasted seamlessly into your active app." data-zh="选中条目按 Enter。内容无缝粘贴到你的活跃应用中。">Select an item and press Enter. Content is pasted seamlessly into your active app.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Tech Highlights — Comparison Table -->
-  <section class="tech-highlights">
-    <div class="container">
-      <h2 class="section-title" data-en="Under the Hood" data-zh="技术内核">Under the Hood</h2>
-      <p class="section-subtitle" data-en="Built with performance and privacy in mind." data-zh="为性能与隐私而生。">Built with performance and privacy in mind.</p>
-      <div class="compare-table">
-        <div class="compare-header">
-          <div class="compare-col compare-col-others" data-en="Others" data-zh="其他工具">Others</div>
-          <div class="compare-col compare-col-recopy" data-en="Recopy" data-zh="Recopy">Recopy</div>
-        </div>
-        <div class="compare-row">
-          <div class="compare-cell compare-bad">
-            <span class="compare-x">&#10005;</span>
-            <span data-en="Cloud sync — data leaves your machine" data-zh="云端同步 — 数据离开你的设备">Cloud sync — data leaves your machine</span>
-          </div>
-          <div class="compare-cell compare-good">
-            <span class="compare-check">&#10003;</span>
-            <span data-en="Clipboard data stays local; only updates use release endpoints" data-zh="剪贴板数据留在本地；仅更新检查访问发布端点">Clipboard data stays local; only updates use release endpoints</span>
-          </div>
-        </div>
-        <div class="compare-row">
-          <div class="compare-cell compare-bad">
-            <span class="compare-x">&#10005;</span>
-            <span data-en="Basic text search, slow on large history" data-zh="基础文本搜索，历史多了就卡">Basic text search, slow on large history</span>
-          </div>
-          <div class="compare-cell compare-good">
-            <span class="compare-check">&#10003;</span>
-            <span data-en="FTS5 + trigram with ranked fuzzy results" data-zh="FTS5 + trigram，支持排序模糊结果">FTS5 + trigram with ranked fuzzy results</span>
-          </div>
-        </div>
-        <div class="compare-row">
-          <div class="compare-cell compare-bad">
-            <span class="compare-x">&#10005;</span>
-            <span data-en="Duplicate entries pile up endlessly" data-zh="重复条目无限堆积">Duplicate entries pile up endlessly</span>
-          </div>
-          <div class="compare-cell compare-good">
-            <span class="compare-check">&#10003;</span>
-            <span data-en="SHA-256 dedup, only latest copy kept" data-zh="SHA-256 去重，只保留最新一条">SHA-256 dedup, only latest copy kept</span>
-          </div>
-        </div>
-        <div class="compare-row">
-          <div class="compare-cell compare-bad">
-            <span class="compare-x">&#10005;</span>
-            <span data-en="Telemetry, analytics, usage tracking" data-zh="遥测、分析、使用追踪">Telemetry, analytics, usage tracking</span>
-          </div>
-          <div class="compare-cell compare-good">
-            <span class="compare-check">&#10003;</span>
-            <span data-en="Zero tracking, source-available (PolyForm NC)" data-zh="零追踪，源码开放 (PolyForm NC)">Zero tracking, source-available (PolyForm NC)</span>
-          </div>
-        </div>
-        <div class="compare-row">
-          <div class="compare-cell compare-bad">
-            <span class="compare-x">&#10005;</span>
-            <span data-en="Steals focus from your active app" data-zh="抢走前台应用焦点">Steals focus from your active app</span>
-          </div>
-          <div class="compare-cell compare-good">
-            <span class="compare-check">&#10003;</span>
-            <span data-en="Non-activating panel on macOS and Windows" data-zh="macOS 与 Windows 均支持不抢焦点面板">Non-activating panel on macOS and Windows</span>
-          </div>
-        </div>
-        <div class="compare-row">
-          <div class="compare-cell compare-bad">
-            <span class="compare-x">&#10005;</span>
-            <span data-en="Fixed panel position, one layout for all" data-zh="面板位置固定，千人一面">Fixed panel position, one layout for all</span>
-          </div>
-          <div class="compare-cell compare-good">
-            <span class="compare-check">&#10003;</span>
-            <span data-en="4-direction layout: bottom, top, left, right" data-zh="四向布局：底部、顶部、左侧、右侧">4-direction layout: bottom, top, left, right</span>
-          </div>
-        </div>
-        <div class="compare-row">
-          <div class="compare-cell compare-bad">
-            <span class="compare-x">&#10005;</span>
-            <span data-en="Manual cleanup or no control at all" data-zh="手动清理或完全无法管控">Manual cleanup or no control at all</span>
-          </div>
-          <div class="compare-cell compare-good">
-            <span class="compare-check">&#10003;</span>
-            <span data-en="Configurable retention with auto-cleanup on launch" data-zh="可配置保留策略，启动时自动清理">Configurable retention with auto-cleanup on launch</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Shortcuts — Key Showcase -->
-  <section class="shortcuts">
-    <div class="container">
-      <h2 class="section-title" data-en="Keyboard Shortcuts" data-zh="键盘快捷键">Keyboard Shortcuts</h2>
-      <p class="section-subtitle" data-en="Navigate everything from your keyboard." data-zh="全键盘操控，双手不离键盘。">Navigate everything from your keyboard.</p>
-      <div class="key-showcase">
-        <div class="key-item">
-          <div class="key-combo">
-            <kbd class="key-lg key-wide">⌘/Ctrl</kbd><kbd class="key-lg">⇧</kbd><kbd class="key-lg">V</kbd>
-          </div>
-          <div class="key-label" data-en="Toggle panel" data-zh="打开/关闭面板">Toggle panel</div>
-        </div>
-        <div class="key-item">
-          <div class="key-combo">
-            <kbd class="key-lg">↑</kbd><kbd class="key-lg">↓</kbd>
-          </div>
-          <div class="key-label" data-en="Navigate" data-zh="上下导航">Navigate</div>
-        </div>
-        <div class="key-item key-item-accent">
-          <div class="key-combo">
-            <kbd class="key-lg key-wide">Enter</kbd>
-          </div>
-          <div class="key-label" data-en="Paste" data-zh="粘贴">Paste</div>
-        </div>
-        <div class="key-item">
-          <div class="key-combo">
-            <kbd class="key-lg key-wide">Space</kbd>
-          </div>
-          <div class="key-label" data-en="Preview" data-zh="预览">Preview</div>
-        </div>
-        <div class="key-item">
-          <div class="key-combo">
-            <kbd class="key-lg key-wide">⌘/Ctrl</kbd><kbd class="key-lg">C</kbd>
-          </div>
-          <div class="key-label" data-en="Copy only" data-zh="仅复制">Copy only</div>
-        </div>
-        <div class="key-item">
-          <div class="key-combo">
-            <kbd class="key-lg key-wide">⌘/Ctrl</kbd><kbd class="key-lg key-wide">1-9</kbd>
-          </div>
-          <div class="key-label" data-en="Quick paste" data-zh="快速粘贴">Quick paste</div>
-        </div>
-        <div class="key-item">
-          <div class="key-combo">
-            <kbd class="key-lg">F</kbd>
-          </div>
-          <div class="key-label" data-en="Favorite" data-zh="收藏">Favorite</div>
-        </div>
-        <div class="key-item">
-          <div class="key-combo">
-            <kbd class="key-lg key-wide">Tab</kbd>
-          </div>
-          <div class="key-label" data-en="History / Pins" data-zh="历史 / 收藏">History / Pins</div>
-        </div>
-        <div class="key-item">
-          <div class="key-combo">
-            <kbd class="key-lg">Esc</kbd>
-          </div>
-          <div class="key-label" data-en="Close" data-zh="关闭">Close</div>
-        </div>
-        <div class="key-item">
-          <div class="key-combo">
-            <kbd class="key-lg key-wide">⌘/Ctrl</kbd><kbd class="key-lg">F</kbd>
-          </div>
-          <div class="key-label" data-en="Search" data-zh="搜索">Search</div>
-        </div>
-        <div class="key-item">
-          <div class="key-combo">
-            <kbd class="key-lg key-wide">Delete</kbd>
-          </div>
-          <div class="key-label" data-en="Delete item" data-zh="删除条目">Delete item</div>
-        </div>
-        <div class="key-item">
-          <div class="key-combo">
-            <kbd class="key-lg key-wide">⌘/Ctrl</kbd><kbd class="key-lg">,</kbd>
-          </div>
-          <div class="key-label" data-en="Settings" data-zh="设置">Settings</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- CTA -->
-  <section class="cta">
-    <div class="container">
-      <h2 data-en="Ready to never lose a copy again?" data-zh="准备好不再丢失任何复制了吗？">Ready to never lose a copy again?</h2>
-      <p data-en="Free, source-available, privacy-first. Your clipboard history, always within reach." data-zh="免费、源码开放、隐私优先。你的剪贴板历史，触手可及。">Free, source-available, privacy-first. Your clipboard history, always within reach.</p>
-      <a href="/download/macos" class="btn btn-primary btn-lg" id="cta-download-btn" data-en="Download Recopy" data-zh="下载 Recopy">Download Recopy</a>
-    </div>
-  </section>
-
-  <!-- Sponsor -->
-  <section class="sponsor" id="sponsor">
-    <div class="container">
-      <h2 class="section-title" data-en="Support Recopy" data-zh="支持 Recopy">Support Recopy</h2>
-      <p class="section-subtitle" data-en="If Recopy saves your time, consider buying me a coffee." data-zh="如果 Recopy 帮到了你，欢迎请我喝杯咖啡。">If Recopy saves your time, consider buying me a coffee.</p>
-      <div class="sponsor-cards">
-        <div class="sponsor-card sponsor-card-alipay">
-          <div class="sponsor-card-header">
-            <svg viewBox="0 0 1024 1024" width="24" height="24" fill="currentColor"><path d="M230.4 460.8c-12.8 0-25.6 12.8-25.6 25.6v25.6c0 12.8 12.8 25.6 25.6 25.6h179.2c12.8 0 25.6-12.8 25.6-25.6v-25.6c0-12.8-12.8-25.6-25.6-25.6H230.4zM1024 512c0 281.6-230.4 512-512 512S0 793.6 0 512 230.4 0 512 0s512 230.4 512 512zM896 358.4c0-25.6-12.8-51.2-38.4-64-25.6-12.8-51.2-12.8-76.8 0L320 537.6 153.6 294.4c-12.8-25.6-38.4-38.4-64-25.6-25.6 12.8-38.4 38.4-25.6 64l204.8 307.2c12.8 12.8 25.6 25.6 51.2 25.6 12.8 0 38.4-12.8 51.2-25.6l460.8-243.2c25.6-12.8 38.4-25.6 64-38.4z"/></svg>
-            <span data-en="Alipay" data-zh="支付宝">Alipay</span>
-          </div>
-          <div class="sponsor-qr">
-            <img src="images/sponsor-alipay.jpg" alt="Alipay QR Code" loading="lazy">
-          </div>
-        </div>
-        <div class="sponsor-card sponsor-card-wechat">
-          <div class="sponsor-card-header">
-            <svg viewBox="0 0 1024 1024" width="24" height="24" fill="currentColor"><path d="M690.1 377.4c5.9 0 11.8.2 17.6.5-24.4-128.7-158.3-227.1-313.4-227.1C209 150.8 57.7 284.2 57.7 446.3c0 93.3 50.8 169.8 135.6 228.3L160 762l106.5-53.3c42.3 8.5 76.8 17 118.8 17 5.6 0 11.1-.2 16.6-.5-3.5-17.8-5.5-36.2-5.5-55 0-157.3 135.7-292.8 293.7-292.8zM482.4 310c25.6 0 42.6 17 42.6 42.6 0 25.6-17 42.6-42.6 42.6-25.6 0-51.2-17-51.2-42.6 0-25.6 25.6-42.6 51.2-42.6zm-212.8 85.2c-25.6 0-51.2-17-51.2-42.6 0-25.6 25.6-42.6 51.2-42.6s42.6 17 42.6 42.6c0 25.6-17 42.6-42.6 42.6zm662.4 275.4c0-136.6-135.6-247.8-289-247.8-161.5 0-289 111.2-289 247.8s127.5 247.8 289 247.8c33.5 0 67.4-8.5 101.2-17l84.7 50.8-25.6-76.8c76.8-50.8 128.7-127.5 128.7-204.8zm-382.2-42.6c-17 0-34-17-34-34s17-34 34-34 34 17 34 34-17 34-34 34zm186.4 0c-17 0-34-17-34-34s17-34 34-34 34 17 34 34-17 34-34 34z"/></svg>
-            <span data-en="WeChat Pay" data-zh="微信支付">WeChat Pay</span>
-          </div>
-          <div class="sponsor-qr">
-            <img src="images/sponsor-wechat.jpg" alt="WeChat QR Code" loading="lazy">
-          </div>
-        </div>
-      </div>
-      <p class="sponsor-thanks" data-en="Every contribution helps keep Recopy free and actively maintained. Thank you!" data-zh="每一份支持都让 Recopy 持续免费更新，感谢有你！">Every contribution helps keep Recopy free and actively maintained. Thank you!</p>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container footer-inner">
-      <span>&copy; 2026 Recopy</span>
-      <div class="footer-links">
-        <a href="privacy.html" data-en="Privacy Policy" data-zh="隐私政策">Privacy Policy</a>
-        <a href="https://github.com/shiqkuangsan/Recopy">GitHub</a>
-        <a href="https://github.com/shiqkuangsan/Recopy/blob/main/LICENSE">PolyForm NC License</a>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Lightbox -->
-  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
-    <img id="lightbox-img" src="" alt="">
-  </div>
-
-  <script src="script.js"></script>
-</body>
+    <script src="script.js"></script>
+    <script src="experience.js"></script>
+    <script src="image-viewer.js"></script>
+  </body>
 </html>

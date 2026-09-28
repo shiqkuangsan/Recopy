@@ -15,6 +15,9 @@ src-tauri/target/
 *.swo
 *~
 
+# Playwright cli
+.playwright-cli
+
 # OS
 .DS_Store
 Thumbs.db
@@ -39,3 +42,6 @@ CLAUDE.local.md.bak
 
 # Local worktrees
 .worktrees/
+
+# Local creative outputs and verification artifacts
+outputs/
