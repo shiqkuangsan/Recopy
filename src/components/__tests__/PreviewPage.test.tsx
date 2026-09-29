@@ -247,6 +247,7 @@ describe("PreviewPage text selection", () => {
     render(<PreviewPage />);
 
     await screen.findByText(plainTextDetail.plain_text);
+    await waitForPreviewEffects();
     const outside = document.createTextNode("outside");
     document.body.appendChild(outside);
     mockSelection(outside, outside, "");
@@ -283,6 +284,7 @@ describe("PreviewPage text selection", () => {
     render(<PreviewPage />);
 
     const text = await screen.findByText(plainTextDetail.plain_text);
+    await waitForPreviewEffects();
     const textNode = text.firstChild!;
     mockSelection(textNode, textNode, selectedText);
     const copyEvent = new Event("copy", { cancelable: true });
