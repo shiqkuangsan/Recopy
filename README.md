@@ -1,5 +1,7 @@
 # Recopy
 
+<p align="center"><img src="assets/icon-1024.png" width="96" height="96" alt="Recopy logo" /></p>
+
 [![GitHub Release](https://img.shields.io/github/v/release/shiqkuangsan/Recopy)](https://github.com/shiqkuangsan/Recopy/releases)
 [![GitHub Downloads](https://img.shields.io/github/downloads/shiqkuangsan/Recopy/total)](https://github.com/shiqkuangsan/Recopy/releases)
 [![GitHub Stars](https://img.shields.io/github/stars/shiqkuangsan/Recopy)](https://github.com/shiqkuangsan/Recopy/stargazers)

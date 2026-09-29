@@ -30,6 +30,7 @@ import {
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Switch } from "./ui/switch";
+import recopyLogo from "../assets/recopy-logo.png";
 
 type SettingsTab = "general" | "shortcuts" | "history" | "privacy" | "about";
 
@@ -652,6 +653,7 @@ function AboutSettings() {
 
       <Card className="border-border/50 bg-card/60 py-0">
         <CardContent className="p-5 text-center space-y-3">
+          <img src={recopyLogo} alt="" width={64} height={64} className="mx-auto" />
           <h3 className="text-xl font-bold">{t("app.name")}</h3>
           <p className="text-sm text-muted-foreground">
             {t("app.version", { version: version || "..." })}

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import recopyLogo from "../assets/recopy-logo.png";
 
 const RESET_DELAY = 3000;
 const FORTUNE_DURATION = 2500;
@@ -234,6 +235,14 @@ export function BrandLogo() {
           .join(" ")}
         style={textStyle}
       >
+        <img
+          src={recopyLogo}
+          alt=""
+          width={24}
+          height={24}
+          draggable={false}
+          className="inline-block align-middle mr-1.5"
+        />
         {displayText}
       </span>
 
