@@ -4,6 +4,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Settings } from "lucide-react";
 import { platform } from "@tauri-apps/plugin-os";
 import { BrandLogo } from "./components/BrandLogo";
+import { DevBadge } from "./components/DevBadge";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "./components/ui/button";
 import { CopyHudView } from "./components/CopyHud";
@@ -178,9 +179,10 @@ function MainApp() {
         {/* Header */}
         {isVertical ? (
           <div className="shrink-0 px-3 pt-2 pb-1 space-y-1.5">
-            <div className="flex items-center">
+            <div className="flex items-center gap-1.5">
               <BrandLogo />
-              <span className="translate-y-px ml-1">
+              <DevBadge />
+              <span className="translate-y-px">
                 <UpdateBanner />
               </span>
               <div className="flex-1" />
@@ -201,6 +203,7 @@ function MainApp() {
           <div className="relative flex items-center justify-center gap-3 px-4 pt-3 pb-2 shrink-0">
             <div className="absolute left-4 flex items-center gap-2">
               <BrandLogo />
+              <DevBadge />
               <span className="translate-y-px">
                 <UpdateBanner />
               </span>
