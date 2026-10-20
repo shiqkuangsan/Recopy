@@ -19,6 +19,20 @@ mod fallback;
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub use fallback::*;
 
+/// Run `f` inside an Objective-C autorelease pool on macOS (no-op elsewhere).
+/// Needed for AppKit calls made off the main thread, whose run loop would
+/// otherwise be the only thing draining autoreleased objects.
+pub fn with_autorelease_pool<T>(f: impl FnOnce() -> T) -> T {
+    #[cfg(target_os = "macos")]
+    {
+        objc2::rc::autoreleasepool(|_| f())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        f()
+    }
+}
+
 pub(crate) fn preview_top_inset_for_target(menu_h: f64, reserve_safe_top: bool) -> f64 {
     if reserve_safe_top {
         if menu_h > 0.0 {

@@ -1075,16 +1075,17 @@ async fn handle_clipboard_event(app: &tauri::AppHandle) {
     }
 }
 
-async fn extract_clipboard_content(
-    app: &tauri::AppHandle,
-) -> Option<(
+/// (content_type, content, plain_text, rich_content, file_path, file_name)
+type CapturedClipboard = (
     ContentType,
     Vec<u8>,
     Option<String>,
     Option<Vec<u8>>,
     Option<String>,
     Option<String>,
-)> {
+);
+
+async fn extract_clipboard_content(app: &tauri::AppHandle) -> Option<CapturedClipboard> {
     let max_size_mb = cached_setting(
         app,
         "max_item_size_mb",
@@ -1093,9 +1094,29 @@ async fn extract_clipboard_content(
     .parse::<usize>()
     .unwrap_or(clipboard::DEFAULT_MAX_ITEM_SIZE_MB);
 
+    // The plugin's pasteboard probes (`has_*`, `read_files`) call AppKit without an
+    // autorelease pool. On a long-lived async worker those autoreleased objects never
+    // drain, so read on a blocking thread inside an explicit pool.
+    let app = app.clone();
+    match tauri::async_runtime::spawn_blocking(move || {
+        platform::with_autorelease_pool(|| read_clipboard_content(&app, max_size_mb))
+    })
+    .await
+    {
+        Ok(content) => content,
+        Err(error) => {
+            log::warn!("Clipboard read task failed: {}", error);
+            None
+        }
+    }
+}
+
+fn read_clipboard_content(app: &tauri::AppHandle, max_size_mb: usize) -> Option<CapturedClipboard> {
+    use tauri::async_runtime::block_on;
+
     // Try files first
-    if let Ok(true) = tauri_plugin_clipboard_x::has_files().await {
-        if let Ok(file_result) = tauri_plugin_clipboard_x::read_files().await {
+    if let Ok(true) = block_on(tauri_plugin_clipboard_x::has_files()) {
+        if let Ok(file_result) = block_on(tauri_plugin_clipboard_x::read_files()) {
             if let Some(first) = file_result.paths.first() {
                 let path = std::path::Path::new(first);
 
@@ -1106,7 +1127,7 @@ async fn extract_clipboard_content(
                 }
 
                 // Skip files larger than size limit
-                if let Ok(meta) = tokio::fs::metadata(path).await {
+                if let Ok(meta) = std::fs::metadata(path) {
                     if clipboard::exceeds_size_limit(meta.len() as usize, max_size_mb) {
                         log::info!("Skipping large file: {} ({}B)", first, meta.len());
                         return None;
@@ -1129,46 +1150,38 @@ async fn extract_clipboard_content(
 
     // The plugin writes PNGs to disk. Own a per-capture directory and reclaim it
     // before dedup/storage, including oversize and producer/read failure paths.
-    if let Ok(true) = tauri_plugin_clipboard_x::has_image().await {
-        let app_clone = app.clone();
-        let captured = tauri::async_runtime::spawn_blocking(move || {
-            let root = app_clone
-                .path()
-                .app_data_dir()
-                .map_err(|e| e.to_string())?
-                .join("capture-staging");
-            clipboard::storage::read_staged_image(
-                &root,
-                max_size_mb.saturating_mul(1024 * 1024),
-                |directory| {
-                    tauri::async_runtime::block_on(tauri_plugin_clipboard_x::read_image(
-                        app_clone,
-                        Some(directory.to_path_buf()),
-                    ))
-                    .map(|image| image.path)
-                },
-            )
-        })
-        .await;
+    if let Ok(true) = block_on(tauri_plugin_clipboard_x::has_image()) {
+        let captured = app
+            .path()
+            .app_data_dir()
+            .map_err(|e| e.to_string())
+            .and_then(|data_dir| {
+                clipboard::storage::read_staged_image(
+                    &data_dir.join("capture-staging"),
+                    max_size_mb.saturating_mul(1024 * 1024),
+                    |directory| {
+                        block_on(tauri_plugin_clipboard_x::read_image(
+                            app.clone(),
+                            Some(directory.to_path_buf()),
+                        ))
+                        .map(|image| image.path)
+                    },
+                )
+            });
         match captured {
-            Ok(Ok(Some(bytes))) => {
-                return Some((ContentType::Image, bytes, None, None, None, None))
-            }
-            Ok(Ok(None)) => {
+            Ok(Some(bytes)) => return Some((ContentType::Image, bytes, None, None, None, None)),
+            Ok(None) => {
                 log::info!("Skipping image exceeding configured size limit");
                 return None;
             }
-            Ok(Err(error)) => log::warn!("Failed to capture image: {}", error),
-            Err(error) => log::warn!("Image capture task failed: {}", error),
+            Err(error) => log::warn!("Failed to capture image: {}", error),
         }
     }
 
     // Try HTML (rich text)
-    if let Ok(true) = tauri_plugin_clipboard_x::has_html().await {
-        if let Ok(html) = tauri_plugin_clipboard_x::read_html().await {
-            let plain = tauri_plugin_clipboard_x::read_text()
-                .await
-                .unwrap_or_default();
+    if let Ok(true) = block_on(tauri_plugin_clipboard_x::has_html()) {
+        if let Ok(html) = block_on(tauri_plugin_clipboard_x::read_html()) {
+            let plain = block_on(tauri_plugin_clipboard_x::read_text()).unwrap_or_default();
             let html_bytes = html.as_bytes().to_vec();
             let content_bytes = plain.as_bytes().to_vec();
             return Some((
@@ -1183,8 +1196,8 @@ async fn extract_clipboard_content(
     }
 
     // Try text-based content: link (pure URL) or plain text
-    if let Ok(true) = tauri_plugin_clipboard_x::has_text().await {
-        if let Ok(text) = tauri_plugin_clipboard_x::read_text().await {
+    if let Ok(true) = block_on(tauri_plugin_clipboard_x::has_text()) {
+        if let Ok(text) = block_on(tauri_plugin_clipboard_x::read_text()) {
             let trimmed = text.trim();
             if !trimmed.is_empty() {
                 // Check if it's a pure URL
