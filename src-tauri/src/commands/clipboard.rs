@@ -231,15 +231,7 @@ pub async fn set_note_title(
         return Err("Item not found".into());
     }
     if let Some(preview) = app.try_state::<PreviewState>() {
-        if let Some(detail) = preview
-            .0
-            .lock()
-            .unwrap()
-            .as_mut()
-            .filter(|detail| detail.id == id)
-        {
-            detail.note_title = title.clone();
-        }
+        preview.update_note_title(&id, &title);
     }
     Ok(title)
 }
@@ -761,7 +753,7 @@ pub async fn show_preview_window(
     let (width, height) = calculate_preview_size(&detail, available_w, available_h);
 
     // Store in state so PreviewPage can poll via get_current_preview
-    *preview_state.0.lock().unwrap() = Some(detail);
+    preview_state.open(detail);
 
     // Resolve window theme: None for system, Some for explicit
     let window_theme = {
@@ -782,7 +774,7 @@ pub async fn show_preview_window(
 /// Hide the preview window.
 #[tauri::command]
 pub fn hide_preview_window(app: AppHandle) {
-    crate::platform::platform_hide_preview(&app);
+    crate::hide_preview(&app);
 }
 
 /// Get the current preview item detail + closing animation flag.
@@ -822,7 +814,7 @@ pub async fn animate_close_preview(
     }
 
     // Hide the window
-    crate::platform::platform_hide_preview(&app);
+    crate::hide_preview(&app);
 
     // Clear flag
     closing.0.store(false, std::sync::atomic::Ordering::SeqCst);

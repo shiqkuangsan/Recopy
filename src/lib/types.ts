@@ -36,6 +36,8 @@ export interface PreviewResponse {
   detail: ItemDetail | null;
   closing: boolean;
   note_title?: string | null;
+  /** False while the preview is hidden: the page parks polling until woken. */
+  active?: boolean;
 }
 
 export interface FilePreviewData {

@@ -78,19 +78,50 @@ pub struct ItemDetail {
 }
 
 /// Shared state holding the current preview item detail.
-pub struct PreviewState(pub std::sync::Mutex<Option<ItemDetail>>);
+/// `active` tells the preview page whether to keep polling; a hidden preview
+/// parks its poll loop until the backend wakes it on the next show.
+#[derive(Default)]
+pub struct PreviewState(std::sync::Mutex<PreviewSlot>);
+
+#[derive(Default)]
+struct PreviewSlot {
+    detail: Option<ItemDetail>,
+    active: bool,
+}
 
 impl PreviewState {
+    pub fn open(&self, detail: ItemDetail) {
+        let mut slot = self.0.lock().unwrap();
+        slot.detail = Some(detail);
+        slot.active = true;
+    }
+
+    /// Release the (possibly multi-MB) detail once the preview is hidden.
+    pub fn close(&self) {
+        let mut slot = self.0.lock().unwrap();
+        slot.detail = None;
+        slot.active = false;
+    }
+
+    pub fn update_note_title(&self, id: &str, note_title: &str) {
+        let mut slot = self.0.lock().unwrap();
+        if let Some(detail) = slot.detail.as_mut().filter(|detail| detail.id == id) {
+            detail.note_title = note_title.to_string();
+        }
+    }
+
     /// Clipboard content is immutable for an ID; callers keep their last detail.
     pub fn snapshot(&self, known_id: Option<&str>, closing: bool) -> PreviewResponse {
-        let state = self.0.lock().unwrap();
+        let slot = self.0.lock().unwrap();
         PreviewResponse {
-            detail: state
+            detail: slot
+                .detail
                 .as_ref()
                 .filter(|item| Some(item.id.as_str()) != known_id)
                 .cloned(),
             closing,
-            note_title: state.as_ref().map(|item| item.note_title.clone()),
+            note_title: slot.detail.as_ref().map(|item| item.note_title.clone()),
+            active: slot.active,
         }
     }
 }
@@ -104,6 +135,7 @@ pub struct PreviewResponse {
     pub detail: Option<ItemDetail>,
     pub closing: bool,
     pub note_title: Option<String>,
+    pub active: bool,
 }
 
 /// Data returned by read_file_preview command.
@@ -135,7 +167,8 @@ mod tests {
 
     #[test]
     fn preview_poll_omits_unchanged_content_but_keeps_closing_signal() {
-        let state = PreviewState(std::sync::Mutex::new(Some(ItemDetail {
+        let state = PreviewState::default();
+        state.open(ItemDetail {
             id: "large".into(),
             note_title: String::new(),
             content_type: "plain_text".into(),
@@ -145,7 +178,7 @@ mod tests {
             file_path: None,
             file_name: None,
             content_size: 1024 * 1024,
-        })));
+        });
         assert!(state.snapshot(None, false).detail.is_some());
         assert!(state.snapshot(Some("other"), false).detail.is_some());
         for _ in 0..100 {
@@ -159,7 +192,8 @@ mod tests {
 
     #[test]
     fn preview_poll_sends_changed_note_without_resending_unchanged_content() {
-        let state = PreviewState(std::sync::Mutex::new(Some(ItemDetail {
+        let state = PreviewState::default();
+        state.open(ItemDetail {
             id: "note-item".into(),
             note_title: "Original".into(),
             content_type: "plain_text".into(),
@@ -169,11 +203,36 @@ mod tests {
             file_path: None,
             file_name: None,
             content_size: 8,
-        })));
-        state.0.lock().unwrap().as_mut().unwrap().note_title = "Company VPN".into();
+        });
+        state.update_note_title("other", "Ignored");
+        state.update_note_title("note-item", "Company VPN");
         let response = state.snapshot(Some("note-item"), false);
         assert!(response.detail.is_none());
         assert_eq!(response.note_title.as_deref(), Some("Company VPN"));
+    }
+
+    #[test]
+    fn preview_close_parks_polling_and_releases_detail() {
+        let state = PreviewState::default();
+        assert!(!state.snapshot(None, false).active);
+        state.open(ItemDetail {
+            id: "big".into(),
+            note_title: String::new(),
+            content_type: "plain_text".into(),
+            plain_text: "x".repeat(1024),
+            rich_content: None,
+            image_path: None,
+            file_path: None,
+            file_name: None,
+            content_size: 1024,
+        });
+        assert!(state.snapshot(None, false).active);
+        state.close();
+        let response = state.snapshot(None, false);
+        assert!(!response.active);
+        assert!(response.detail.is_none());
+        assert!(response.note_title.is_none());
+        assert!(state.0.lock().unwrap().detail.is_none());
     }
 
     #[test]

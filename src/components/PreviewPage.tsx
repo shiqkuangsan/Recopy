@@ -17,6 +17,7 @@ import {
   type PreviewSelectionClearPayload,
 } from "../lib/preview-selection";
 import type { ItemDetail, PreviewResponse, FilePreviewData } from "../lib/types";
+import { createPreviewPoller } from "../lib/preview-poller";
 
 export function PreviewPage() {
   const [detail, setDetail] = useState<ItemDetail | null>(null);
@@ -30,18 +31,17 @@ export function PreviewPage() {
     loadSettings();
   }, [loadSettings]);
 
-  // Poll backend for current preview data every 100ms.
-  // Event-based delivery doesn't work for hidden NSPanel WebViews,
-  // so we use polling via invoke() which is always reliable.
+  // Poll backend for current preview data every 100ms while the preview is shown.
+  // Event-based delivery doesn't work for hidden NSPanel WebViews, so polling via
+  // invoke() stays the transport; but a hidden preview parks the loop (the window
+  // lives for the whole app session) and the backend wakes it right after show.
   useEffect(() => {
-    let active = true;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      try {
-        const resp = await invoke<PreviewResponse>("get_current_preview", {
+    const poller = createPreviewPoller<PreviewResponse>({
+      fetch: () =>
+        invoke<PreviewResponse>("get_current_preview", {
           knownId: lastIdRef.current,
-        });
-        if (!active) return;
+        }),
+      onResponse: (resp) => {
         setClosing(resp.closing);
         if (resp.detail) {
           lastIdRef.current = resp.detail.id;
@@ -54,16 +54,22 @@ export function PreviewPage() {
           );
         }
         setLoading(false);
-      } catch {
-        // Retry transient IPC failures without overlapping slow requests.
-      } finally {
-        if (active) timer = setTimeout(poll, 100);
-      }
+      },
+      shouldContinue: (resp) => resp.active !== false,
+    });
+    const wake = () => poller.wake();
+    const wakeWhenVisible = () => {
+      if (document.visibilityState === "visible") wake();
     };
-    void poll();
+    window.__recopyPreviewWake = wake;
+    document.addEventListener("visibilitychange", wakeWhenVisible);
+    window.addEventListener("focus", wake);
+    poller.start();
     return () => {
-      active = false;
-      clearTimeout(timer);
+      poller.stop();
+      if (window.__recopyPreviewWake === wake) delete window.__recopyPreviewWake;
+      document.removeEventListener("visibilitychange", wakeWhenVisible);
+      window.removeEventListener("focus", wake);
     };
   }, []);
 

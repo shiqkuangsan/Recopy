@@ -128,6 +128,44 @@ describe("PreviewPage text selection", () => {
     }
   });
 
+  it("parks polling while hidden and resumes when the backend wakes it", async () => {
+    vi.useFakeTimers();
+    try {
+      let response: { detail: ItemDetail | null; closing: boolean; active: boolean } = {
+        detail: null,
+        closing: false,
+        active: false,
+      };
+      mockedInvoke.mockImplementation((command) =>
+        command === "get_current_preview" ? Promise.resolve(response) : Promise.resolve({}),
+      );
+      const previewCalls = () =>
+        mockedInvoke.mock.calls.filter(([cmd]) => cmd === "get_current_preview").length;
+      const { unmount } = render(<PreviewPage />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+      expect(previewCalls()).toBe(1);
+
+      response = { detail: plainTextDetail, closing: false, active: true };
+      await act(async () => {
+        window.__recopyPreviewWake?.();
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(previewCalls()).toBe(2);
+      expect(screen.getByText(plainTextDetail.plain_text)).toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+      expect(previewCalls()).toBeGreaterThan(3);
+
+      unmount();
+      expect(window.__recopyPreviewWake).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("announces readiness and acknowledges the main-owned generation", async () => {
     mockPreview(plainTextDetail);
     render(<PreviewPage />);

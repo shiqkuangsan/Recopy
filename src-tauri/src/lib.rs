@@ -209,7 +209,7 @@ pub fn run() {
             }
 
             // Initialize preview state for Quick Look feature
-            app.manage(db::models::PreviewState(std::sync::Mutex::new(None)));
+            app.manage(db::models::PreviewState::default());
             app.manage(db::models::PreviewClosing(
                 std::sync::atomic::AtomicBool::new(false),
             ));
@@ -600,7 +600,15 @@ pub fn show_main_window(app: &tauri::AppHandle) {
 pub fn hide_main_window(app: &tauri::AppHandle) {
     let _ = app.emit("recopy-hide", ());
     platform::platform_hide_window(app);
+    hide_preview(app);
+}
+
+/// Hide the preview and park its poll loop; the next show wakes it.
+pub fn hide_preview(app: &tauri::AppHandle) {
     platform::platform_hide_preview(app);
+    if let Some(state) = app.try_state::<db::models::PreviewState>() {
+        state.close();
+    }
 }
 
 /// Show the preview window with adaptive sizing (pre-created at startup).
@@ -694,6 +702,9 @@ pub fn show_preview_window_impl(
 
     // Show panel — dispatched to main thread inside platform_show_preview
     platform::platform_show_preview(app);
+
+    // Wake the parked poll loop. Queued after the show so the page is visible.
+    let _ = window.eval("window.__recopyPreviewWake?.()");
 }
 
 fn detect_language(app: &tauri::App) -> String {
