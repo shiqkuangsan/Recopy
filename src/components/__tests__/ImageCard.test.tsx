@@ -47,7 +47,8 @@ describe("ImageCard", () => {
 
   it("renders thumbnail image when loaded", async () => {
     // 1x1 transparent PNG bytes
-    const pngBytes = [137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82];
+    const pngBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82])
+      .buffer;
     mockedInvoke.mockImplementation((cmd: string) => {
       if (cmd === "get_thumbnail") return Promise.resolve(pngBytes);
       return Promise.resolve(null);

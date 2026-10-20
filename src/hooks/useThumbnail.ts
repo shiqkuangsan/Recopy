@@ -64,12 +64,11 @@ export function useThumbnail(id: string | null): string | null {
     retryRef.current = 0;
 
     const fetchThumbnail = () => {
-      invoke<number[] | null>("get_thumbnail", { id })
+      invoke<ArrayBuffer | null>("get_thumbnail", { id })
         .then((data) => {
           if (cancelled) return;
-          if (data && data.length > 0) {
-            const bytes = new Uint8Array(data);
-            const blob = new Blob([bytes], { type: "image/png" });
+          if (data && data.byteLength > 0) {
+            const blob = new Blob([data], { type: "image/png" });
             const objectUrl = URL.createObjectURL(blob);
             lruSet(id, objectUrl);
             setLoaded({ id, url: objectUrl });

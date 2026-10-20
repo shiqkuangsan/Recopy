@@ -58,7 +58,7 @@ describe("useThumbnail", () => {
 
   it("should call invoke with correct item id", async () => {
     const { useThumbnail } = await importFresh();
-    mockedInvoke.mockResolvedValueOnce([1, 2, 3]);
+    mockedInvoke.mockResolvedValueOnce(new Uint8Array([1, 2, 3]).buffer);
 
     renderHook(() => useThumbnail("test-id-42"));
 
@@ -69,7 +69,7 @@ describe("useThumbnail", () => {
 
   it("should return object URL after successful fetch", async () => {
     const { useThumbnail } = await importFresh();
-    mockedInvoke.mockResolvedValueOnce([1, 2, 3]);
+    mockedInvoke.mockResolvedValueOnce(new Uint8Array([1, 2, 3]).buffer);
 
     const { result } = renderHook(() => useThumbnail("item-1"));
 
@@ -81,7 +81,7 @@ describe("useThumbnail", () => {
 
   it("should return cached thumbnail URL on subsequent renders", async () => {
     const { useThumbnail } = await importFresh();
-    mockedInvoke.mockResolvedValueOnce([1, 2, 3]);
+    mockedInvoke.mockResolvedValueOnce(new Uint8Array([1, 2, 3]).buffer);
 
     const { result, unmount } = renderHook(() => useThumbnail("item-1"));
     await vi.waitFor(() => {
@@ -103,7 +103,7 @@ describe("useThumbnail", () => {
     mockedInvoke
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce([10, 20, 30]);
+      .mockResolvedValueOnce(new Uint8Array([10, 20, 30]).buffer);
 
     const { result } = renderHook(() => useThumbnail("retry-id"));
 
@@ -201,7 +201,9 @@ describe("useThumbnail", () => {
     vi.useFakeTimers();
     const { useThumbnail } = await importFresh();
 
-    mockedInvoke.mockResolvedValueOnce([]).mockResolvedValueOnce([5, 6, 7]);
+    mockedInvoke
+      .mockResolvedValueOnce(new Uint8Array([]).buffer)
+      .mockResolvedValueOnce(new Uint8Array([5, 6, 7]).buffer);
 
     const { result } = renderHook(() => useThumbnail("empty-arr-id"));
 

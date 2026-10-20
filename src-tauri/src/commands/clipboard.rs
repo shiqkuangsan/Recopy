@@ -47,11 +47,17 @@ pub async fn search_clipboard_items(
 }
 
 /// Get the thumbnail for a single clipboard item (lazy loading).
+/// Raw binary response (ArrayBuffer in JS); `Vec<u8>` would serialize as a JSON
+/// number array several times the PNG size. Empty body = not generated yet.
 #[tauri::command]
-pub async fn get_thumbnail(db: State<'_, DbPool>, id: String) -> Result<Option<Vec<u8>>, String> {
-    queries::get_thumbnail(&db.0, &id)
+pub async fn get_thumbnail(
+    db: State<'_, DbPool>,
+    id: String,
+) -> Result<tauri::ipc::Response, String> {
+    let bytes = queries::get_thumbnail(&db.0, &id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    Ok(tauri::ipc::Response::new(bytes.unwrap_or_default()))
 }
 
 /// Internal helper to load full item detail from DB.
