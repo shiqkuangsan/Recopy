@@ -142,10 +142,10 @@ function MainApp() {
         if (el) {
           // Set animation direction based on panel position
           const offsets: Record<string, string> = {
-            bottom: "translateY(40px)",
-            top: "translateY(-40px)",
-            left: "translateX(-40px)",
-            right: "translateX(40px)",
+            bottom: "translateY(16px)",
+            top: "translateY(-16px)",
+            left: "translateX(-16px)",
+            right: "translateX(16px)",
           };
           const pos = event.payload.panel_position ?? "bottom";
           el.style.setProperty("--panel-offset", offsets[pos] ?? offsets.bottom);

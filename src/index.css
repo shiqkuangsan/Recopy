@@ -98,25 +98,25 @@ html[data-theme="dark"] {
   --ease-in-quick: cubic-bezier(0.4, 0, 1, 1);
 }
 
-/* Panel entrance animation — direction driven by --panel-offset CSS variable */
+/* Panel entrance — direction driven by --panel-offset (set per panel position) */
 @keyframes panel-in {
   from {
     opacity: 0;
-    transform: var(--panel-offset, translateY(40px));
+    transform: var(--panel-offset, translateY(16px));
   }
   to {
     opacity: 1;
-    transform: translate(0, 0);
+    transform: none;
   }
 }
 
 .panel-enter {
-  animation: panel-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: panel-in 0.22s var(--ease-out-expo) both;
 }
 
 .panel-idle {
   opacity: 0;
-  transform: var(--panel-offset, translateY(40px));
+  transform: var(--panel-offset, translateY(16px));
 }
 
 /* Quick Look style preview — subtle zoom toward the panel edge (--preview-origin) */
@@ -186,18 +186,6 @@ html[data-theme="dark"] {
   75% { transform: rotate(2deg); }
 }
 
-/* Easter egg: app name click ripple */
-@keyframes echo-ripple {
-  from {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(1.5);
-  }
-}
-
 /* Easter egg: cat fortune bubble pop-in/out */
 @keyframes fortune-pop {
   0% {
@@ -216,13 +204,6 @@ html[data-theme="dark"] {
     opacity: 0;
     transform: translateY(4px) scale(0.95);
   }
-}
-
-/* Easter egg: rainbow glass pulse on card */
-@keyframes rainbow-pulse {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
 }
 
 /* Easter egg Layer 4: purple mystic glow */
@@ -290,16 +271,16 @@ html[data-theme="dark"] {
   100% { box-shadow: 0 0 0 rgba(0,0,0,0); transform: translateY(0) scale(1); }
 }
 
-/* Easter egg Layer 6: core text compression → expansion → float → settle */
+/* Easter egg Layer 6: core text compression → expansion → float → settle (transform only) */
 @keyframes neko-ascension-core {
-  0% { transform: translateY(0) scale(1); letter-spacing: 0; opacity: .9; }
-  14% { transform: translateY(1px) scale(.9); letter-spacing: -.02em; opacity: 1; }
-  24% { transform: translateY(-2px) scale(1.12); letter-spacing: .01em; opacity: 1; }
-  31% { transform: translateY(-3px) scale(1.2); letter-spacing: .03em; opacity: 1; }
-  37% { transform: translateY(-1px) scale(1.06); letter-spacing: .01em; }
+  0% { transform: translateY(0) scale(1); opacity: .9; }
+  14% { transform: translateY(1px) scale(.9); opacity: 1; }
+  24% { transform: translateY(-2px) scale(1.12); opacity: 1; }
+  31% { transform: translateY(-3px) scale(1.2); opacity: 1; }
+  37% { transform: translateY(-1px) scale(1.06); }
   72% { transform: translateY(-2px) scale(1.05); opacity: 1; }
   86% { transform: translateY(-1px) scale(1.02); opacity: .95; }
-  100% { transform: translateY(0) scale(1); letter-spacing: 0; opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 /* Easter egg Layer 6: solid ring — scale up + rotate clockwise */
@@ -371,6 +352,53 @@ html[data-theme="dark"] {
     opacity: 0;
     transform: translate(-50%, -50%) rotate(calc(var(--r-angle) + 430deg)) translateX(calc(var(--r-radius) - 8px)) scale(.35);
     filter: blur(1px);
+  }
+}
+
+/* Reduced motion (macOS "Reduce motion", Windows "Animation effects" off):
+   drop movement and decorative loops; keep short dissolves for window content. */
+@keyframes motion-fade-in {
+  from { opacity: 0; transform: none; }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes motion-fade-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  .panel-idle,
+  .preview-content {
+    transform: none;
+  }
+
+  .panel-enter,
+  .preview-enter,
+  .hud-enter {
+    animation: motion-fade-in 0.12s linear both !important;
+  }
+
+  .preview-exit {
+    animation: motion-fade-out 0.12s linear both !important;
+  }
+
+  .hud-leave {
+    transition-duration: 0.12s !important;
+  }
+
+  /* Progress, not decoration: a frozen spinner reads as a hang */
+  .animate-spin {
+    animation-duration: 1s !important;
+    animation-iteration-count: infinite !important;
   }
 }
 
