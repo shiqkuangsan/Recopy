@@ -37,6 +37,27 @@ function lruSet(key: string, value: string): void {
 }
 
 /**
+ * get_thumbnail returns raw bytes, but their JS shape depends on the IPC path:
+ * an ArrayBuffer over the ipc:// custom protocol, and a plain number array over
+ * the postMessage fallback (used on macOS when the CSP blocks ipc://, i.e. in
+ * release builds). Accept every shape; null means "not generated yet".
+ */
+type ThumbnailBody = ArrayBuffer | ArrayBufferView | number[] | null;
+
+export function toThumbnailBytes(data: ThumbnailBody | undefined): Uint8Array<ArrayBuffer> | null {
+  if (!data) return null;
+  const bytes =
+    data instanceof ArrayBuffer
+      ? new Uint8Array(data)
+      : ArrayBuffer.isView(data)
+        ? Uint8Array.from(new Uint8Array(data.buffer, data.byteOffset, data.byteLength))
+        : Array.isArray(data)
+          ? Uint8Array.from(data)
+          : null;
+  return bytes && bytes.byteLength > 0 ? bytes : null;
+}
+
+/**
  * Lazily load a thumbnail for a clipboard item.
  * Pass null to skip fetching.
  * Returns an object URL or null while loading.
@@ -64,11 +85,12 @@ export function useThumbnail(id: string | null): string | null {
     retryRef.current = 0;
 
     const fetchThumbnail = () => {
-      invoke<ArrayBuffer | null>("get_thumbnail", { id })
+      invoke<ThumbnailBody>("get_thumbnail", { id })
         .then((data) => {
           if (cancelled) return;
-          if (data && data.byteLength > 0) {
-            const blob = new Blob([data], { type: "image/png" });
+          const bytes = toThumbnailBytes(data);
+          if (bytes) {
+            const blob = new Blob([bytes], { type: "image/png" });
             const objectUrl = URL.createObjectURL(blob);
             lruSet(id, objectUrl);
             setLoaded({ id, url: objectUrl });
@@ -97,4 +119,4 @@ export function useThumbnail(id: string | null): string | null {
 }
 
 // Exported for testing only
-export const __test__ = { thumbnailCache, lruGet, lruSet, LRU_CAPACITY };
+export const __test__ = { thumbnailCache, lruGet, lruSet, LRU_CAPACITY, toThumbnailBytes };

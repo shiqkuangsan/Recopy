@@ -67,6 +67,32 @@ describe("useThumbnail", () => {
     });
   });
 
+  it("loads a thumbnail delivered as a number array (macOS postMessage IPC path)", async () => {
+    // Release builds fall back to postMessage IPC, where raw command bodies
+    // arrive as plain number arrays instead of ArrayBuffers (1.11.0 regression).
+    const { useThumbnail } = await importFresh();
+    mockedInvoke.mockResolvedValueOnce([137, 80, 78, 71]);
+
+    const { result } = renderHook(() => useThumbnail("item-postmessage"));
+
+    await vi.waitFor(() => {
+      expect(result.current).toBe("blob:mock-url-4");
+    });
+    expect(mockedInvoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("normalizes every IPC body shape and treats empty bodies as not ready", async () => {
+    const { __test__ } = await importFresh();
+    const { toThumbnailBytes } = __test__;
+    expect(Array.from(toThumbnailBytes(new Uint8Array([1, 2, 3]).buffer)!)).toEqual([1, 2, 3]);
+    expect(Array.from(toThumbnailBytes([4, 5])!)).toEqual([4, 5]);
+    const view = new Uint8Array([0, 6, 7, 0]).subarray(1, 3);
+    expect(Array.from(toThumbnailBytes(view)!)).toEqual([6, 7]);
+    expect(toThumbnailBytes(null)).toBeNull();
+    expect(toThumbnailBytes([])).toBeNull();
+    expect(toThumbnailBytes(new ArrayBuffer(0))).toBeNull();
+  });
+
   it("should return object URL after successful fetch", async () => {
     const { useThumbnail } = await importFresh();
     mockedInvoke.mockResolvedValueOnce(new Uint8Array([1, 2, 3]).buffer);
