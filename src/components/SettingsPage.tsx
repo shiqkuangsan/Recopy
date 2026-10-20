@@ -584,7 +584,7 @@ function UpdateCheckButton() {
       <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
         <div className="w-24 h-1.5 rounded-full bg-muted/40 overflow-hidden">
           <div
-            className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+            className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>

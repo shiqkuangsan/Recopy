@@ -62,7 +62,7 @@ export function UpdateBanner() {
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <div className="w-20 h-1.5 rounded-full bg-muted/40 overflow-hidden">
           <div
-            className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+            className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -78,8 +78,12 @@ export function UpdateBanner() {
     return (
       <button
         onClick={relaunch}
-        className="flex items-center gap-1.5 text-xs text-primary animate-pulse hover:opacity-80 transition-opacity cursor-pointer"
+        className="flex items-center gap-1.5 text-xs text-primary hover:opacity-80 transition-opacity cursor-pointer"
       >
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+        </span>
         <RotateCcw size={11} />
         <span>{t("update.restart")}</span>
       </button>

@@ -228,7 +228,7 @@ export function BrandLogo() {
       <span
         className={[
           // Flex-center so the logo centers on the text line box; `align-middle` sat it ~1.3px low.
-          "relative z-10 inline-flex items-center gap-1.5 text-base font-bold tracking-tight transition-all duration-300 hover:tracking-wide hover:opacity-100",
+          "relative z-10 inline-flex items-center gap-1.5 text-base font-bold tracking-tight transition-[transform,color] duration-200 ease-out",
           pulse && !ascensionMode ? "scale-105" : "scale-100",
           textColorClass,
         ]
