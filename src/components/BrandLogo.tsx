@@ -172,7 +172,7 @@ export function BrandLogo() {
 
   return (
     <span
-      className="relative select-none cursor-pointer rounded-md px-1 -mx-1 overflow-visible"
+      className="relative inline-flex items-center select-none cursor-pointer rounded-md px-1 -mx-1 overflow-visible"
       style={containerStyle}
       onClick={handleClick}
     >
@@ -227,7 +227,8 @@ export function BrandLogo() {
 
       <span
         className={[
-          "relative z-10 inline-block text-base font-bold tracking-tight transition-all duration-300 hover:tracking-wide hover:opacity-100",
+          // Flex-center so the logo centers on the text line box; `align-middle` sat it ~1.3px low.
+          "relative z-10 inline-flex items-center gap-1.5 text-base font-bold tracking-tight transition-all duration-300 hover:tracking-wide hover:opacity-100",
           pulse && !ascensionMode ? "scale-105" : "scale-100",
           textColorClass,
         ]
@@ -241,9 +242,9 @@ export function BrandLogo() {
           width={24}
           height={24}
           draggable={false}
-          className="inline-block align-middle mr-1.5"
+          className="block shrink-0"
         />
-        {displayText}
+        <span>{displayText}</span>
       </span>
 
       {/* Ascension: echo ghosts splitting left/right */}
