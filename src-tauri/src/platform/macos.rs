@@ -66,7 +66,9 @@ pub fn platform_show_window(app: &tauri::AppHandle, panel_position: &str) {
 
             panel.set_collection_behavior(nspanel::visible_main_panel_collection_behavior().into());
 
+            panel.prepare_fade_in();
             panel.show_and_make_key();
+            panel.animate_alpha(1.0, super::motion::MAIN_FADE_IN_SECS);
         }
     });
 }
@@ -165,7 +167,19 @@ pub fn platform_show_hud(app: &tauri::AppHandle) {
     let app_inner = app.clone();
     let _ = app.run_on_main_thread(move || {
         if let Ok(panel) = app_inner.get_panel("hud") {
+            panel.prepare_fade_in();
             panel.show();
+            panel.animate_alpha(1.0, super::motion::HUD_FADE_IN_SECS);
+        }
+    });
+}
+
+/// Fade the HUD out natively; the caller hides it once the fade has finished.
+pub fn platform_fade_out_hud(app: &tauri::AppHandle) {
+    let app_inner = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Ok(panel) = app_inner.get_panel("hud") {
+            panel.animate_alpha(0.0, super::motion::HUD_FADE_OUT_SECS);
         }
     });
 }
@@ -216,7 +230,19 @@ pub fn platform_show_preview(app: &tauri::AppHandle) {
     let app_inner = app.clone();
     let _ = app.run_on_main_thread(move || {
         if let Ok(panel) = app_inner.get_panel("preview") {
+            panel.prepare_fade_in();
             panel.show();
+            panel.animate_alpha(1.0, super::motion::PREVIEW_FADE_IN_SECS);
+        }
+    });
+}
+
+/// Fade the preview (vibrancy included) alongside its CSS exit animation.
+pub fn platform_fade_out_preview(app: &tauri::AppHandle) {
+    let app_inner = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Ok(panel) = app_inner.get_panel("preview") {
+            panel.animate_alpha(0.0, super::motion::PREVIEW_FADE_OUT_SECS);
         }
     });
 }

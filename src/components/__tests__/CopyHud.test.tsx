@@ -20,6 +20,21 @@ describe("CopyHudView", () => {
     );
   });
 
+  it("replays the entrance on each show and fades content before hiding", () => {
+    const { rerender } = render(<CopyHudView isMac={false} playKey={1} />);
+    const first = screen.getByTestId("copy-hud-surface");
+    expect(first).toHaveClass("hud-enter");
+
+    rerender(<CopyHudView isMac={false} playKey={2} />);
+    const second = screen.getByTestId("copy-hud-surface");
+    expect(second).not.toBe(first); // remounted, so the CSS animation restarts
+
+    rerender(<CopyHudView isMac={false} playKey={2} leaving />);
+    expect(screen.getByTestId("copy-hud-surface")).toHaveClass("hud-leave");
+    // The Windows surface itself stays solid; only its content animates.
+    expect(screen.getByTestId("copy-hud-root")).toHaveClass("bg-zinc-900");
+  });
+
   it("keeps macOS surface transparent for the native hudWindow effect", () => {
     render(<CopyHudView isMac />);
 

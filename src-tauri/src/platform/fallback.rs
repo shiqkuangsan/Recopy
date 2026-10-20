@@ -117,3 +117,14 @@ pub fn platform_hide_hud(app: &tauri::AppHandle) {
         let _ = window.hide();
     }
 }
+
+/// No native window alpha here: the preview's CSS exit covers the whole window
+/// (its background is CSS, inside a transparent window).
+pub fn platform_fade_out_preview(_app: &tauri::AppHandle) {}
+
+/// Fade the HUD with CSS (`.hud-leave`); the caller hides the window afterwards.
+pub fn platform_fade_out_hud(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("hud") {
+        let _ = window.eval("window.__recopyHudHide?.()");
+    }
+}

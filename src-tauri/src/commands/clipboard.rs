@@ -808,11 +808,19 @@ pub async fn animate_close_preview(
         return Ok(());
     }
 
-    // Signal frontend to play exit animation
+    // Signal frontend to play exit animation. The flag alone would reach the page
+    // on its next poll (up to 100ms late), so also push it via eval right away.
     closing.0.store(true, std::sync::atomic::Ordering::SeqCst);
+    if let Some(preview) = app.get_webview_window("preview") {
+        let _ = preview.eval("window.__recopyPreviewClose?.()");
+    }
+    crate::platform::platform_fade_out_preview(&app);
 
-    // Wait for animation to complete (CSS animation is 200ms, add buffer)
-    tokio::time::sleep(std::time::Duration::from_millis(220)).await;
+    // Wait for the exit animation to complete
+    tokio::time::sleep(std::time::Duration::from_millis(
+        crate::platform::motion::PREVIEW_EXIT_MS,
+    ))
+    .await;
 
     // Guard: if show_preview reopened during the sleep, closing flag was cleared — abort
     if !closing.0.load(std::sync::atomic::Ordering::SeqCst) {
@@ -1067,14 +1075,23 @@ pub fn show_copy_hud(app: AppHandle) {
         }
     }
 
-    // Show HUD panel (non-activating on macOS)
+    // Show HUD panel (non-activating on macOS) and replay its CSS entrance.
     crate::platform::platform_show_hud(&app);
+    if let Some(hud) = app.get_webview_window("hud") {
+        let _ = hud.eval("window.__recopyHudShow?.()");
+    }
 
-    // Auto-hide after 800ms (generation counter prevents stale timers)
+    // Hold, fade out, then hide (generation counter prevents stale timers).
     let gen = HUD_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
     let app_clone = app.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(800));
+        use crate::platform::motion::{HUD_FADE_OUT_MS, HUD_HOLD_MS};
+        std::thread::sleep(std::time::Duration::from_millis(HUD_HOLD_MS));
+        if HUD_GENERATION.load(Ordering::SeqCst) != gen {
+            return;
+        }
+        crate::platform::platform_fade_out_hud(&app_clone);
+        std::thread::sleep(std::time::Duration::from_millis(HUD_FADE_OUT_MS));
         if HUD_GENERATION.load(Ordering::SeqCst) == gen {
             crate::platform::platform_hide_hud(&app_clone);
         }

@@ -4,6 +4,8 @@ declare global {
   interface Window {
     /** Called by the backend (`webview.eval`) right after the preview is shown. */
     __recopyPreviewWake?: () => void;
+    /** Called by the backend when the close animation starts (no poll latency). */
+    __recopyPreviewClose?: () => void;
   }
 }
 

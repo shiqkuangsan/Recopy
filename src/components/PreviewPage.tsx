@@ -36,13 +36,18 @@ export function PreviewPage() {
   // invoke() stays the transport; but a hidden preview parks the loop (the window
   // lives for the whole app session) and the backend wakes it right after show.
   useEffect(() => {
+    // Set by the backend's close signal; a poll answered before the close began
+    // must not flip the exit back to an entrance. Cleared when a show wakes us.
+    let closeRequested = false;
     const poller = createPreviewPoller<PreviewResponse>({
       fetch: () =>
         invoke<PreviewResponse>("get_current_preview", {
           knownId: lastIdRef.current,
         }),
       onResponse: (resp) => {
-        setClosing(resp.closing);
+        // Parked (hidden) counts as closed, so the next show replays the entrance
+        // even when the preview was hidden without its exit animation.
+        setClosing(resp.closing || resp.active === false || closeRequested);
         if (resp.detail) {
           lastIdRef.current = resp.detail.id;
           setDetail(resp.detail);
@@ -57,17 +62,26 @@ export function PreviewPage() {
       },
       shouldContinue: (resp) => resp.active !== false,
     });
-    const wake = () => poller.wake();
+    const wake = () => {
+      closeRequested = false;
+      poller.wake();
+    };
+    const close = () => {
+      closeRequested = true;
+      setClosing(true);
+    };
     const wakeWhenVisible = () => {
       if (document.visibilityState === "visible") wake();
     };
     window.__recopyPreviewWake = wake;
+    window.__recopyPreviewClose = close;
     document.addEventListener("visibilitychange", wakeWhenVisible);
     window.addEventListener("focus", wake);
     poller.start();
     return () => {
       poller.stop();
       if (window.__recopyPreviewWake === wake) delete window.__recopyPreviewWake;
+      if (window.__recopyPreviewClose === close) delete window.__recopyPreviewClose;
       document.removeEventListener("visibilitychange", wakeWhenVisible);
       window.removeEventListener("focus", wake);
     };

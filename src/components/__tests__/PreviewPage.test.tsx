@@ -166,6 +166,55 @@ describe("PreviewPage text selection", () => {
     }
   });
 
+  it("starts the exit immediately on the close signal and ignores stale open polls", async () => {
+    vi.useFakeTimers();
+    try {
+      mockedInvoke.mockImplementation((command) =>
+        command === "get_current_preview"
+          ? Promise.resolve({ detail: plainTextDetail, closing: false, active: true })
+          : Promise.resolve({}),
+      );
+      const { unmount } = render(<PreviewPage />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(document.querySelector(".preview-enter")).not.toBeNull();
+
+      act(() => window.__recopyPreviewClose?.());
+      expect(document.querySelector(".preview-exit")).not.toBeNull();
+      // A poll answered before the close began must not flip back to the entrance.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(250);
+      });
+      expect(document.querySelector(".preview-exit")).not.toBeNull();
+
+      // Parked (hidden) stays closed; the next show wakes into a fresh entrance.
+      mockedInvoke.mockImplementation((command) =>
+        command === "get_current_preview"
+          ? Promise.resolve({ detail: null, closing: false, active: false })
+          : Promise.resolve({}),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(document.querySelector(".preview-exit")).not.toBeNull();
+      mockedInvoke.mockImplementation((command) =>
+        command === "get_current_preview"
+          ? Promise.resolve({ detail: null, closing: false, active: true })
+          : Promise.resolve({}),
+      );
+      await act(async () => {
+        window.__recopyPreviewWake?.();
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(document.querySelector(".preview-enter")).not.toBeNull();
+      unmount();
+      expect(window.__recopyPreviewClose).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("announces readiness and acknowledges the main-owned generation", async () => {
     mockPreview(plainTextDetail);
     render(<PreviewPage />);

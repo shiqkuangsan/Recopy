@@ -236,6 +236,36 @@ impl PanelHandle {
         self.ns_panel.isVisible()
     }
 
+    /// Fade the whole window, native vibrancy included, which CSS cannot reach.
+    /// Retargets any running fade, so a show during a fade-out recovers smoothly.
+    pub fn animate_alpha(&self, alpha: f64, duration: f64) {
+        let Some(context) = AnyClass::get(c"NSAnimationContext") else {
+            self.set_alpha(alpha);
+            return;
+        };
+        unsafe {
+            let _: () = msg_send![context, beginGrouping];
+            let current: Retained<AnyObject> = msg_send![context, currentContext];
+            let _: () = msg_send![&*current, setDuration: duration];
+            let animator: Retained<AnyObject> = msg_send![&*self.ns_panel, animator];
+            let _: () = msg_send![&*animator, setAlphaValue: alpha];
+            let _: () = msg_send![context, endGrouping];
+        }
+    }
+
+    pub fn set_alpha(&self, alpha: f64) {
+        unsafe {
+            let _: () = msg_send![&*self.ns_panel, setAlphaValue: alpha];
+        }
+    }
+
+    /// Start from transparent when the panel is coming from hidden, then fade in.
+    pub fn prepare_fade_in(&self) {
+        if !self.is_visible() {
+            self.set_alpha(0.0);
+        }
+    }
+
     #[allow(dead_code)]
     pub fn label(&self) -> &str {
         &self.label

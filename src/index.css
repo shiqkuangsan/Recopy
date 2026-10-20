@@ -90,6 +90,14 @@ html[data-theme="dark"] {
   --color-ring: #3B82F6;
 }
 
+/* Motion tokens. Window-level fades on macOS are native (see platform::motion);
+   these CSS animations move only the web content, so distances stay small. */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-quick: cubic-bezier(0.4, 0, 1, 1);
+}
+
 /* Panel entrance animation — direction driven by --panel-offset CSS variable */
 @keyframes panel-in {
   from {
@@ -111,41 +119,64 @@ html[data-theme="dark"] {
   transform: var(--panel-offset, translateY(40px));
 }
 
-/* Quick Look style preview animation — Finder-like scale from/to bottom center */
+/* Quick Look style preview — subtle zoom toward the panel edge (--preview-origin) */
 @keyframes preview-scale-in {
   from {
     opacity: 0;
-    transform: scale(0.75);
+    transform: scale(0.94);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: none;
   }
 }
 
 @keyframes preview-scale-out {
   from {
     opacity: 1;
-    transform: scale(1);
+    transform: none;
   }
   to {
     opacity: 0;
-    transform: scale(0.75);
+    transform: scale(0.96);
   }
 }
 
 .preview-content {
   opacity: 0;
-  transform: scale(0.75);
+  transform: scale(0.94);
   transform-origin: var(--preview-origin, center bottom);
 }
 
 .preview-enter {
-  animation: preview-scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: preview-scale-in 0.18s var(--ease-out-expo) both;
 }
 
+/* Rust hides the window after platform::motion::PREVIEW_EXIT_MS (160ms) */
 .preview-exit {
-  animation: preview-scale-out 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: preview-scale-out 0.14s var(--ease-in-quick) both;
+}
+
+/* Copy HUD — pop in (replayed per show), fade out before the window hides */
+@keyframes hud-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hud-enter {
+  animation: hud-pop 0.24s var(--ease-out-back) both;
+}
+
+/* Non-macOS only; macOS fades the native window (HUD_FADE_OUT_MS = 220) */
+.hud-leave {
+  opacity: 0;
+  transition: opacity 0.18s var(--ease-in-quick);
 }
 
 /* Easter egg: micro-vibrate "purr" */

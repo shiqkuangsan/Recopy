@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Settings } from "lucide-react";
@@ -248,12 +248,27 @@ function SettingsApp() {
 function HudApp() {
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const isMac = platform() === "macos";
+  const [playKey, setPlayKey] = useState(0);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
 
-  return <CopyHudView isMac={isMac} />;
+  // Driven by the backend via webview.eval (show_copy_hud / platform_fade_out_hud).
+  useEffect(() => {
+    window.__recopyHudShow = () => {
+      setLeaving(false);
+      setPlayKey((key) => key + 1);
+    };
+    window.__recopyHudHide = () => setLeaving(true);
+    return () => {
+      delete window.__recopyHudShow;
+      delete window.__recopyHudHide;
+    };
+  }, []);
+
+  return <CopyHudView isMac={isMac} playKey={playKey} leaving={leaving} />;
 }
 
 function App() {

@@ -19,6 +19,27 @@ mod fallback;
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub use fallback::*;
 
+/// Window-level motion timings, kept in step with the CSS animations in index.css.
+pub mod motion {
+    /// Native window fades (macOS NSPanel alpha; vibrancy can't be faded from CSS).
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub const MAIN_FADE_IN_SECS: f64 = 0.16;
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub const PREVIEW_FADE_IN_SECS: f64 = 0.14;
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub const PREVIEW_FADE_OUT_SECS: f64 = 0.14;
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub const HUD_FADE_IN_SECS: f64 = 0.12;
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub const HUD_FADE_OUT_SECS: f64 = 0.2;
+
+    /// Preview exit: `.preview-exit` (140ms) plus a frame of slack before orderOut.
+    pub const PREVIEW_EXIT_MS: u64 = 160;
+    /// HUD: visible hold, then fade (native on macOS, `.hud-leave` elsewhere).
+    pub const HUD_HOLD_MS: u64 = 750;
+    pub const HUD_FADE_OUT_MS: u64 = 220;
+}
+
 /// Run `f` inside an Objective-C autorelease pool on macOS (no-op elsewhere).
 /// Needed for AppKit calls made off the main thread, whose run loop would
 /// otherwise be the only thing draining autoreleased objects.
