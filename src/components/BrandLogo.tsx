@@ -1,318 +1,220 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import recopyLogo from "../assets/recopy-logo.png";
 
+// "Copy Echo" easter egg, built on the brand mark's offset copy.
+// A click streak resets after RESET_DELAY of inactivity:
+//   every click → the tile presses in and an echo peels off behind it
+//   3–4         → echoes pile up behind the tile like clipboard history
+//   5           → the pile snaps back in ("paste") with a ring and a pun
+//   7           → the title flips Recopy → Copy → Paste → Recopy
+//   10          → finale: echoes fan out like a hand of cards, square back up,
+//                 and a light sweeps across the tile
+// Everything animates transform/opacity only; reduced motion collapses it.
 const RESET_DELAY = 3000;
+const PEEL_LIFETIME = 650;
+const MAX_PEELS = 6;
+const MAX_STACK = 3;
+const PASTE_AT = 5;
+const FLIP_AT = 7;
+const FINALE_AT = 10;
 const FORTUNE_DURATION = 2500;
-const NEKO_DURATION = 8000;
-const ULTIMATE_DURATION = 10000;
-const ASCENSION_DURATION = 13500;
+const FLIP_DURATION = 1800;
+const FINALE_DURATION = 2400;
+const FINALE_ECHOES = 8;
 const FORTUNE_COUNT = 6;
 
-// Mixed particles for ultimate mode — each has character, position, delay, and sway direction
-const NEKO_PARTICLES = [
-  { char: "♥", left: "0%", delay: "0s", sway: "3px" },
-  { char: "✦", left: "20%", delay: "0.4s", sway: "-4px" },
-  { char: "⋆", left: "40%", delay: "0.15s", sway: "5px" },
-  { char: "🐾", left: "60%", delay: "0.7s", sway: "-3px" },
-  { char: "♥", left: "80%", delay: "0.3s", sway: "4px" },
-  { char: "✦", left: "95%", delay: "0.55s", sway: "-5px" },
+const PRESS_KEYFRAMES: Keyframe[] = [
+  { transform: "scale(1)" },
+  { transform: "scale(0.86)", offset: 0.35 },
+  { transform: "scale(1)" },
 ];
 
-// Celestial runes orbiting during ascension — each has angle, radius, and stagger delay
-const ASCENSION_RUNES = [
-  { char: "✶", angle: "-165deg", radius: "34px", delay: "0ms" },
-  { char: "◌", angle: "-120deg", radius: "30px", delay: "120ms" },
-  { char: "✦", angle: "-72deg", radius: "36px", delay: "220ms" },
-  { char: "☽", angle: "-24deg", radius: "32px", delay: "80ms" },
-  { char: "✶", angle: "18deg", radius: "37px", delay: "300ms" },
-  { char: "◍", angle: "64deg", radius: "31px", delay: "180ms" },
-  { char: "✧", angle: "112deg", radius: "35px", delay: "260ms" },
-  { char: "☾", angle: "158deg", radius: "33px", delay: "140ms" },
-];
+function prefersReducedMotion() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
 
 export function BrandLogo() {
   const { t } = useTranslation();
-  const [clickCount, setClickCount] = useState(0);
-  const [pulse, setPulse] = useState(false);
+  const [peels, setPeels] = useState<number[]>([]);
+  const [stack, setStack] = useState(0);
+  const [pasteKey, setPasteKey] = useState(0);
   const [fortune, setFortune] = useState<string | null>(null);
-  const [nekoMode, setNekoMode] = useState(false);
-  const [ultimateMode, setUltimateMode] = useState(false);
-  const [ascensionMode, setAscensionMode] = useState(false);
-  const resetTimer = useRef<ReturnType<typeof setTimeout>>(null);
-  const fortuneTimer = useRef<ReturnType<typeof setTimeout>>(null);
-  const nekoTimer = useRef<ReturnType<typeof setTimeout>>(null);
-  const ultimateTimer = useRef<ReturnType<typeof setTimeout>>(null);
-  const ascensionTimer = useRef<ReturnType<typeof setTimeout>>(null);
+  const [flipKey, setFlipKey] = useState(0);
+  const [finale, setFinale] = useState(false);
+  const clicks = useRef(0);
+  const nextPeelId = useRef(0);
+  const tileRef = useRef<HTMLImageElement>(null);
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
-  const resetAll = useCallback(() => {
-    setClickCount(0);
-    setNekoMode(false);
-    setUltimateMode(false);
-    setAscensionMode(false);
-    setFortune(null);
-    if (resetTimer.current) clearTimeout(resetTimer.current);
-    if (nekoTimer.current) clearTimeout(nekoTimer.current);
-    if (ultimateTimer.current) clearTimeout(ultimateTimer.current);
-    if (fortuneTimer.current) clearTimeout(fortuneTimer.current);
-    if (ascensionTimer.current) clearTimeout(ascensionTimer.current);
+  const schedule = useCallback((name: string, delay: number, run: () => void) => {
+    clearTimeout(timers.current.get(name));
+    timers.current.set(
+      name,
+      setTimeout(() => {
+        timers.current.delete(name);
+        run();
+      }, delay),
+    );
+  }, []);
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => pending.forEach((timer) => clearTimeout(timer));
+  }, []);
+
+  const endStreak = useCallback(() => {
+    clicks.current = 0;
+    setStack(0);
   }, []);
 
   const handleClick = useCallback(() => {
-    // Block clicks during ascension
-    if (ascensionMode) return;
+    if (finale) return;
+    const count = ++clicks.current;
+    schedule("streak", RESET_DELAY, endStreak);
 
-    // Layer 1: pulse on every click
-    setPulse(true);
-    requestAnimationFrame(() => {
-      setTimeout(() => setPulse(false), 200);
-    });
+    // Press the tile (WAAPI, so it restarts cleanly mid-animation). The finale
+    // drives the tile with its own CSS animation instead.
+    if (count !== FINALE_AT && !prefersReducedMotion()) {
+      tileRef.current?.animate?.(PRESS_KEYFRAMES, {
+        duration: count === PASTE_AT ? 360 : 260,
+        easing: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+      });
+    }
 
-    // Reset idle timer
-    if (resetTimer.current) clearTimeout(resetTimer.current);
-    resetTimer.current = setTimeout(() => setClickCount(0), RESET_DELAY);
+    if (count === FINALE_AT) {
+      setStack(0);
+      setPeels([]);
+      setFortune(null);
+      setFlipKey(0); // a fast streak can still be mid-flip; the finale owns the title
+      setFinale(true);
+      schedule("finale", FINALE_DURATION, () => {
+        setFinale(false);
+        endStreak();
+      });
+      return;
+    }
 
-    setClickCount((prev) => {
-      const next = prev + 1;
+    if (count === PASTE_AT) {
+      setStack(0);
+      setPasteKey((key) => key + 1);
+      const idx = Math.floor(Math.random() * FORTUNE_COUNT) + 1;
+      setFortune(t(`easter.fortune${idx}`));
+      schedule("fortune", FORTUNE_DURATION, () => setFortune(null));
+    } else if (count >= 3 && count < PASTE_AT) {
+      setStack(Math.min(count - 2, MAX_STACK));
+    }
 
-      // Layer 3: random cat fortune at 5 clicks
-      if (next === 5) {
-        const idx = Math.floor(Math.random() * FORTUNE_COUNT) + 1;
-        setFortune(t(`easter.fortune${idx}`));
-        if (fortuneTimer.current) clearTimeout(fortuneTimer.current);
-        fortuneTimer.current = setTimeout(() => setFortune(null), FORTUNE_DURATION);
-      }
+    if (count === FLIP_AT) {
+      setFlipKey((key) => key + 1);
+      schedule("flip", FLIP_DURATION, () => setFlipKey(0));
+    }
 
-      // Layer 4: neko mode at 7 clicks
-      if (next === 7) {
-        setNekoMode(true);
-        if (nekoTimer.current) clearTimeout(nekoTimer.current);
-        nekoTimer.current = setTimeout(() => {
-          setNekoMode(false);
-          setClickCount(0);
-          if (resetTimer.current) clearTimeout(resetTimer.current);
-        }, NEKO_DURATION);
-      }
-
-      // Layer 5: ultimate mode at 10 clicks
-      if (next === 10) {
-        if (nekoTimer.current) clearTimeout(nekoTimer.current);
-        if (resetTimer.current) clearTimeout(resetTimer.current);
-        setUltimateMode(true);
-        if (ultimateTimer.current) clearTimeout(ultimateTimer.current);
-        ultimateTimer.current = setTimeout(resetAll, ULTIMATE_DURATION);
-      }
-
-      // Layer 6: ascension at 20 clicks
-      if (next === 20) {
-        if (nekoTimer.current) clearTimeout(nekoTimer.current);
-        if (ultimateTimer.current) clearTimeout(ultimateTimer.current);
-        if (resetTimer.current) clearTimeout(resetTimer.current);
-        if (fortuneTimer.current) clearTimeout(fortuneTimer.current);
-        setFortune(null);
-        setNekoMode(false);
-        setUltimateMode(false);
-        setAscensionMode(true);
-        if (ascensionTimer.current) clearTimeout(ascensionTimer.current);
-        ascensionTimer.current = setTimeout(resetAll, ASCENSION_DURATION);
-      }
-
-      return next;
-    });
-  }, [t, resetAll, ascensionMode]);
-
-  // Layer 2: pink purr at 3+ clicks (but not during neko/ultimate/ascension)
-  const isPurr = clickCount >= 3 && !nekoMode && !ultimateMode && !ascensionMode;
-
-  // Determine text content
-  let displayText = "Recopy";
-  if (ascensionMode || ultimateMode) {
-    displayText = "ฅ(=^·ω·^=)ฅ";
-  } else if (nekoMode) {
-    displayText = "ฅ^•ﻌ•^ฅ";
-  }
-
-  // Text animation style
-  let textStyle: React.CSSProperties | undefined;
-  if (ascensionMode) {
-    textStyle = {
-      animation: `neko-ascension-core ${ASCENSION_DURATION}ms cubic-bezier(0.22,1,0.36,1) forwards`,
-      textShadow: "0 0 14px rgba(255,245,234,0.55), 0 0 28px rgba(167,139,250,0.35)",
-    };
-  } else if (ultimateMode) {
-    textStyle = { animation: "neko-float 2s ease-in-out infinite" };
-  } else if (isPurr) {
-    textStyle = { animation: "wiggle 0.3s ease-in-out infinite" };
-  }
-
-  // Color per layer: pink → purple → violet → ivory
-  let textColorClass = "text-zinc-800 dark:text-zinc-100";
-  if (ascensionMode) {
-    textColorClass = "text-zinc-100";
-  } else if (ultimateMode) {
-    textColorClass = "text-violet-400";
-  } else if (nekoMode) {
-    textColorClass = "text-purple-400";
-  } else if (isPurr) {
-    textColorClass = "text-pink-400";
-  }
-
-  // Container aura style per layer
-  let containerStyle: React.CSSProperties | undefined;
-  if (ascensionMode) {
-    containerStyle = {
-      animation: `neko-ascension-shell ${ASCENSION_DURATION}ms cubic-bezier(0.22,1,0.36,1) forwards`,
-      borderRadius: "10px",
-    };
-  } else if (ultimateMode) {
-    containerStyle = { animation: "neko-aura 3s ease-in-out infinite", borderRadius: "8px" };
-  } else if (nekoMode) {
-    containerStyle = { animation: "purple-glow 2.5s ease-in-out infinite", borderRadius: "8px" };
-  }
+    const id = nextPeelId.current++;
+    setPeels((current) => [...current.slice(-(MAX_PEELS - 1)), id]);
+    schedule(`peel-${id}`, PEEL_LIFETIME, () =>
+      setPeels((current) => current.filter((peel) => peel !== id)),
+    );
+  }, [finale, schedule, endStreak, t]);
 
   return (
     <span
       className="relative inline-flex items-center select-none cursor-pointer rounded-md px-1 -mx-1 overflow-visible"
-      style={containerStyle}
       onClick={handleClick}
     >
-      {/* Cat ears — ultimate mode only (not during ascension) */}
-      {ultimateMode && !ascensionMode && (
-        <span
-          className="absolute -top-2.5 left-1/2 -translate-x-1/2 pointer-events-none text-violet-400 text-[10px] font-bold"
-          style={{ animation: "neko-ear-pop 0.5s ease-out forwards" }}
-        >
-          ∧ ∧
+      <span className="relative z-10 inline-flex items-center gap-1.5 text-base font-bold tracking-tight text-zinc-800 dark:text-zinc-100">
+        <span className="relative block size-6 shrink-0">
+          {/* History pile: offset copies, like the mark's own back copy */}
+          {Array.from({ length: MAX_STACK }, (_, i) => (
+            <img
+              key={`stack-${i}`}
+              src={recopyLogo}
+              alt=""
+              draggable={false}
+              className="echo-stack absolute inset-0 size-6"
+              style={{
+                opacity: i < stack ? 0.42 - i * 0.12 : 0,
+                transform: i < stack ? `translate(${-(i + 1) * 3}px, ${-(i + 1) * 3}px)` : "none",
+              }}
+            />
+          ))}
+
+          {peels.map((id) => (
+            <img
+              key={id}
+              src={recopyLogo}
+              alt=""
+              draggable={false}
+              className="echo-peel absolute inset-0 size-6 pointer-events-none"
+            />
+          ))}
+
+          {finale &&
+            Array.from({ length: FINALE_ECHOES }, (_, i) => (
+              <img
+                key={`fan-${i}`}
+                src={recopyLogo}
+                alt=""
+                draggable={false}
+                className="echo-fan absolute inset-0 size-6 pointer-events-none"
+                style={
+                  {
+                    "--fan-angle": `${(i - (FINALE_ECHOES - 1) / 2) * 13}deg`,
+                    "--fan-opacity": 0.25 + (i % 4) * 0.12,
+                    animationDelay: `${i * 22}ms`,
+                  } as React.CSSProperties
+                }
+              />
+            ))}
+
+          <img
+            ref={tileRef}
+            src={recopyLogo}
+            alt=""
+            width={24}
+            height={24}
+            draggable={false}
+            className={`relative z-10 block size-6 ${finale ? "echo-finale-core" : ""}`}
+          />
+
+          {pasteKey > 0 && (
+            <span
+              key={pasteKey}
+              className="echo-ring absolute inset-0 z-0 rounded-[7px] border-2 border-sky-400/70 pointer-events-none"
+            />
+          )}
+
+          {finale && (
+            <span
+              className="echo-shine-mask absolute inset-0 z-20 overflow-hidden pointer-events-none"
+              style={{
+                WebkitMaskImage: `url(${recopyLogo})`,
+                maskImage: `url(${recopyLogo})`,
+                WebkitMaskSize: "100% 100%",
+                maskSize: "100% 100%",
+              }}
+            >
+              <span className="echo-shine absolute inset-y-0 -left-full w-full" />
+            </span>
+          )}
         </span>
-      )}
 
-      {/* Ascension: twin rotating rings */}
-      {ascensionMode && (
-        <>
-          <span
-            className="absolute left-1/2 top-1/2 rounded-full pointer-events-none"
-            style={{
-              width: "112px",
-              height: "58px",
-              border: "1px solid rgba(244,244,245,0.42)",
-              boxShadow: "0 0 18px rgba(167,139,250,0.22)",
-              zIndex: 2,
-              animation: `neko-ascension-ring ${ASCENSION_DURATION}ms cubic-bezier(0.22,1,0.36,1) forwards`,
-            }}
-          />
-          <span
-            className="absolute left-1/2 top-1/2 rounded-full pointer-events-none"
-            style={{
-              width: "138px",
-              height: "74px",
-              border: "1px dashed rgba(196,181,253,0.35)",
-              zIndex: 1,
-              animation: `neko-ascension-ring-reverse ${ASCENSION_DURATION}ms linear forwards`,
-            }}
-          />
-          {/* Shockwave flash */}
-          <span
-            className="absolute left-1/2 top-1/2 rounded-full pointer-events-none"
-            style={{
-              width: "132px",
-              height: "64px",
-              background:
-                "radial-gradient(circle, rgba(255,244,214,0.65) 0%, rgba(255,244,214,0.08) 38%, rgba(255,244,214,0) 72%)",
-              zIndex: 0,
-              animation: `neko-ascension-shockwave ${ASCENSION_DURATION}ms ease-out forwards`,
-            }}
-          />
-        </>
-      )}
-
-      <span
-        className={[
-          // Flex-center so the logo centers on the text line box; `align-middle` sat it ~1.3px low.
-          "relative z-10 inline-flex items-center gap-1.5 text-base font-bold tracking-tight transition-[transform,color] duration-200 ease-out",
-          pulse && !ascensionMode ? "scale-105" : "scale-100",
-          textColorClass,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        style={textStyle}
-      >
-        <img
-          src={recopyLogo}
-          alt=""
-          width={24}
-          height={24}
-          draggable={false}
-          className="block shrink-0"
-        />
-        <span>{displayText}</span>
+        {/* Title: a one-word reel so the flip never changes the layout width */}
+        <span className="relative z-10 inline-grid h-6 overflow-hidden leading-6">
+          <span key={flipKey} className={flipKey ? "echo-reel" : undefined}>
+            <span className={`block ${finale ? "echo-title-glow" : ""}`}>Recopy</span>
+            {flipKey > 0 && (
+              <>
+                <span className="block">Copy</span>
+                <span className="block">Paste</span>
+                <span className="block">Recopy</span>
+              </>
+            )}
+          </span>
+        </span>
       </span>
 
-      {/* Ascension: echo ghosts splitting left/right */}
-      {ascensionMode && (
-        <>
-          <span
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-base font-bold text-zinc-100/55 pointer-events-none"
-            style={{
-              zIndex: 8,
-              filter: "blur(0.4px)",
-              animation: `neko-ascension-echo-left ${ASCENSION_DURATION}ms ease-in-out forwards`,
-            }}
-          >
-            ฅ(=^·ω·^=)ฅ
-          </span>
-          <span
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-base font-bold text-zinc-100/50 pointer-events-none"
-            style={{
-              zIndex: 8,
-              filter: "blur(0.4px)",
-              animation: `neko-ascension-echo-right ${ASCENSION_DURATION}ms ease-in-out forwards`,
-            }}
-          >
-            ฅ(=^·ω·^=)ฅ
-          </span>
-        </>
-      )}
-
-      {/* Ascension: orbiting celestial runes */}
-      {ascensionMode &&
-        ASCENSION_RUNES.map((r, i) => (
-          <span
-            key={`rune-${i}`}
-            className="absolute left-1/2 top-1/2 pointer-events-none text-[9px] text-zinc-100/85"
-            style={
-              {
-                "--r-angle": r.angle,
-                "--r-radius": r.radius,
-                zIndex: 18,
-                animation: `neko-ascension-rune ${ASCENSION_DURATION}ms linear ${r.delay} forwards`,
-              } as React.CSSProperties
-            }
-          >
-            {r.char}
-          </span>
-        ))}
-
-      {/* Mixed particles — ultimate mode (not during ascension) */}
-      {ultimateMode &&
-        !ascensionMode &&
-        NEKO_PARTICLES.map((p, i) => (
-          <span
-            key={i}
-            className="absolute top-0 pointer-events-none text-[10px]"
-            style={
-              {
-                left: p.left,
-                "--sway": p.sway,
-                animation: `neko-particle-rise 1.6s ease-out ${p.delay} infinite`,
-              } as React.CSSProperties
-            }
-          >
-            {p.char}
-          </span>
-        ))}
-
-      {/* Cat fortune bubble */}
-      {fortune && !ascensionMode && (
+      {fortune && (
         <span
           className="absolute left-0 top-full mt-1 whitespace-nowrap
             rounded-lg bg-card/80 backdrop-blur-sm border border-border/50

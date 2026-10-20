@@ -200,12 +200,12 @@
   },
   "easter": {
     "hint": "{{count}}/7 ...",
-    "fortune1": "Nya~ 复制成功喵 ✨",
-    "fortune2": "剪贴板在呼噜呢...",
-    "fortune3": "粘贴运气 +10 喵♡",
-    "fortune4": "本喵帮你记住了哦～",
-    "fortune5": "Ctrl+V 的力量觉醒了！",
-    "fortune6": "每一次复制都是一次相遇呢～"
+    "fortune1": "已复制。再复制一次，也还是同一个 R ✨",
+    "fortune2": "复制、粘贴——人生两大快捷键",
+    "fortune3": "剪贴板：这条我记下了",
+    "fortune4": "粘贴运气 +10",
+    "fortune5": "复制得这么勤，是在攒回忆吗？",
+    "fortune6": "Re·copy·copy·copy…"
   },
   "time": {
     "justNow": "刚刚",

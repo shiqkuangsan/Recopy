@@ -200,12 +200,12 @@
   },
   "easter": {
     "hint": "{{count}}/7 ...",
-    "fortune1": "Nya~ copied purr-fectly ✨",
-    "fortune2": "Clipboard is purring...",
-    "fortune3": "Paste luck +10 ♡",
-    "fortune4": "Meow-morized for you~",
-    "fortune5": "The power of Ctrl+V awakens!",
-    "fortune6": "Every copy is a new encounter~"
+    "fortune1": "Copied. Copying again won't change the R ✨",
+    "fortune2": "Copy, paste — the two shortcuts of life",
+    "fortune3": "Clipboard says: noted.",
+    "fortune4": "Paste luck +10",
+    "fortune5": "Copying this much? Saving up memories?",
+    "fortune6": "Re·copy·copy·copy…"
   },
   "time": {
     "justNow": "just now",

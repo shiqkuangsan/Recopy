@@ -179,14 +179,155 @@ html[data-theme="dark"] {
   transition: opacity 0.18s var(--ease-in-quick);
 }
 
-/* Easter egg: micro-vibrate "purr" */
-@keyframes wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-2deg); }
-  75% { transform: rotate(2deg); }
+/* ── Easter egg: "Copy Echo" (BrandLogo) ─────────────────────────────────
+   Echoes are copies of the logo tile, echoing the mark's own offset copy.
+   Transform/opacity only, so every layer stays on the compositor. */
+
+/* Each click: an echo peels off up-left behind the tile and fades */
+@keyframes echo-peel {
+  from {
+    opacity: 0.55;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate(-7px, -7px) scale(0.94);
+  }
 }
 
-/* Easter egg: cat fortune bubble pop-in/out */
+.echo-peel {
+  animation: echo-peel 0.6s var(--ease-out-expo) both;
+}
+
+/* Clicks 3–4: the history pile (offsets set inline) */
+.echo-stack {
+  pointer-events: none;
+  transition:
+    transform 0.24s var(--ease-out-back),
+    opacity 0.18s ease-out;
+}
+
+/* Click 5: paste ring */
+@keyframes echo-ring {
+  from {
+    opacity: 0.9;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+.echo-ring {
+  animation: echo-ring 0.55s var(--ease-out-expo) both;
+}
+
+/* Click 7: title reel — Recopy → Copy → Paste → Recopy (24px rows) */
+@keyframes echo-reel {
+  0%,
+  16% {
+    transform: none;
+  }
+  26%,
+  44% {
+    transform: translateY(-24px);
+  }
+  54%,
+  72% {
+    transform: translateY(-48px);
+  }
+  82%,
+  100% {
+    transform: translateY(-72px);
+  }
+}
+
+.echo-reel {
+  display: block;
+  animation: echo-reel 1.8s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+/* Click 10 finale (2.4s): fan out like a hand of cards, square up, shine */
+@keyframes echo-fan {
+  0% {
+    opacity: 0;
+    transform: rotate(0deg) scale(0.9);
+  }
+  22%,
+  58% {
+    opacity: var(--fan-opacity, 0.4);
+    transform: rotate(var(--fan-angle, 0deg)) translateY(-3px);
+  }
+  78% {
+    opacity: 0.5;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+}
+
+.echo-fan {
+  transform-origin: 50% 95%;
+  animation: echo-fan 2.2s var(--ease-out-expo) both;
+}
+
+@keyframes echo-finale-core {
+  0% {
+    transform: none;
+  }
+  10% {
+    transform: scale(0.88);
+  }
+  24%,
+  58% {
+    transform: translateY(-2px) scale(1.08);
+  }
+  76% {
+    transform: scale(0.94);
+  }
+  86%,
+  100% {
+    transform: none;
+  }
+}
+
+.echo-finale-core {
+  animation: echo-finale-core 2.4s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+
+/* Light sweep across the tile, masked to the logo (prefixed for WKWebView) */
+@keyframes echo-shine {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(200%);
+  }
+}
+
+.echo-shine {
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.85) 50%,
+    transparent 80%
+  );
+  animation: echo-shine 0.6s ease-in-out 1.75s both;
+}
+
+/* Finale title: brand gradient (explicit -webkit- prefix for WKWebView) */
+.echo-title-glow {
+  background-image: linear-gradient(90deg, #2563eb, #22d3ee);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Easter egg: pun bubble pop-in/out */
 @keyframes fortune-pop {
   0% {
     opacity: 0;
@@ -203,155 +344,6 @@ html[data-theme="dark"] {
   100% {
     opacity: 0;
     transform: translateY(4px) scale(0.95);
-  }
-}
-
-/* Easter egg Layer 4: purple mystic glow */
-@keyframes purple-glow {
-  0%, 100% {
-    box-shadow: 0 0 6px rgba(168, 85, 247, 0.25), 0 0 12px rgba(139, 92, 246, 0.1);
-  }
-  50% {
-    box-shadow: 0 0 12px rgba(168, 85, 247, 0.4), 0 0 20px rgba(139, 92, 246, 0.15);
-  }
-}
-
-/* Easter egg Layer 5: pink → purple → blue breathing aura */
-@keyframes neko-aura {
-  0%, 100% {
-    box-shadow: 0 0 8px rgba(244, 114, 182, 0.4), 0 0 16px rgba(244, 114, 182, 0.1);
-  }
-  33% {
-    box-shadow: 0 0 10px rgba(168, 85, 247, 0.45), 0 0 20px rgba(168, 85, 247, 0.12);
-  }
-  66% {
-    box-shadow: 0 0 10px rgba(96, 165, 250, 0.4), 0 0 20px rgba(96, 165, 250, 0.12);
-  }
-}
-
-/* Easter egg: cat ear pop-in */
-@keyframes neko-ear-pop {
-  0% { opacity: 0; transform: translateY(4px) scale(0.3); }
-  50% { opacity: 1; transform: translateY(-2px) scale(1.15); }
-  70% { transform: translateY(0) scale(0.95); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* Easter egg: gentle float for ultimate text */
-@keyframes neko-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
-}
-
-/* Easter egg: mixed particles drift upward with sway */
-@keyframes neko-particle-rise {
-  0% {
-    opacity: 0;
-    transform: translateY(4px) translateX(0) scale(0.6);
-  }
-  15% {
-    opacity: 1;
-  }
-  50% {
-    transform: translateY(-12px) translateX(var(--sway, 3px)) scale(0.9);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-26px) translateX(calc(var(--sway, 3px) * -1)) scale(0.3);
-  }
-}
-
-/* Easter egg Layer 6: ascension shell — breathing glow with lift */
-@keyframes neko-ascension-shell {
-  0% { box-shadow: 0 0 0 rgba(0,0,0,0); transform: translateY(0) scale(1); }
-  16% { box-shadow: 0 0 10px rgba(244,244,245,.22), 0 0 18px rgba(167,139,250,.16); transform: translateY(-1px) scale(1.02); }
-  30% { box-shadow: 0 0 26px rgba(244,244,245,.40), 0 0 48px rgba(196,181,253,.30); transform: translateY(-2px) scale(1.08); }
-  38% { box-shadow: 0 0 18px rgba(244,244,245,.32), 0 0 30px rgba(148,163,184,.24); transform: translateY(-1px) scale(1.04); }
-  72% { box-shadow: 0 0 14px rgba(244,244,245,.28), 0 0 24px rgba(167,139,250,.20); transform: translateY(-1px) scale(1.03); }
-  100% { box-shadow: 0 0 0 rgba(0,0,0,0); transform: translateY(0) scale(1); }
-}
-
-/* Easter egg Layer 6: core text compression → expansion → float → settle (transform only) */
-@keyframes neko-ascension-core {
-  0% { transform: translateY(0) scale(1); opacity: .9; }
-  14% { transform: translateY(1px) scale(.9); opacity: 1; }
-  24% { transform: translateY(-2px) scale(1.12); opacity: 1; }
-  31% { transform: translateY(-3px) scale(1.2); opacity: 1; }
-  37% { transform: translateY(-1px) scale(1.06); }
-  72% { transform: translateY(-2px) scale(1.05); opacity: 1; }
-  86% { transform: translateY(-1px) scale(1.02); opacity: .95; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
-}
-
-/* Easter egg Layer 6: solid ring — scale up + rotate clockwise */
-@keyframes neko-ascension-ring {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(.35) rotate(-40deg); }
-  18% { opacity: .85; transform: translate(-50%, -50%) scale(1.02) rotate(18deg); }
-  30% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(170deg); }
-  42% { opacity: .72; transform: translate(-50%, -50%) scale(1.1) rotate(260deg); }
-  78% { opacity: .62; transform: translate(-50%, -50%) scale(1.05) rotate(480deg); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(.92) rotate(560deg); }
-}
-
-/* Easter egg Layer 6: dashed ring — counter-rotate */
-@keyframes neko-ascension-ring-reverse {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(.55) rotate(35deg); }
-  22% { opacity: .7; transform: translate(-50%, -50%) scale(1.06) rotate(-20deg); }
-  34% { opacity: .95; transform: translate(-50%, -50%) scale(1.14) rotate(-150deg); }
-  70% { opacity: .55; transform: translate(-50%, -50%) scale(1.06) rotate(-330deg); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(.9) rotate(-420deg); }
-}
-
-/* Easter egg Layer 6: shockwave flash burst */
-@keyframes neko-ascension-shockwave {
-  0%, 24% { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
-  28% { opacity: .85; transform: translate(-50%, -50%) scale(.3); }
-  36% { opacity: 0; transform: translate(-50%, -50%) scale(2.4); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.4); }
-}
-
-/* Easter egg Layer 6: echo ghost drifting left */
-@keyframes neko-ascension-echo-left {
-  0%, 22% { opacity: 0; transform: translate(-50%, -50%) scale(.98); }
-  29% { opacity: .72; transform: translate(calc(-50% - 12px), calc(-50% - 3px)) scale(1.08); }
-  55% { opacity: .48; transform: translate(calc(-50% - 8px), calc(-50% + 2px)) scale(1.02); }
-  86% { opacity: .36; transform: translate(calc(-50% - 5px), calc(-50% + 1px)) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(.98); }
-}
-
-/* Easter egg Layer 6: echo ghost drifting right */
-@keyframes neko-ascension-echo-right {
-  0%, 22% { opacity: 0; transform: translate(-50%, -50%) scale(.98); }
-  29% { opacity: .72; transform: translate(calc(-50% + 13px), calc(-50% + 2px)) scale(1.08); }
-  58% { opacity: .5; transform: translate(calc(-50% + 8px), calc(-50% - 2px)) scale(1.02); }
-  86% { opacity: .35; transform: translate(calc(-50% + 4px), calc(-50% - 1px)) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(.98); }
-}
-
-/* Easter egg Layer 6: rune orbiting with CSS custom properties */
-@keyframes neko-ascension-rune {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(var(--r-angle)) translateX(8px) scale(.25);
-    filter: blur(1px);
-  }
-  18% {
-    opacity: .95;
-    transform: translate(-50%, -50%) rotate(var(--r-angle)) translateX(var(--r-radius)) scale(1);
-    filter: blur(0);
-  }
-  32% {
-    opacity: 1;
-    transform: translate(-50%, -50%) rotate(calc(var(--r-angle) + 130deg)) translateX(calc(var(--r-radius) + 4px)) scale(1.12);
-  }
-  72% {
-    opacity: .78;
-    transform: translate(-50%, -50%) rotate(calc(var(--r-angle) + 310deg)) translateX(var(--r-radius)) scale(.95);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(calc(var(--r-angle) + 430deg)) translateX(calc(var(--r-radius) - 8px)) scale(.35);
-    filter: blur(1px);
   }
 }
 
