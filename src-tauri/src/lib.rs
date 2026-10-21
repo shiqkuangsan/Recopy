@@ -827,6 +827,10 @@ fn open_settings_window(app: &tauri::AppHandle) {
 /// Re-registers global shortcut on window close to guard against
 /// the shortcut recorder leaving it unregistered.
 pub fn open_settings_window_impl(app: &tauri::AppHandle, window_theme: Option<tauri::Theme>) {
+    // Settings takes over the interaction; do not rely on a blur event to
+    // dismiss the non-activating panel or its preview.
+    hide_main_window(app);
+
     // If settings window already exists, just show it
     if let Some(window) = app.get_webview_window("settings") {
         let _ = window.show();
