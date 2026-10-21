@@ -2,7 +2,7 @@ import { NoteTitle } from "./NoteTitle";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { emit, listen } from "@tauri-apps/api/event";
+import { emit, emitTo, listen } from "@tauri-apps/api/event";
 import { useSettingsStore } from "../stores/settings-store";
 import { useCopyHud } from "../stores/copy-hud-store";
 import { ImageIcon, File } from "lucide-react";
@@ -30,6 +30,32 @@ export function PreviewPage() {
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
+
+  // A click or text selection can activate the preview on Windows. Keep the
+  // main panel as the owner of preview state, even when it no longer receives keys.
+  useEffect(() => {
+    const handleCloseKey = (event: KeyboardEvent) => {
+      if (
+        event.isComposing ||
+        event.keyCode === 229 ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.metaKey ||
+        (event.key !== " " && event.key !== "Escape")
+      ) {
+        return;
+      }
+      event.preventDefault();
+      if (event.repeat) return;
+      void emitTo("main", "platform-keydown", {
+        key: event.key,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+      }).catch((error) => console.error("Failed to forward preview close key:", error));
+    };
+    document.addEventListener("keydown", handleCloseKey);
+    return () => document.removeEventListener("keydown", handleCloseKey);
+  }, []);
 
   // Poll backend for current preview data every 100ms while the preview is shown.
   // Event-based delivery doesn't work for hidden NSPanel WebViews, so polling via

@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { emit, listen } from "@tauri-apps/api/event";
+import { emit, emitTo, listen } from "@tauri-apps/api/event";
 import { PreviewPage } from "../PreviewPage";
 import {
   PREVIEW_SELECTION_CHANGED_EVENT,
@@ -22,8 +22,15 @@ vi.hoisted(() => {
   });
 });
 
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(() => Promise.resolve(() => {})),
+  emit: vi.fn(),
+  emitTo: vi.fn(() => Promise.resolve()),
+}));
+
 const mockedInvoke = vi.mocked(invoke);
 const mockedEmit = vi.mocked(emit);
+const mockedEmitTo = vi.mocked(emitTo);
 const mockedListen = vi.mocked(listen);
 const tauriEventHandlers = new Map<string, (event: { payload: unknown }) => void>();
 
@@ -87,6 +94,59 @@ describe("PreviewPage text selection", () => {
         }
       });
     }) as typeof listen);
+  });
+
+  it.each([" ", "Escape"])("routes %j to the main panel after preview activation", async (key) => {
+    mockPreview(plainTextDetail);
+    render(<PreviewPage />);
+    await screen.findByText(plainTextDetail.plain_text);
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+    document.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(mockedEmitTo).toHaveBeenCalledExactlyOnceWith("main", "platform-keydown", {
+      key,
+      ctrlKey: false,
+      shiftKey: false,
+    });
+  });
+
+  it("keeps composition, copy, and modifier shortcuts local to the preview", async () => {
+    mockPreview(plainTextDetail);
+    render(<PreviewPage />);
+    await screen.findByText(plainTextDetail.plain_text);
+    for (const init of [
+      { key: " ", isComposing: true },
+      { key: " ", keyCode: 229 },
+      { key: " ", ctrlKey: true },
+      { key: " ", altKey: true },
+      { key: " ", metaKey: true },
+      { key: "c", ctrlKey: true },
+    ]) {
+      const event = new KeyboardEvent("keydown", { ...init, bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    }
+    expect(mockedEmitTo).not.toHaveBeenCalled();
+  });
+
+  it("consumes repeated close keys without forwarding another toggle", async () => {
+    mockPreview(plainTextDetail);
+    const { unmount } = render(<PreviewPage />);
+    await screen.findByText(plainTextDetail.plain_text);
+    for (const key of [" ", "Escape"]) {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        repeat: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      document.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+    }
+    expect(mockedEmitTo).not.toHaveBeenCalled();
+    unmount();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(mockedEmitTo).not.toHaveBeenCalled();
   });
 
   it("polls without overlapping requests and sends the last loaded id", async () => {

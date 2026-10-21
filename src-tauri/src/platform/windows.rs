@@ -993,7 +993,7 @@ fn restore_foreground() {
 }
 
 // ---------------------------------------------------------------------------
-// Preview window (non-activating in floating mode, focus-dance in active mode)
+// Preview window (show without changing the current keyboard focus)
 // ---------------------------------------------------------------------------
 
 pub fn init_preview_panel(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -1011,28 +1011,22 @@ pub fn init_preview_panel(app: &tauri::App) -> Result<(), Box<dyn std::error::Er
 pub fn platform_show_preview(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("preview") {
         PREVIEW_HWND.store(get_hwnd(&window).unwrap_or(0), Ordering::SeqCst);
-        if is_hook_active() {
-            // Floating mode: show preview without activating (no focus change)
-            if let Some(hwnd) = get_hwnd(&window) {
-                unsafe {
-                    win32::ShowWindow(hwnd, win32::SW_SHOWNOACTIVATE);
-                    win32::SetWindowPos(
-                        hwnd,
-                        win32::HWND_TOPMOST,
-                        0,
-                        0,
-                        0,
-                        0,
-                        win32::SWP_NOMOVE | win32::SWP_NOSIZE | win32::SWP_NOACTIVATE,
-                    );
-                }
-            }
-        } else {
-            // Activated mode: standard focus-dance (show preview → return focus to main)
-            PREVIEW_FOCUS_GUARD.store(true, Ordering::SeqCst);
-            let _ = window.show();
-            if let Some(main) = app.get_webview_window("main") {
-                let _ = main.set_focus();
+        // Preserve focus in both modes: the previous app owns it while the
+        // hook is active, and the main WebView owns it after a panel click.
+        // Showing then refocusing the native main window can leave keyboard
+        // focus in the preview WebView instead of the panel navigation handler.
+        if let Some(hwnd) = get_hwnd(&window) {
+            unsafe {
+                win32::ShowWindow(hwnd, win32::SW_SHOWNOACTIVATE);
+                win32::SetWindowPos(
+                    hwnd,
+                    win32::HWND_TOPMOST,
+                    0,
+                    0,
+                    0,
+                    0,
+                    win32::SWP_NOMOVE | win32::SWP_NOSIZE | win32::SWP_NOACTIVATE,
+                );
             }
         }
     }
