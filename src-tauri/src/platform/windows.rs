@@ -294,10 +294,8 @@ static MAIN_HWND: AtomicIsize = AtomicIsize::new(0);
 /// `SetWindowPos` moves the outer HWND rect, but users see DWM's extended frame.
 static MAIN_DESIRED_VISIBLE_RECT: Mutex<Option<RectI32>> = Mutex::new(None);
 
-/// Preview focus guard: skip main's blur while preview is opening.
-static PREVIEW_FOCUS_GUARD: AtomicBool = AtomicBool::new(false);
-
-/// Set before programmatically hiding preview, prevents blur → close-all.
+/// Set before programmatically hiding a focused preview, so the blur that
+/// hide produces does not trigger close-all.
 static PREVIEW_PROGRAMMATIC_HIDE: AtomicBool = AtomicBool::new(false);
 
 fn emit_platform_key_event(event_name: &str, key: &str, ctrl: bool, shift: bool) {
@@ -1033,13 +1031,17 @@ pub fn platform_show_preview(app: &tauri::AppHandle) {
 }
 
 pub fn platform_hide_preview(app: &tauri::AppHandle) {
-    PREVIEW_FOCUS_GUARD.store(false, Ordering::SeqCst);
     if let Some(window) = app.get_webview_window("preview") {
-        PREVIEW_PROGRAMMATIC_HIDE.store(true, Ordering::SeqCst);
-        // Always use Win32 hide — preview may have been shown via
-        // SW_SHOWNOACTIVATE (floating mode), so Tauri alone won't hide it.
+        // Always use Win32 hide — the preview is shown via SW_SHOWNOACTIVATE,
+        // so Tauri alone won't hide it.
         if let Some(hwnd) = get_hwnd(&window) {
             unsafe {
+                // Only a focused preview emits a blur when hidden. Marking an
+                // unfocused one would leave the flag set and swallow the next
+                // real blur (click preview, then another app → panel stays open).
+                if win32::GetForegroundWindow() == hwnd {
+                    PREVIEW_PROGRAMMATIC_HIDE.store(true, Ordering::SeqCst);
+                }
                 win32::ShowWindow(hwnd, win32::SW_HIDE);
             }
         }
@@ -1047,13 +1049,13 @@ pub fn platform_hide_preview(app: &tauri::AppHandle) {
     }
 }
 
+// The preview never takes focus programmatically any more (SW_SHOWNOACTIVATE),
+// so there is no show+refocus dance to guard. Same no-ops as macOS.
 pub fn is_preview_focus_guard() -> bool {
-    PREVIEW_FOCUS_GUARD.load(Ordering::SeqCst)
+    false
 }
 
-pub fn set_preview_focus_guard(val: bool) {
-    PREVIEW_FOCUS_GUARD.store(val, Ordering::SeqCst);
-}
+pub fn set_preview_focus_guard(_val: bool) {}
 
 pub fn take_preview_programmatic_hide() -> bool {
     PREVIEW_PROGRAMMATIC_HIDE.swap(false, Ordering::SeqCst)

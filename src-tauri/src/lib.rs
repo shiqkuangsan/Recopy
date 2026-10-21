@@ -702,6 +702,16 @@ pub fn show_preview_window_impl(
         let _ = window.center();
     }
 
+    // The item detail loads asynchronously before this runs. If the panel was
+    // hidden meanwhile (close-on-blur, shortcut toggle), showing now would leave
+    // an orphaned, non-activated preview with no key route to close it.
+    if !platform::platform_is_visible(app) {
+        if let Some(state) = app.try_state::<db::models::PreviewState>() {
+            state.close();
+        }
+        return;
+    }
+
     // Show panel — dispatched to main thread inside platform_show_preview
     platform::platform_show_preview(app);
 
