@@ -127,6 +127,18 @@ function GeneralSettings({
         />
       </SettingRow>
 
+      {platform() === "macos" && (
+        <SettingRow
+          label={t("settings.general.vibrancy")}
+          description={t("settings.general.vibrancyDesc")}
+        >
+          <Switch
+            checked={settings.vibrancy !== "false"}
+            onCheckedChange={(v) => updateSetting("vibrancy", v ? "true" : "false")}
+          />
+        </SettingRow>
+      )}
+
       <SettingRow
         label={t("settings.general.language")}
         description={t("settings.general.languageDesc")}
@@ -497,7 +509,7 @@ function PrivacySettings() {
       <SectionTitle>{t("settings.privacy.title")}</SectionTitle>
 
       {platform() === "macos" && (
-        <Card className="border-border/50 bg-card/60 py-0">
+        <Card className="border-surface-border bg-surface py-0">
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-medium flex items-center gap-2">
               <Shield size={15} className="text-primary" />
@@ -522,7 +534,7 @@ function PrivacySettings() {
         </Card>
       )}
 
-      <Card className="border-border/50 bg-card/60 py-0">
+      <Card className="border-surface-border bg-surface py-0">
         <CardContent className="p-4 space-y-2">
           <h3 className="text-sm font-medium flex items-center gap-2">
             <Info size={15} className="text-primary" />
@@ -651,7 +663,7 @@ function AboutSettings() {
     <div className="space-y-5">
       <SectionTitle>{t("settings.about.title")}</SectionTitle>
 
-      <Card className="border-border/50 bg-card/60 py-0">
+      <Card className="border-surface-border bg-surface py-0">
         <CardContent className="p-5 text-center space-y-3">
           <img src={recopyLogo} alt="" width={64} height={64} className="mx-auto" />
           <h3 className="text-xl font-bold">{t("app.name")}</h3>
@@ -676,7 +688,7 @@ function AboutSettings() {
         />
       </SettingRow>
 
-      <Card className="border-border/50 bg-card/60 py-0 overflow-hidden">
+      <Card className="border-surface-border bg-surface py-0 overflow-hidden">
         {[
           {
             label: t("settings.about.homepage"),
@@ -737,7 +749,7 @@ function AboutSettings() {
         ))}
       </Card>
 
-      <Card className="border-border/50 bg-card/60 py-0">
+      <Card className="border-surface-border bg-surface py-0">
         <CardContent className="p-4 flex items-center justify-between gap-4">
           <div className="space-y-0.5">
             <div className="text-sm font-medium">{t("settings.about.quitApp")}</div>
@@ -768,7 +780,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 function ShortcutGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Card className="border-border/50 bg-card/60 py-0 overflow-hidden">
+    <Card className="border-surface-border bg-surface py-0 overflow-hidden">
       <CardContent className="p-0">
         <div className="px-4 py-2.5 border-b border-border/30 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {title}

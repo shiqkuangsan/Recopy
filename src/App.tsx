@@ -191,7 +191,7 @@ function MainApp() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => invoke("open_settings_window")}
-                className="ml-1 text-zinc-700 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white hover:bg-overlay"
+                className="ml-1 text-chrome hover:text-chrome-strong hover:bg-overlay"
               >
                 <Settings size={16} />
               </Button>
@@ -215,7 +215,7 @@ function MainApp() {
               variant="ghost"
               size="icon-sm"
               onClick={() => invoke("open_settings_window")}
-              className="absolute right-4 text-zinc-700 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white hover:bg-overlay"
+              className="absolute right-4 text-chrome hover:text-chrome-strong hover:bg-overlay"
             >
               <Settings size={16} />
             </Button>
@@ -260,6 +260,8 @@ function HudApp() {
     window.__recopyHudShow = () => {
       setLeaving(false);
       setPlayKey((key) => key + 1);
+      // Theme/vibrancy may have changed while this long-lived window was hidden.
+      void useSettingsStore.getState().loadSettings();
     };
     window.__recopyHudHide = () => setLeaving(true);
     return () => {

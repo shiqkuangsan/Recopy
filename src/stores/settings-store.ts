@@ -27,6 +27,8 @@ export interface Settings {
   show_tray_icon: string;
   clear_search_after_use: string;
   search_history_enabled: string;
+  /** "false": solid backgrounds instead of the macOS frosted (vibrancy) material. */
+  vibrancy: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -46,6 +48,7 @@ const DEFAULT_SETTINGS: Settings = {
   show_tray_icon: "true",
   clear_search_after_use: "false",
   search_history_enabled: "true",
+  vibrancy: "true",
 };
 
 export interface ShowEventPayload {
@@ -58,6 +61,7 @@ export interface ShowEventPayload {
   menu_bar_height?: number;
   clear_search_after_use?: string;
   search_history_enabled?: string;
+  vibrancy?: string;
 }
 
 interface SettingsState {
@@ -80,6 +84,11 @@ function applyTheme(theme: Theme) {
   } else {
     html.setAttribute("data-theme", theme);
   }
+}
+
+/** CSS swaps transparent macOS windows to solid surfaces when this is "off". */
+function applyVibrancy(vibrancy: string) {
+  document.documentElement.setAttribute("data-vibrancy", vibrancy === "false" ? "off" : "on");
 }
 
 function applyLanguage(language: string) {
@@ -120,14 +129,17 @@ export const useSettingsStore = create<SettingsState>((set) => ({
           raw.clear_search_after_use ?? DEFAULT_SETTINGS.clear_search_after_use,
         search_history_enabled:
           raw.search_history_enabled ?? DEFAULT_SETTINGS.search_history_enabled,
+        vibrancy: raw.vibrancy ?? DEFAULT_SETTINGS.vibrancy,
       };
       set({ settings, loaded: true });
       applyTheme(settings.theme);
+      applyVibrancy(settings.vibrancy);
       applyLanguage(settings.language);
     } catch (e) {
       console.error("Failed to load settings:", e);
       set({ loaded: true });
       applyTheme(DEFAULT_SETTINGS.theme);
+      applyVibrancy(DEFAULT_SETTINGS.vibrancy);
       applyLanguage(DEFAULT_SETTINGS.language);
     }
   },
@@ -166,6 +178,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       }
       if (key === "language") {
         applyLanguage(value);
+      }
+      if (key === "vibrancy") {
+        applyVibrancy(value);
       }
       if (key === "show_tray_icon") {
         try {
@@ -221,10 +236,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         settings: { ...state.settings, panel_open_selection },
       }));
     }
-    for (const key of ["clear_search_after_use", "search_history_enabled"] as const) {
+    for (const key of ["clear_search_after_use", "search_history_enabled", "vibrancy"] as const) {
       if (payload[key] !== undefined) {
         set((state) => ({ settings: { ...state.settings, [key]: payload[key] } }));
       }
+    }
+    if (payload.vibrancy !== undefined) {
+      applyVibrancy(payload.vibrancy);
     }
     if (menu_bar_height != null) {
       set({ menuBarHeight: menu_bar_height });

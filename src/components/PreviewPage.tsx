@@ -65,6 +65,8 @@ export function PreviewPage() {
     const wake = () => {
       closeRequested = false;
       poller.wake();
+      // Theme/vibrancy may have changed while this long-lived window was hidden.
+      void useSettingsStore.getState().loadSettings();
     };
     const close = () => {
       closeRequested = true;
@@ -97,7 +99,8 @@ export function PreviewPage() {
 
   return (
     <div
-      className={`preview-content ${closing ? "preview-exit" : "preview-enter"} h-screen w-screen`}
+      className={`preview-content window-surface ${closing ? "preview-exit" : "preview-enter"} h-screen w-screen`}
+      style={{ "--window-radius": "16px" } as React.CSSProperties}
     >
       <PreviewContent detail={detail} />
     </div>
@@ -274,7 +277,7 @@ function ReadableCard({ itemId, children }: { itemId: string; children: React.Re
     <div className="w-full h-full p-3">
       <div
         ref={contentRef}
-        className="w-full h-full overflow-y-auto rounded-xl bg-card/60 p-4 select-text cursor-text"
+        className="w-full h-full overflow-y-auto rounded-xl bg-preview-surface p-4 select-text cursor-text"
       >
         {children}
       </div>

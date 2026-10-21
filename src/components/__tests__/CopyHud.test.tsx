@@ -8,11 +8,11 @@ describe("CopyHudView", () => {
 
     const root = screen.getByTestId("copy-hud-root");
     const surface = screen.getByTestId("copy-hud-surface");
-    expect(root).toHaveClass("bg-zinc-900", "text-white");
+    expect(root).toHaveClass("bg-card", "text-foreground");
     expect(surface).toHaveClass("h-full", "w-full");
     expect(surface).not.toHaveClass(
       "rounded-[28px]",
-      "bg-zinc-900",
+      "bg-card",
       "mx-2",
       "my-2",
       "ring-1",
@@ -32,7 +32,7 @@ describe("CopyHudView", () => {
     rerender(<CopyHudView isMac={false} playKey={2} leaving />);
     expect(screen.getByTestId("copy-hud-surface")).toHaveClass("hud-leave");
     // The Windows surface itself stays solid; only its content animates.
-    expect(screen.getByTestId("copy-hud-root")).toHaveClass("bg-zinc-900");
+    expect(screen.getByTestId("copy-hud-root")).toHaveClass("bg-card");
   });
 
   it("keeps macOS surface transparent for the native hudWindow effect", () => {
@@ -40,7 +40,7 @@ describe("CopyHudView", () => {
 
     const root = screen.getByTestId("copy-hud-root");
     const surface = screen.getByTestId("copy-hud-surface");
-    expect(root).not.toHaveClass("bg-zinc-900");
-    expect(surface).not.toHaveClass("bg-zinc-900", "ring-1");
+    expect(root).not.toHaveClass("bg-card");
+    expect(surface).not.toHaveClass("bg-card", "ring-1");
   });
 });

@@ -77,6 +77,8 @@
       "title": "通用",
       "theme": "外观",
       "themeDesc": "选择您偏好的外观风格",
+      "vibrancy": "毛玻璃背景",
+      "vibrancyDesc": "窗口透出背后的桌面。关闭后改用纯色背景，颜色不再受桌面壁纸影响",
       "dark": "深色",
       "light": "浅色",
       "system": "跟随系统",

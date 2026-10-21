@@ -529,6 +529,7 @@ pub fn show_main_window(app: &tauri::AppHandle) {
     let panel_open_selection = cached_setting(app, "panel_open_selection", "preserve");
     let clear_search_after_use = cached_setting(app, "clear_search_after_use", "false");
     let search_history_enabled = cached_setting(app, "search_history_enabled", "true");
+    let vibrancy = cached_setting(app, "vibrancy", "true");
 
     // Detect the monitor containing the cursor for multi-display setups.
     // Use physical placement from the target monitor so hidden-window stale
@@ -590,6 +591,7 @@ pub fn show_main_window(app: &tauri::AppHandle) {
             "panel_open_selection": panel_open_selection,
             "clear_search_after_use": clear_search_after_use,
             "search_history_enabled": search_history_enabled,
+            "vibrancy": vibrancy,
             "menu_bar_height": menu_bar_height,
         }),
     );

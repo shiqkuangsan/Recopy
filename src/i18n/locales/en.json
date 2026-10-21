@@ -77,6 +77,8 @@
       "title": "General",
       "theme": "Theme",
       "themeDesc": "Choose your preferred appearance",
+      "vibrancy": "Translucent Background",
+      "vibrancyDesc": "Blend windows with the desktop behind them. Turn off for solid colors that don't depend on your wallpaper",
       "dark": "Dark",
       "light": "Light",
       "system": "System",

@@ -5,6 +5,7 @@ import { relativeTime, formatSize } from "../lib/time";
 import { createPressActionHandlers } from "../lib/press-action";
 import { File, FileArchive, FileImage, FileCode, FileText } from "lucide-react";
 import { useThumbnail } from "../hooks/useThumbnail";
+import { getCardSurfaceClassName } from "../lib/panel-style";
 
 interface FileCardProps {
   item: ClipboardItem;
@@ -42,8 +43,7 @@ export function FileCard({ item, selected, onClick }: FileCardProps) {
       role="button"
       tabIndex={0}
       {...pressHandlers}
-      className={`relative flex flex-col gap-1.5 rounded-lg border p-3 cursor-pointer transition-colors duration-100 h-full overflow-hidden
-        ${selected ? "border-primary bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
+      className={getCardSurfaceClassName(selected)}
     >
       <div className="flex items-center gap-1.5 text-muted-foreground min-h-6 pr-[84px]">
         <File size={13} />
@@ -53,7 +53,7 @@ export function FileCard({ item, selected, onClick }: FileCardProps) {
       <NoteTitle title={item.note_title} />
       {thumbnailUrl ? (
         <>
-          <div className="flex items-center justify-center rounded-md bg-muted/30 overflow-hidden flex-1 min-h-0">
+          <div className="flex items-center justify-center rounded-md bg-inset overflow-hidden flex-1 min-h-0">
             <img
               src={thumbnailUrl}
               alt={fileName}

@@ -122,7 +122,7 @@ export function BrandLogo() {
       className="relative inline-flex items-center select-none cursor-pointer rounded-md px-1 -mx-1 overflow-visible"
       onClick={handleClick}
     >
-      <span className="relative z-10 inline-flex items-center gap-1.5 text-base font-bold tracking-tight text-zinc-800 dark:text-zinc-100">
+      <span className="relative z-10 inline-flex items-center gap-1.5 text-base font-bold tracking-tight text-chrome-strong">
         <span className="relative block size-6 shrink-0">
           {/* History pile: offset copies, like the mark's own back copy */}
           {Array.from({ length: MAX_STACK }, (_, i) => (

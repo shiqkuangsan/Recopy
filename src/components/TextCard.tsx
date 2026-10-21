@@ -4,6 +4,7 @@ import type { ClipboardItem } from "../lib/types";
 import { relativeTime } from "../lib/time";
 import { createPressActionHandlers } from "../lib/press-action";
 import { Type } from "lucide-react";
+import { getCardSurfaceClassName } from "../lib/panel-style";
 
 interface TextCardProps {
   item: ClipboardItem;
@@ -26,8 +27,7 @@ export function TextCard({ item, selected, onClick }: TextCardProps) {
       role="button"
       tabIndex={0}
       {...pressHandlers}
-      className={`relative flex flex-col gap-1.5 rounded-lg border p-3 cursor-pointer transition-colors duration-100 h-full overflow-hidden
-        ${selected ? "border-primary bg-selected" : "border-border/50 bg-card/60 hover:border-muted-foreground/30 hover:bg-card/80"}`}
+      className={getCardSurfaceClassName(selected)}
     >
       <div className="flex items-center gap-1.5 text-muted-foreground min-h-6 pr-[84px]">
         <Type size={13} />

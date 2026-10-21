@@ -101,10 +101,7 @@ export function SearchBar() {
     >
       <PopoverAnchor asChild>
         <div className="relative flex items-center w-64">
-          <Search
-            size={14}
-            className="absolute left-2.5 text-zinc-700 dark:text-zinc-300 pointer-events-none"
-          />
+          <Search size={14} className="absolute left-2.5 text-chrome-muted pointer-events-none" />
           <Input
             ref={inputRef}
             type="text"
@@ -161,7 +158,7 @@ export function SearchBar() {
               triggerSearch(e.currentTarget.value);
             }}
             placeholder={t("search.placeholder")}
-            className="bg-input/60 border-border/50 rounded-lg py-1.5 pl-8 pr-7 h-auto text-sm text-zinc-950 dark:text-zinc-50 placeholder:text-zinc-600 dark:placeholder:text-zinc-300"
+            className="bg-input/60 border-border/50 rounded-lg py-1.5 pl-8 pr-7 h-auto text-sm text-chrome-strong placeholder:text-chrome-muted"
           />
           {searchQuery.trim() && (
             <Button

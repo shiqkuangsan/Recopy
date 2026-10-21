@@ -9,6 +9,8 @@ const isMacOS = /Mac/.test(navigator.userAgent);
 const pageParam = new URLSearchParams(window.location.search).get("page");
 const documentBackgroundColor = getDocumentBackgroundColor({ isMac: isMacOS, page: pageParam });
 document.documentElement.style.backgroundColor = documentBackgroundColor;
+// CSS hook: solid-surface fallback applies to macOS's transparent windows only.
+document.documentElement.setAttribute("data-platform", isMacOS ? "macos" : "other");
 document.body.style.backgroundColor = documentBackgroundColor;
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

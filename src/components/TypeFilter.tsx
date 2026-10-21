@@ -44,7 +44,7 @@ export function TypeFilter({ iconOnly = false }: TypeFilterProps) {
           ${
             filterType === f.value
               ? "bg-primary text-primary-foreground"
-              : "text-zinc-700 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white hover:bg-muted/50"
+              : "text-chrome hover:text-chrome-strong hover:bg-muted/50"
           }`}
       >
         {iconOnly ? <Icon size={15} /> : t(f.i18nKey)}

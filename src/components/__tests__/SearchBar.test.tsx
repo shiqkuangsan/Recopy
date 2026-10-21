@@ -51,14 +51,12 @@ describe("SearchBar", () => {
     const { container } = render(<SearchBar />);
 
     expect(screen.getByPlaceholderText("Search clipboard history...")).toHaveClass(
-      "text-zinc-950",
-      "dark:text-zinc-50",
-      "placeholder:text-zinc-600",
-      "dark:placeholder:text-zinc-300",
+      "text-chrome-strong",
+      "placeholder:text-chrome-muted",
     );
     const searchIcon = container.querySelector(".lucide-search");
     expect(searchIcon).not.toBeNull();
-    expect(searchIcon!).toHaveClass("text-zinc-700", "dark:text-zinc-300");
+    expect(searchIcon!).toHaveClass("text-chrome-muted");
   });
 
   it("should update search query on input change", () => {

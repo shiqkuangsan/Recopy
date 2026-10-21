@@ -14,9 +14,6 @@ describe("TypeFilter", () => {
   it("uses opaque high-contrast text for inactive filters", () => {
     render(<TypeFilter />);
 
-    expect(screen.getByRole("button", { name: /text/i })).toHaveClass(
-      "text-zinc-700",
-      "dark:text-zinc-200",
-    );
+    expect(screen.getByRole("button", { name: /text/i })).toHaveClass("text-chrome");
   });
 });

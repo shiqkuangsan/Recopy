@@ -47,6 +47,7 @@ const DEFAULT_SETTINGS: Settings = {
   show_tray_icon: "true",
   clear_search_after_use: "false",
   search_history_enabled: "true",
+  vibrancy: "true",
 };
 
 describe("useSettingsStore", () => {
@@ -118,6 +119,28 @@ describe("useSettingsStore", () => {
       const state = useSettingsStore.getState();
       expect(state.loaded).toBe(true);
       expect(state.settings).toEqual(DEFAULT_SETTINGS);
+    });
+
+    it("applies vibrancy on load, on change and from the show event", async () => {
+      mockedInvoke.mockResolvedValueOnce({ vibrancy: "false" });
+      await useSettingsStore.getState().loadSettings();
+      expect(useSettingsStore.getState().settings.vibrancy).toBe("false");
+      expect(document.documentElement.getAttribute("data-vibrancy")).toBe("off");
+
+      mockedInvoke.mockResolvedValueOnce(undefined);
+      await useSettingsStore.getState().updateSetting("vibrancy", "true");
+      expect(mockedInvoke).toHaveBeenCalledWith("set_setting", { key: "vibrancy", value: "true" });
+      expect(document.documentElement.getAttribute("data-vibrancy")).toBe("on");
+
+      useSettingsStore.getState().syncSettingsFromEvent({ vibrancy: "false" });
+      expect(document.documentElement.getAttribute("data-vibrancy")).toBe("off");
+      expect(useSettingsStore.getState().settings.vibrancy).toBe("false");
+    });
+
+    it("defaults vibrancy on when the backend has no value", async () => {
+      mockedInvoke.mockResolvedValueOnce({});
+      await useSettingsStore.getState().loadSettings();
+      expect(document.documentElement.getAttribute("data-vibrancy")).toBe("on");
     });
 
     it("should apply theme after loading", async () => {

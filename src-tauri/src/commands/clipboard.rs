@@ -498,9 +498,12 @@ pub async fn set_setting(
         cache.set(key.clone(), value.clone());
     }
 
-    // Dynamically switch main window effects when theme changes
+    // Dynamically switch window effects when theme or vibrancy changes
     if key == "theme" {
         update_window_effects_for_theme(&app, &value);
+    } else if key == "vibrancy" {
+        let theme = crate::cached_setting(&app, "theme", "system");
+        update_window_effects_for_theme(&app, &theme);
     }
 
     Ok(())
@@ -1284,6 +1287,10 @@ pub async fn process_clipboard_change(
 /// Update main window visual effects to match the given theme.
 pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     let is_system = !matches!(theme, "light" | "dark");
+    // "vibrancy" = "false": solid CSS backgrounds instead of native materials,
+    // whose colours depend on the desktop wallpaper.
+    #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
+    let vibrancy = crate::cached_setting(app, "vibrancy", "true") != "false";
 
     let is_light = match theme {
         "light" => true,
@@ -1336,7 +1343,7 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
                 radius: Some(12.0),
                 color: None,
             };
-            let _ = main_window.set_effects(effects);
+            let _ = main_window.set_effects(vibrancy.then_some(effects));
         }
         let _ = main_window.set_theme(window_theme);
     }
@@ -1347,6 +1354,29 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     }
     if let Some(preview_window) = app.get_webview_window("preview") {
         let _ = preview_window.set_theme(window_theme);
+    }
+
+    // Preview and HUD are floating panels over native vibrancy. HudWindow is a
+    // dark-only material, so in light theme they use the light Popover material
+    // instead (it left the light preview sitting on a dark gray backdrop).
+    #[cfg(target_os = "macos")]
+    for (label, radius) in [("preview", 16.0), ("hud", 20.0)] {
+        use tauri::utils::config::WindowEffectsConfig;
+        use tauri::window::{Effect, EffectState};
+
+        if let Some(window) = app.get_webview_window(label) {
+            let _ = window.set_theme(window_theme);
+            let _ = window.set_effects(vibrancy.then(|| WindowEffectsConfig {
+                effects: vec![if is_light {
+                    Effect::Popover
+                } else {
+                    Effect::HudWindow
+                }],
+                state: Some(EffectState::Active),
+                radius: Some(radius),
+                color: None,
+            }));
+        }
     }
 }
 

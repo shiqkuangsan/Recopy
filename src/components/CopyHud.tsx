@@ -21,7 +21,7 @@ interface CopyHudViewProps {
 export function CopyHudView({ isMac, playKey = 0, leaving = false }: CopyHudViewProps) {
   const { t } = useTranslation();
   const rootClassName = `h-screen w-screen flex items-center justify-center overflow-hidden ${
-    isMac ? "" : "bg-zinc-900 text-white"
+    isMac ? "" : "bg-card text-foreground"
   }`;
   // Animate content only: the Windows surface stays solid (see 7005023).
   const surfaceClassName = `flex flex-col items-center justify-center ${
@@ -29,15 +29,19 @@ export function CopyHudView({ isMac, playKey = 0, leaving = false }: CopyHudView
   } ${leaving ? "hud-leave" : "hud-enter"}`;
 
   return (
-    <div data-testid="copy-hud-root" className={rootClassName}>
+    <div
+      data-testid="copy-hud-root"
+      className={`window-surface ${rootClassName}`}
+      style={{ "--window-radius": "20px" } as React.CSSProperties}
+    >
       <div key={playKey} data-testid="copy-hud-surface" className={surfaceClassName}>
         <Check
-          className={`${isMac ? "text-foreground/70" : "text-white/90"} drop-shadow-lg`}
+          className={`${isMac ? "text-foreground/70" : "text-foreground/90"} drop-shadow-lg`}
           size={52}
           strokeWidth={2.5}
         />
         <span
-          className={`${isMac ? "text-foreground/70" : "text-white/90"} text-xl font-semibold mt-2 drop-shadow-lg`}
+          className={`${isMac ? "text-foreground/70" : "text-foreground/90"} text-xl font-semibold mt-2 drop-shadow-lg`}
         >
           {t("context.copied")}
         </span>

@@ -20,7 +20,7 @@ describe("panel style", () => {
   });
 
   it("uses a solid document background only for the non-macOS HUD page", () => {
-    expect(getDocumentBackgroundColor({ isMac: false, page: "hud" })).toBe("#18181B");
+    expect(getDocumentBackgroundColor({ isMac: false, page: "hud" })).toBe("var(--color-card)");
     expect(getDocumentBackgroundColor({ isMac: true, page: "hud" })).toBe("transparent");
   });
 

@@ -14,9 +14,6 @@ describe("ViewTabs", () => {
   it("uses opaque high-contrast text for inactive tabs", () => {
     render(<ViewTabs />);
 
-    expect(screen.getByRole("button", { name: /pins/i })).toHaveClass(
-      "text-zinc-700",
-      "dark:text-zinc-200",
-    );
+    expect(screen.getByRole("button", { name: /pins/i })).toHaveClass("text-chrome");
   });
 });
