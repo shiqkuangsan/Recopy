@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
-import DOMPurify from "dompurify";
 import { useSettingsStore } from "../stores/settings-store";
 import { useCopyHud } from "../stores/copy-hud-store";
 import { ImageIcon, File } from "lucide-react";
@@ -18,6 +17,7 @@ import {
 } from "../lib/preview-selection";
 import type { ItemDetail, PreviewResponse, FilePreviewData } from "../lib/types";
 import { createPreviewPoller } from "../lib/preview-poller";
+import { sanitizeRichTextHtml } from "../lib/rich-text";
 
 export function PreviewPage() {
   const [detail, setDetail] = useState<ItemDetail | null>(null);
@@ -295,57 +295,8 @@ function RichTextPreview({ html, fallback }: { html?: string; fallback: string }
     return <PlainTextPreview text={fallback} />;
   }
 
-  const sanitized = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: [
-      "p",
-      "br",
-      "b",
-      "i",
-      "u",
-      "strong",
-      "em",
-      "span",
-      "div",
-      "ul",
-      "ol",
-      "li",
-      "h1",
-      "h2",
-      "h3",
-      "h4",
-      "h5",
-      "h6",
-      "a",
-      "code",
-      "pre",
-      "blockquote",
-      "table",
-      "thead",
-      "tbody",
-      "tr",
-      "th",
-      "td",
-      "img",
-      "sub",
-      "sup",
-    ],
-    ALLOWED_ATTR: ["href", "src", "alt", "class", "style"],
-  });
-
-  // Strip background-related inline styles to prevent partial highlight artifacts
-  // (e.g. VS Code copies HTML with fixed-width background colors that only cover
-  // part of the preview width, creating a visual split)
-  const cleaned = sanitized.replace(/style="([^"]*)"/g, (_, styles: string) => {
-    const filtered = styles
-      .split(";")
-      .filter((prop) => {
-        const name = prop.split(":")[0]?.trim().toLowerCase() ?? "";
-        return !name.startsWith("background");
-      })
-      .join(";")
-      .trim();
-    return filtered ? `style="${filtered}"` : "";
-  });
+  const theme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  const cleaned = sanitizeRichTextHtml(html, theme);
 
   return (
     <div
