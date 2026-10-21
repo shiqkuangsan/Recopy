@@ -439,6 +439,13 @@ html[data-platform="macos"][data-vibrancy="off"] .window-surface {
   box-shadow: inset 0 0 0 1px var(--color-surface-border);
 }
 
+/* Windows/Linux have no native material behind the preview (native effects are
+   off there), and the preview window itself is transparent: give it a solid
+   surface or the app underneath shows through its text. */
+html[data-platform="other"] .preview-content {
+  background-color: var(--color-background);
+}
+
 /* Hide scrollbar utility */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

@@ -61,6 +61,11 @@ describe("theme tokens", () => {
     expect(rule?.[1]).toContain("background-color: var(--color-background)");
   });
 
+  it("gives the preview a solid surface off macOS, where nothing sits behind it", () => {
+    const rule = css.match(/html\[data-platform="other"\] \.preview-content \{([^}]*)\}/);
+    expect(rule?.[1]).toContain("background-color: var(--color-background)");
+  });
+
   it("keeps the light selection near-opaque so the wallpaper tint cannot bleed through", () => {
     const alpha = Number(themes.light.get("color-selected")?.match(/\/\s*([\d.]+)\)/)?.[1]);
     expect(alpha).toBeGreaterThanOrEqual(0.9);

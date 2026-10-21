@@ -4,6 +4,7 @@
   "description": "enables the default permissions",
   "windows": [
     "main",
+    "hud",
     "preview",
     "settings"
   ],
