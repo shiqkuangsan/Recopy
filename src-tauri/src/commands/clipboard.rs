@@ -1342,6 +1342,8 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
                 state: Some(EffectState::Active),
                 radius: Some(12.0),
                 color: None,
+                // Liquid Glass only (macOS 27+); these classic materials are unaffected.
+                interactive: false,
             };
             let _ = main_window.set_effects(vibrancy.then_some(effects));
         }
@@ -1375,6 +1377,8 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
                 state: Some(EffectState::Active),
                 radius: Some(radius),
                 color: None,
+                // Liquid Glass only (macOS 27+); these classic materials are unaffected.
+                interactive: false,
             }));
         }
     }

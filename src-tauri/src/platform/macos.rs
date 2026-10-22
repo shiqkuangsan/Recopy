@@ -135,6 +135,8 @@ pub fn init_hud_panel(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>
             state: Some(EffectState::Active),
             radius: Some(20.0),
             color: None,
+            // Liquid Glass only (macOS 27+); these classic materials are unaffected.
+            interactive: false,
         });
     }
 
