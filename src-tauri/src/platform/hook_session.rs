@@ -1,5 +1,5 @@
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
     Arc, Condvar, Mutex,
 };
 
@@ -42,12 +42,39 @@ enum Phase<R> {
     Stopped,
 }
 
+/// Low-level hooks report auto-repeat as plain key-downs. Tracking which virtual
+/// keys are down lets forwarded events carry `repeat` like a DOM KeyboardEvent.
+pub(super) struct HeldKeys([AtomicU64; 4]);
+
+impl HeldKeys {
+    const fn new() -> Self {
+        Self([const { AtomicU64::new(0) }; 4])
+    }
+
+    fn slot(vk: u32) -> (usize, u64) {
+        let vk = (vk & 0xFF) as usize;
+        (vk / 64, 1 << (vk % 64))
+    }
+
+    /// Marks `vk` down; returns true when it already was (an auto-repeat).
+    pub fn press(&self, vk: u32) -> bool {
+        let (word, bit) = Self::slot(vk);
+        self.0[word].fetch_or(bit, Ordering::SeqCst) & bit != 0
+    }
+
+    pub fn release(&self, vk: u32) {
+        let (word, bit) = Self::slot(vk);
+        self.0[word].fetch_and(!bit, Ordering::SeqCst);
+    }
+}
+
 pub(super) struct HookSession<R> {
     phase: Mutex<Phase<R>>,
     ready: Condvar,
     cancelled: AtomicBool,
     pub ctrl: AtomicBool,
     pub shift: AtomicBool,
+    pub held: HeldKeys,
 }
 
 impl<R> HookSession<R> {
@@ -58,6 +85,7 @@ impl<R> HookSession<R> {
             cancelled: AtomicBool::new(false),
             ctrl: AtomicBool::new(false),
             shift: AtomicBool::new(false),
+            held: HeldKeys::new(),
         }
     }
 
@@ -206,5 +234,23 @@ mod tests {
         assert!(!new.shift.load(Ordering::SeqCst));
         assert_eq!(old.stop(), Some(1));
         assert!(old.is_stopped());
+    }
+
+    #[test]
+    fn held_keys_flag_auto_repeat_until_release() {
+        const VK_SPACE: u32 = 0x20;
+        const VK_ESCAPE: u32 = 0x1B;
+        let session = HookSession::<i32>::new();
+        assert!(!session.held.press(VK_SPACE));
+        assert!(session.held.press(VK_SPACE));
+        assert!(session.held.press(VK_SPACE));
+        // Other keys, including ones in other bitmap words, stay independent.
+        assert!(!session.held.press(VK_ESCAPE));
+        assert!(!session.held.press(0xFE));
+        session.held.release(VK_SPACE);
+        assert!(!session.held.press(VK_SPACE));
+        assert!(session.held.press(VK_ESCAPE));
+        // A fresh session never inherits a key held during the previous one.
+        assert!(!HookSession::<i32>::new().held.press(VK_SPACE));
     }
 }

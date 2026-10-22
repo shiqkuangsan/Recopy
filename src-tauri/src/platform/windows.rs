@@ -298,7 +298,7 @@ static MAIN_DESIRED_VISIBLE_RECT: Mutex<Option<RectI32>> = Mutex::new(None);
 /// hide produces does not trigger close-all.
 static PREVIEW_PROGRAMMATIC_HIDE: AtomicBool = AtomicBool::new(false);
 
-fn emit_platform_key_event(event_name: &str, key: &str, ctrl: bool, shift: bool) {
+fn emit_platform_key_event(event_name: &str, key: &str, ctrl: bool, shift: bool, repeat: bool) {
     if let Some(app) = APP_HANDLE.get() {
         let _ = app.emit(
             event_name,
@@ -306,6 +306,7 @@ fn emit_platform_key_event(event_name: &str, key: &str, ctrl: bool, shift: bool)
                 "key": key,
                 "ctrlKey": ctrl,
                 "shiftKey": shift,
+                "repeat": repeat,
             }),
         );
     }
@@ -772,6 +773,7 @@ unsafe extern "system" fn keyboard_hook_proc(
                     "Control",
                     is_down,
                     session.shift.load(Ordering::SeqCst),
+                    false,
                 );
             }
             return win32::CallNextHookEx(0, code, wparam, lparam);
@@ -782,6 +784,15 @@ unsafe extern "system" fn keyboard_hook_proc(
         }
         _ => {}
     }
+
+    // Track held keys before any early return, so a release seen while another
+    // app or a Recopy window is in front still ends the repeat run.
+    let repeat = if is_down {
+        session.held.press(vk)
+    } else {
+        session.held.release(vk);
+        false
+    };
 
     // Only intercept key-down events for navigation
     if !is_down {
@@ -830,14 +841,14 @@ unsafe extern "system" fn keyboard_hook_proc(
             if main != 0 {
                 win32::SetForegroundWindow(main);
             }
-            emit_platform_key_event("platform-keydown", "f", true, false);
+            emit_platform_key_event("platform-keydown", "f", true, false, repeat);
             return 1; // consumed
         }
         _ => None,
     };
 
     if let Some(key_name) = key {
-        emit_platform_key_event("platform-keydown", key_name, ctrl, shift);
+        emit_platform_key_event("platform-keydown", key_name, ctrl, shift, repeat);
         return 1; // consumed – don't forward to previous app
     }
 

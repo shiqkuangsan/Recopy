@@ -220,9 +220,11 @@ export function useKeyboardNav() {
         return;
       }
 
-      // Escape: close preview first, then hide window
+      // Escape: close preview first, then hide window. A held Escape must not
+      // run on from closing the preview into hiding the panel.
       if (e.key === "Escape") {
         e.preventDefault();
+        if (e.repeat) return;
         if (previewOpenRef.current) {
           closePreview();
         } else {
@@ -474,7 +476,7 @@ export function useKeyboardNav() {
   // platform-keydown events. Dispatch them as synthetic KeyboardEvents so the
   // existing handleKeyDown handler processes them identically.
   useEffect(() => {
-    const unlisten = listen<{ key: string; ctrlKey: boolean; shiftKey: boolean }>(
+    const unlisten = listen<{ key: string; ctrlKey: boolean; shiftKey: boolean; repeat?: boolean }>(
       "platform-keydown",
       (event) => {
         document.dispatchEvent(
@@ -482,6 +484,7 @@ export function useKeyboardNav() {
             key: event.payload.key,
             ctrlKey: event.payload.ctrlKey,
             shiftKey: event.payload.shiftKey,
+            repeat: event.payload.repeat ?? false,
             bubbles: true,
           }),
         );

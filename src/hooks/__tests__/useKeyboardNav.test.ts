@@ -536,6 +536,21 @@ describe("useKeyboardNav", () => {
 
       expect(mockedInvoke).toHaveBeenCalledWith("hide_window");
     });
+
+    it("should not hide the window when a held Escape repeats after closing preview", () => {
+      const items = [mockItem()];
+      setupItems(items, 0);
+      hookResult.rerender();
+
+      fireKey(" ");
+      fireKey("Escape");
+      vi.clearAllMocks();
+
+      fireKey("Escape", { repeat: true });
+      fireKey("Escape", { repeat: true });
+
+      expect(mockedInvoke).not.toHaveBeenCalled();
+    });
   });
 
   describe("Enter — paste", () => {
@@ -1376,6 +1391,21 @@ describe("useKeyboardNav", () => {
       });
 
       expect(mockedPasteItem).toHaveBeenCalledWith(items[4]);
+    });
+
+    it("should not toggle preview on repeated Windows platform Space events", () => {
+      const items = [mockItem()];
+      setupItems(items, 0);
+      hookResult.rerender();
+
+      const space = { key: " ", ctrlKey: false, shiftKey: false };
+      emitTauriEvent("platform-keydown", { ...space, repeat: false });
+      emitTauriEvent("platform-keydown", { ...space, repeat: true });
+      emitTauriEvent("platform-keydown", { ...space, repeat: true });
+
+      expect(mockedInvoke).toHaveBeenCalledWith("show_preview_window", { id: items[0].id });
+      expect(mockedInvoke).not.toHaveBeenCalledWith("animate_close_preview");
+      expect(previewState.open).toBe(true);
     });
   });
 
