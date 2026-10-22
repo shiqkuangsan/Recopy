@@ -18,6 +18,28 @@ static PENDING_INTERNAL_CLIPBOARD_WRITES: LazyLock<PendingClipboardWrites> =
 const INTERNAL_CLIPBOARD_WRITE_TTL: Duration = Duration::from_secs(2);
 const AUTOSTART_HIDDEN_ARG: &str = "--hidden";
 
+/// Binaries run straight out of Cargo's `target/` (`tauri dev`, local release
+/// test builds) live next to a `Cargo.toml`; installed copies never do.
+#[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
+fn is_cargo_build_output(exe: &std::path::Path) -> bool {
+    exe.ancestors().any(|dir| {
+        dir.file_name().is_some_and(|name| name == "target")
+            && dir
+                .parent()
+                .is_some_and(|parent| parent.join("Cargo.toml").is_file())
+    })
+}
+
+/// Only installed copies may (re)write the login item: the refresh points it at
+/// the running binary, so a dev or test build would hijack the user's autostart.
+#[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
+fn should_refresh_autostart() -> bool {
+    !cfg!(debug_assertions)
+        && std::env::current_exe()
+            .map(|exe| !is_cargo_build_output(&exe))
+            .unwrap_or(true)
+}
+
 fn should_show_main_window_for_second_instance(args: &[String]) -> bool {
     !args
         .iter()
@@ -175,7 +197,9 @@ pub fn run() {
                             .flatten()
                             .unwrap_or_else(|| "false".to_string())
                     });
-                    if auto_start == "true" {
+                    if auto_start == "true" && !should_refresh_autostart() {
+                        log::info!("Autostart self-healing skipped for a development build");
+                    } else if auto_start == "true" {
                         use tauri_plugin_autostart::ManagerExt;
                         match app.autolaunch().enable() {
                             Ok(_) => log::info!("Autostart self-healing: registry re-registered"),
@@ -198,7 +222,9 @@ pub fn run() {
                             .flatten()
                             .unwrap_or_else(|| "false".to_string())
                     });
-                    if auto_start == "true" {
+                    if auto_start == "true" && !should_refresh_autostart() {
+                        log::info!("Autostart LaunchAgent refresh skipped for a development build");
+                    } else if auto_start == "true" {
                         use tauri_plugin_autostart::ManagerExt;
                         match app.autolaunch().enable() {
                             Ok(_) => log::info!("Autostart LaunchAgent refreshed"),
@@ -1255,6 +1281,31 @@ mod tests {
 
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| value.to_string()).collect()
+    }
+
+    #[test]
+    fn cargo_build_output_is_detected_but_installed_copies_are_not() {
+        let root = std::env::temp_dir().join(format!("recopy-autostart-{}", std::process::id()));
+        let crate_dir = root.join("repo/src-tauri");
+        std::fs::create_dir_all(crate_dir.join("target/release")).unwrap();
+        std::fs::write(crate_dir.join("Cargo.toml"), "").unwrap();
+        // A `target` folder that is not Cargo's (no sibling Cargo.toml).
+        std::fs::create_dir_all(root.join("apps/target/bin")).unwrap();
+
+        assert!(is_cargo_build_output(
+            &crate_dir.join("target/release/recopy")
+        ));
+        assert!(is_cargo_build_output(
+            &crate_dir.join("target/debug/recopy")
+        ));
+        assert!(!is_cargo_build_output(&root.join("apps/target/bin/recopy")));
+        assert!(!is_cargo_build_output(std::path::Path::new(
+            "/Applications/Recopy.app/Contents/MacOS/recopy"
+        )));
+        assert!(!is_cargo_build_output(std::path::Path::new(
+            r"C:\Program Files\Recopy\recopy.exe"
+        )));
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
