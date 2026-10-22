@@ -290,6 +290,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn image_path_lookup_uses_covering_index() {
+        let pool = test_pool().await;
+
+        let plan: Vec<(i64, i64, i64, String)> = sqlx::query_as(
+            "EXPLAIN QUERY PLAN SELECT image_path FROM clipboard_items WHERE image_path IS NOT NULL",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+
+        let index = "COVERING INDEX idx_clipboard_items_image_path";
+        assert!(
+            plan.iter().any(|row| row.3.contains(index)),
+            "unexpected plan: {plan:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn test_default_settings() {
         let pool = test_pool().await;
 
