@@ -22,6 +22,11 @@ updates:
         dependency-type: "development"
       production-dependencies:
         dependency-type: "production"
+    # Major upgrades (e.g. TypeScript, vitest) need hands-on migration; a grouped
+    # PR containing one stalls on CI and blocks every minor update with it.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # Rust (Cargo)
   - package-ecosystem: "cargo"
@@ -33,3 +38,6 @@ updates:
       cargo-dependencies:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
