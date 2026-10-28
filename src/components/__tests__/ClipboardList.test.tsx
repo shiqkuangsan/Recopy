@@ -293,6 +293,29 @@ describe("ClipboardList", () => {
     expect(fetchMoreSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("gives side-panel cards room for a full text preview", () => {
+    useSettingsStore.setState({
+      settings: { ...DEFAULT_SETTINGS, panel_position: "left" },
+      menuBarHeight: 0,
+      loaded: true,
+    });
+    useClipboardStore.setState({
+      items: [
+        mockItem({ id: "item-1", plain_text: "item-1" }),
+        mockItem({ id: "item-2", plain_text: "item-2" }),
+      ],
+    });
+
+    const view = render(<ClipboardList />);
+    const slot = view.getByTestId("card-item-2").parentElement as HTMLDivElement;
+    const row = slot.parentElement as HTMLDivElement;
+
+    // 220px card plus the 12px gap above it.
+    expect(slot.style.height).toBe("232px");
+    expect(row.style.height).toBe("232px");
+    expect(row.style.transform).toBe("translateY(232px)");
+  });
+
   it("keeps horizontal row gutters outside the scroll viewport", () => {
     useSettingsStore.setState({
       settings: { ...DEFAULT_SETTINGS, panel_position: "bottom", flat_mode_tb: "true" },

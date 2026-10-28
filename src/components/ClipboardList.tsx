@@ -43,6 +43,9 @@ const CARD_GAP = 12;
 const CARD_HEIGHT = 260;
 const HORIZONTAL_ESTIMATE = CARD_WIDTH + CARD_GAP; // 312
 const HORIZONTAL_FETCH_THRESHOLD = 24;
+// L/R mode: tall enough for a text card's five clamped lines below its header.
+const VERTICAL_CARD_HEIGHT = 220;
+const VERTICAL_ROW_HEIGHT = VERTICAL_CARD_HEIGHT + CARD_GAP; // 232
 
 function hasVerticallyScrollableChild(target: EventTarget | null, boundary: HTMLElement) {
   let node = target instanceof HTMLElement ? target : null;
@@ -217,7 +220,7 @@ export function ClipboardList() {
   const verticalVirtualizer = useVirtualizer({
     count: isVertical ? items.length : 0,
     getScrollElement: () => verticalParentRef.current,
-    estimateSize: () => 192, // 180px card + 12px gap
+    estimateSize: () => VERTICAL_ROW_HEIGHT,
     overscan: 5,
   });
 
@@ -368,7 +371,7 @@ export function ClipboardList() {
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
               >
-                <div className="w-full h-[180px] pt-3">
+                <div className="w-full pt-3" style={{ height: VERTICAL_ROW_HEIGHT }}>
                   <ClipboardCard
                     item={item}
                     selected={virtualRow.index === selectedIndex}
