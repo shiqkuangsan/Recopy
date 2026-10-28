@@ -12,7 +12,13 @@ use std::str::FromStr;
 use std::sync::RwLock;
 use tauri::{AppHandle, Manager};
 
-static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+/// Migrations are additive, so a database already migrated by a newer build
+/// (a dev build, or a downgrade) stays readable. Without `ignore_missing`, an
+/// older release refuses to start on it.
+static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate::Migrator {
+    ignore_missing: true,
+    ..sqlx::migrate!("./migrations")
+};
 
 /// Get the database file path based on the app data directory.
 fn db_path(app: &AppHandle) -> String {
@@ -133,6 +139,28 @@ mod tests {
                 String::new()
             )
         );
+    }
+
+    #[tokio::test]
+    async fn older_build_starts_on_a_database_migrated_by_a_newer_one() {
+        let pool = test_pool().await;
+        let latest = MIGRATOR.migrations.last().unwrap();
+        let newer = sqlx::migrate::Migration::new(
+            latest.version + 1,
+            "from a newer build".into(),
+            sqlx::migrate::MigrationType::Simple,
+            sqlx::SqlStr::from_static("SELECT 1"),
+            false,
+        );
+        let newer_build = sqlx::migrate::Migrator {
+            migrations: std::borrow::Cow::Owned(
+                MIGRATOR.migrations.iter().cloned().chain([newer]).collect(),
+            ),
+            ..sqlx::migrate::Migrator::DEFAULT
+        };
+        newer_build.run(&pool).await.unwrap();
+
+        MIGRATOR.run(&pool).await.unwrap();
     }
 
     #[tokio::test]
