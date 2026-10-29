@@ -40,7 +40,7 @@ upload_gitee_asset() {
   # Abort stalled transfers early and log upload progress, so a failed run
   # shows whether bytes reached Gitee at all.
   if curl -fsS -X POST \
-    --connect-timeout 30 --max-time 600 \
+    --connect-timeout 30 --max-time "${GITEE_UPLOAD_MAX_TIME:-600}" \
     --speed-limit "${GITEE_UPLOAD_SPEED_LIMIT:-1024}" \
     --speed-time "${GITEE_UPLOAD_SPEED_TIME:-120}" \
     -w "%{stderr}upload ${asset_name}: http=%{http_code} sent=%{size_upload}B speed=%{speed_upload}B/s time=%{time_total}s\n" \

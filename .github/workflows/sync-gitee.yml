@@ -1,8 +1,10 @@
 name: Sync Gitee Release
 
+# Fallback only. The release runbook syncs Gitee locally after publishing:
+# uploads from GitHub-hosted runners reach Gitee at roughly 11 KB/s, so this
+# job takes well over an hour per release. Never run it while a local sync
+# for the same tag is in progress, or an asset can be uploaded twice.
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -13,34 +15,36 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: sync-gitee-${{ inputs.tag }}
+  cancel-in-progress: false
+
 jobs:
   sync-gitee:
     name: Sync Gitee release
-    if: startsWith(github.event.release.tag_name || inputs.tag, 'v')
+    if: startsWith(inputs.tag, 'v')
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
-        with:
-          # Release events check out the tag, so pin main; manual runs use the chosen ref.
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || 'main' }}
 
       - name: Sync release assets to Gitee
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          GITEE_UPLOAD_MAX_TIME: "3600"
+          TAG: ${{ inputs.tag }}
         run: scripts/sync-gitee-release.sh "$TAG"
 
-      - name: Report local fallback
+      - name: Report local sync command
         if: failure()
         env:
-          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          TAG: ${{ inputs.tag }}
         run: |
           {
             echo "### Gitee sync failed for ${TAG}"
             echo "Assets already on Gitee are kept. The updater branch is only written after every asset is present."
-            echo "Rerun the idempotent sync from a network that can reach Gitee:"
+            echo "Rerun the idempotent sync locally (the preferred path):"
             echo '```bash'
             echo "GITHUB_TOKEN=<token> GITEE_TOKEN=<token> scripts/sync-gitee-release.sh ${TAG}"
             echo '```'

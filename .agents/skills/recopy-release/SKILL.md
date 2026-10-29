@@ -40,7 +40,7 @@ Confirm the final version number before editing version files. If the version fi
 3. Confirm the branch and remote state are appropriate for release.
 4. If local `main` is ahead, behind, or diverged, explain the state before proceeding.
 5. Read the current version from `src-tauri/tauri.conf.json`.
-6. Confirm GitHub Actions secrets include `GITEE_TOKEN` before relying on automatic Gitee sync.
+6. Confirm `GITEE_TOKEN` is available in the local login shell (`zsh -lc 'test -n "$GITEE_TOKEN"'`) for the local Gitee sync. Do not print it.
 
 ### 1. Determine Version
 
@@ -283,29 +283,42 @@ Publish the GitHub release only after `latest.json` contains the final release n
 
 Gitee sync is required for every Recopy release.
 
-Preferred path: GitHub Actions automatically runs `.github/workflows/sync-gitee.yml` on `release.published`.
-
 Prerequisites:
 
-- GitHub Actions secret `GITEE_TOKEN` exists.
 - GitHub release is published, not draft.
 - `latest.json` on the GitHub release already contains final release notes.
 
-Monitor the workflow:
+Preferred path: run the sync locally right after publication. Publishing does
+not trigger any Gitee workflow.
 
 ```bash
+zsh -lc 'GITHUB_TOKEN="$(gh auth token)" scripts/sync-gitee-release.sh vX.Y.Z'
+```
+
+The script prints bytes sent, speed and duration for every upload. A full
+local sync of a release takes a few minutes; the v1.12.2 test uploaded a
+12 MB DMG in 9 s.
+
+Fallback path, only when the local network cannot reach Gitee: dispatch
+`.github/workflows/sync-gitee.yml` manually. Uploads from GitHub-hosted
+runners reach Gitee at roughly 11 KB/s (measured in the v1.12.2 test), so a
+full release takes over an hour; the workflow allows up to 3 hours.
+
+```bash
+gh workflow run sync-gitee.yml -R shiqkuangsan/Recopy -f tag=vX.Y.Z
 gh run list --workflow "Sync Gitee Release" --limit 3
 ```
 
-Fallback path if Actions is unavailable or must be run locally:
+Never run the local sync and the workflow for the same tag at the same time.
+Both upload missing assets, so an overlap can attach the same file twice. If
+the workflow is running and you switch to the local path, cancel the run and
+wait for it to stop first.
 
-```bash
-GITHUB_TOKEN=<token> GITEE_TOKEN=<token> scripts/sync-gitee-release.sh vX.Y.Z
-```
-
-If a failed sync already uploaded an incorrect `latest.json`, rerun the fallback
-with `REPLACE_GITEE_LATEST=true`. This explicitly deletes and replaces only that
-metadata asset; all other existing assets remain idempotently skipped.
+Both paths are idempotent: rerun the same command after a failure, and assets
+already on Gitee are skipped. If a failed sync already uploaded an incorrect
+`latest.json`, rerun with `REPLACE_GITEE_LATEST=true`. This explicitly deletes
+and replaces only that metadata asset; all other existing assets remain
+idempotently skipped.
 
 The script:
 

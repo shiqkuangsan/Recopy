@@ -317,6 +317,15 @@ test_release_runbook_contract() {
     fail "release-tooling CI does not cover macOS Bash"
   grep -Fq '.agents/skills/recopy-release/SKILL.md' "$ci_workflow" || \
     fail "release Skill changes do not trigger release-tooling CI"
+
+  local gitee_workflow="$ROOT/.github/workflows/sync-gitee.yml"
+  if grep -Eq '^[[:space:]]+release:' "$gitee_workflow"; then
+    fail "Gitee sync workflow still runs on release events; it must stay a manual fallback"
+  fi
+  grep -Fq 'workflow_dispatch:' "$gitee_workflow" || \
+    fail "Gitee sync workflow cannot be dispatched manually"
+  grep -Fq 'Preferred path: run the sync locally' "$skill" || \
+    fail "release Skill does not make the local Gitee sync the preferred path"
 }
 
 test_normalization_contract
