@@ -40,7 +40,7 @@ Confirm the final version number before editing version files. If the version fi
 3. Confirm the branch and remote state are appropriate for release.
 4. If local `main` is ahead, behind, or diverged, explain the state before proceeding.
 5. Read the current version from `src-tauri/tauri.conf.json`.
-6. Confirm `GITEE_TOKEN` is available in the local login shell (`zsh -lc 'test -n "$GITEE_TOKEN"'`) for the local Gitee sync. Do not print it.
+6. Confirm the local login shell exports `GITEE_TOKEN` for the local Gitee sync (`zsh -lc 'printenv GITEE_TOKEN >/dev/null'`; a shell variable that is set but not exported fails this check). Do not print it.
 
 ### 1. Determine Version
 
@@ -316,9 +316,10 @@ wait for it to stop first.
 
 Both paths are idempotent: rerun the same command after a failure, and assets
 already on Gitee are skipped. If a failed sync already uploaded an incorrect
-`latest.json`, rerun with `REPLACE_GITEE_LATEST=true`. This explicitly deletes
-and replaces only that metadata asset; all other existing assets remain
-idempotently skipped.
+`latest.json`, rerun with `REPLACE_GITEE_LATEST=true` locally, or dispatch the
+workflow with `-f replace_latest=true`. This explicitly deletes and replaces
+only that metadata asset; all other existing assets remain idempotently
+skipped.
 
 The script:
 
