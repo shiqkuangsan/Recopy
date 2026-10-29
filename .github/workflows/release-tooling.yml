@@ -10,6 +10,7 @@ on:
       - "scripts/lib/normalize-updater.jq"
       - "scripts/tests/release-tooling.sh"
       - ".github/workflows/release-tooling.yml"
+      - ".github/workflows/sync-gitee.yml"
   pull_request:
     branches: [main]
     paths:
@@ -19,6 +20,7 @@ on:
       - "scripts/lib/normalize-updater.jq"
       - "scripts/tests/release-tooling.sh"
       - ".github/workflows/release-tooling.yml"
+      - ".github/workflows/sync-gitee.yml"
 
 permissions:
   contents: read

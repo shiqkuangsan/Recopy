@@ -1,31 +1,66 @@
 name: Sync Gitee Release
 
+# Fallback only. The release runbook syncs Gitee locally after publishing:
+# uploads from GitHub-hosted runners reach Gitee at roughly 11 KB/s, so this
+# job takes well over an hour per release. Never run it while a local sync
+# for the same tag is in progress, or an asset can be uploaded twice.
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
         description: "Release tag to sync"
         required: true
         type: string
+      replace_latest:
+        description: "Delete and re-upload latest.json on the Gitee release"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
+concurrency:
+  group: sync-gitee-${{ inputs.tag }}
+  cancel-in-progress: false
+
 jobs:
   sync-gitee:
     name: Sync Gitee release
-    if: startsWith(github.event.release.tag_name || inputs.tag, 'v')
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
+      - name: Validate tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ "$TAG" != v* ]]; then
+            echo "::error::Release tag must start with 'v' (for example v1.12.2), got '${TAG}'"
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
-        with:
-          ref: main
 
       - name: Sync release assets to Gitee
+        id: sync
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          GITEE_UPLOAD_MAX_TIME: "3600"
+          REPLACE_GITEE_LATEST: ${{ inputs.replace_latest }}
+          TAG: ${{ inputs.tag }}
         run: scripts/sync-gitee-release.sh "$TAG"
+
+      - name: Report local sync command
+        if: failure() && steps.sync.outcome == 'failure'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          {
+            echo "### Gitee sync failed for ${TAG}"
+            echo "Assets already on Gitee are kept. The updater branch is only written after every asset is present."
+            echo "Rerun the idempotent sync locally (the preferred path):"
+            echo '```bash'
+            echo "GITHUB_TOKEN=<token> GITEE_TOKEN=<token> scripts/sync-gitee-release.sh ${TAG}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
