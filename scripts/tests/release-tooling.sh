@@ -209,6 +209,7 @@ test_ambiguous_upload_posts_once() (
 
   POST_COUNT=0
   REFRESH_COUNT=0
+  STALL_GUARD=false
   curl() {
     local argument expect_method=false method=""
     for argument in "$@"; do
@@ -217,6 +218,8 @@ test_ambiguous_upload_posts_once() (
         expect_method=false
       elif [[ "$argument" == "-X" ]]; then
         expect_method=true
+      elif [[ "$argument" == "--speed-limit" ]]; then
+        STALL_GUARD=true
       fi
     done
     [[ "$method" == "POST" ]] || return 64
@@ -238,6 +241,7 @@ test_ambiguous_upload_posts_once() (
   assert_eq "52" "$upload_status" "ambiguous upload did not preserve curl status"
   assert_eq "1" "$POST_COUNT" "ambiguous upload issued more than one POST"
   assert_eq "3" "$REFRESH_COUNT" "ambiguous upload did not perform bounded verification"
+  assert_eq "true" "$STALL_GUARD" "upload POST has no stall detection"
 )
 
 test_replace_deletes_all_latest_assets() (
