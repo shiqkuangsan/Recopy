@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use objc2::rc::Retained;
 use objc2::runtime::{AnyClass, AnyObject, NSObjectProtocol, ProtocolObject};
 use objc2::{define_class, msg_send, ClassType, DefinedClass, MainThreadMarker, MainThreadOnly};
-use objc2_app_kit::{NSPanel, NSResponder, NSWindow, NSWindowDelegate};
+use objc2_app_kit::{NSPanel, NSResponder, NSView, NSWindow, NSWindowDelegate};
 use objc2_foundation::{NSNotification, NSObject};
 use tauri::Manager;
 
@@ -186,15 +186,20 @@ impl PanelHandle {
         }
     }
 
-    /// Make content view first responder, show, and make key window.
+    /// Show, make key window, and route keyboard input to the hosted WebView.
     pub fn show_and_make_key(&self) {
-        unsafe {
-            if let Some(content_view) = self.ns_panel.contentView() {
-                let responder: &NSResponder = &content_view;
+        self.ns_panel.orderFrontRegardless();
+        self.ns_panel.makeKeyWindow();
+        // Assign the responder last: tao's style-mask updates (set_resizable on
+        // every show) point it at tao's detached view, and wry's parent view
+        // (the content view) only forwards menu key equivalents, so neither
+        // delivers arrows, Enter or typing to the page.
+        if let Some(content_view) = self.ns_panel.contentView() {
+            let target = find_web_view(&content_view).unwrap_or(content_view);
+            let responder: &NSResponder = &target;
+            unsafe {
                 let _: bool = msg_send![&*self.ns_panel, makeFirstResponder: responder];
             }
-            self.ns_panel.orderFrontRegardless();
-            self.ns_panel.makeKeyWindow();
         }
     }
 
@@ -270,6 +275,22 @@ impl PanelHandle {
     pub fn label(&self) -> &str {
         &self.label
     }
+}
+
+/// Find the WKWebView under `view`; wry nests it inside its own parent view.
+fn find_web_view(view: &NSView) -> Option<Retained<NSView>> {
+    let web_view_class = AnyClass::get(c"WKWebView")?;
+    let subviews = view.subviews();
+    for index in 0..subviews.count() {
+        let subview = subviews.objectAtIndex(index);
+        if subview.isKindOfClass(web_view_class) {
+            return Some(subview);
+        }
+        if let Some(found) = find_web_view(&subview) {
+            return Some(found);
+        }
+    }
+    None
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
