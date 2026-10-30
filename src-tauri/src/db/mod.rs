@@ -398,21 +398,11 @@ mod tests {
     async fn retention_count_image_path_lookup_reads_overflow_rows_only() {
         let pool = test_pool().await;
 
-        let plan = query_plan(
-            &pool,
-            sqlx::query_as(
-                "EXPLAIN QUERY PLAN SELECT image_path FROM clipboard_items
-                 WHERE id IN (
-                       SELECT id FROM clipboard_items
-                       WHERE is_favorited = 0
-                       ORDER BY updated_at DESC, id DESC
-                       LIMIT -1 OFFSET ?
-                   )
-                   AND image_path IS NOT NULL",
-            )
-            .bind(1000),
-        )
-        .await;
+        let sql = format!(
+            "EXPLAIN QUERY PLAN {}",
+            queries::RETENTION_COUNT_IMAGE_PATHS_SQL
+        );
+        let plan = query_plan(&pool, sqlx::query_as(sqlx::AssertSqlSafe(sql)).bind(1000)).await;
 
         let outer = "SEARCH clipboard_items USING INDEX sqlite_autoindex_clipboard_items_1 (id=?)";
         let overflow =

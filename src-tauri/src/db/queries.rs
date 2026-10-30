@@ -216,6 +216,17 @@ pub async fn get_non_favorited_image_paths(pool: &SqlitePool) -> Result<Vec<Stri
     Ok(rows.into_iter().map(|(p,)| p).collect())
 }
 
+/// Selects the count-policy overflow rows by id: an `id NOT IN (newest N)` filter
+/// reads image_path (stored after the BLOBs) for every non-favorited row.
+pub(crate) const RETENTION_COUNT_IMAGE_PATHS_SQL: &str = "SELECT image_path FROM clipboard_items
+     WHERE id IN (
+           SELECT id FROM clipboard_items
+           WHERE is_favorited = 0
+           ORDER BY updated_at DESC, id DESC
+           LIMIT -1 OFFSET ?
+       )
+       AND image_path IS NOT NULL";
+
 /// Return image_paths for items that would be removed by the given retention policy.
 pub async fn get_retention_overflow_image_paths(
     pool: &SqlitePool,
@@ -235,22 +246,11 @@ pub async fn get_retention_overflow_image_paths(
             .fetch_all(pool)
             .await?
         }
-        // Select the overflow rows by id: an `id NOT IN (newest N)` filter reads
-        // image_path (stored after the BLOBs) for every non-favorited row.
         "count" if count > 0 => {
-            sqlx::query_as(
-                "SELECT image_path FROM clipboard_items
-                 WHERE id IN (
-                       SELECT id FROM clipboard_items
-                       WHERE is_favorited = 0
-                       ORDER BY updated_at DESC, id DESC
-                       LIMIT -1 OFFSET ?
-                   )
-                   AND image_path IS NOT NULL",
-            )
-            .bind(count)
-            .fetch_all(pool)
-            .await?
+            sqlx::query_as(RETENTION_COUNT_IMAGE_PATHS_SQL)
+                .bind(count)
+                .fetch_all(pool)
+                .await?
         }
         _ => vec![],
     };
