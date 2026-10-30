@@ -216,6 +216,17 @@ pub async fn get_non_favorited_image_paths(pool: &SqlitePool) -> Result<Vec<Stri
     Ok(rows.into_iter().map(|(p,)| p).collect())
 }
 
+/// Selects the count-policy overflow rows by id: an `id NOT IN (newest N)` filter
+/// reads image_path (stored after the BLOBs) for every non-favorited row.
+pub(crate) const RETENTION_COUNT_IMAGE_PATHS_SQL: &str = "SELECT image_path FROM clipboard_items
+     WHERE id IN (
+           SELECT id FROM clipboard_items
+           WHERE is_favorited = 0
+           ORDER BY updated_at DESC, id DESC
+           LIMIT -1 OFFSET ?
+       )
+       AND image_path IS NOT NULL";
+
 /// Return image_paths for items that would be removed by the given retention policy.
 pub async fn get_retention_overflow_image_paths(
     pool: &SqlitePool,
@@ -236,20 +247,10 @@ pub async fn get_retention_overflow_image_paths(
             .await?
         }
         "count" if count > 0 => {
-            sqlx::query_as(
-                "SELECT image_path FROM clipboard_items
-                 WHERE is_favorited = 0
-                   AND id NOT IN (
-                       SELECT id FROM clipboard_items
-                       WHERE is_favorited = 0
-                       ORDER BY updated_at DESC, id DESC
-                       LIMIT ?
-                   )
-                   AND image_path IS NOT NULL",
-            )
-            .bind(count)
-            .fetch_all(pool)
-            .await?
+            sqlx::query_as(RETENTION_COUNT_IMAGE_PATHS_SQL)
+                .bind(count)
+                .fetch_all(pool)
+                .await?
         }
         _ => vec![],
     };
@@ -1103,6 +1104,59 @@ mod tests {
 
         let remaining = get_items(&pool, None, 10, 0).await.unwrap();
         assert_eq!(remaining.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn retention_count_image_paths_cover_overflow_rows_only() {
+        let pool = test_pool().await;
+
+        // (image_path, updated_at, is_favorited)
+        let rows = [
+            (Some("/tmp/old.png"), "2026-01-01 00:00:00", false),
+            (None, "2026-01-02 00:00:00", false),
+            (Some("/tmp/favorite.png"), "2026-01-03 00:00:00", true),
+            (Some("/tmp/new.png"), "2026-01-04 00:00:00", false),
+        ];
+        for (i, (image_path, updated_at, is_favorited)) in rows.into_iter().enumerate() {
+            let item = NewClipboardItem {
+                content_type: ContentType::Image,
+                plain_text: "".into(),
+                rich_content: None,
+                thumbnail: None,
+                image_path: image_path.map(Into::into),
+                file_path: None,
+                file_name: None,
+                source_app: "".into(),
+                source_app_name: "".into(),
+                content_size: 1024,
+                content_hash: format!("count-image-hash-{}", i),
+            };
+            let id = insert_item(&pool, &item).await.unwrap();
+            sqlx::query("UPDATE clipboard_items SET updated_at = ?, is_favorited = ? WHERE id = ?")
+                .bind(updated_at)
+                .bind(is_favorited)
+                .bind(&id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        let paths = get_retention_overflow_image_paths(&pool, "count", 0, 1)
+            .await
+            .unwrap();
+        assert_eq!(paths, vec!["/tmp/old.png".to_string()]);
+
+        let deleted = cleanup_by_retention(&pool, "count", 0, 1).await.unwrap();
+        assert_eq!(deleted, 2);
+        let remaining: Vec<Option<String>> = get_items(&pool, None, 10, 0)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|item| item.image_path)
+            .collect();
+        assert_eq!(remaining.len(), 2);
+        assert!(remaining.contains(&Some("/tmp/new.png".into())));
+        assert!(remaining.contains(&Some("/tmp/favorite.png".into())));
     }
 
     #[tokio::test]

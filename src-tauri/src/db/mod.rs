@@ -395,6 +395,29 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn retention_count_image_path_lookup_reads_overflow_rows_only() {
+        let pool = test_pool().await;
+
+        let sql = format!(
+            "EXPLAIN QUERY PLAN {}",
+            queries::RETENTION_COUNT_IMAGE_PATHS_SQL
+        );
+        let plan = query_plan(&pool, sqlx::query_as(sqlx::AssertSqlSafe(sql)).bind(1000)).await;
+
+        let outer = "SEARCH clipboard_items USING INDEX sqlite_autoindex_clipboard_items_1 (id=?)";
+        let overflow =
+            "COVERING INDEX idx_clipboard_items_favorited_updated_at_id (is_favorited=?)";
+        assert!(
+            plan.iter().any(|detail| detail.contains(outer)),
+            "unexpected plan: {plan:?}"
+        );
+        assert!(
+            plan.iter().any(|detail| detail.contains(overflow)),
+            "unexpected plan: {plan:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn legacy_dedup_lookup_uses_hash_index_without_sort() {
         let pool = test_pool().await;
 
