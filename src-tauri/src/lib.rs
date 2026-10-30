@@ -17,6 +17,10 @@ static PENDING_INTERNAL_CLIPBOARD_WRITES: LazyLock<PendingClipboardWrites> =
     LazyLock::new(PendingClipboardWrites::default);
 const INTERNAL_CLIPBOARD_WRITE_TTL: Duration = Duration::from_secs(2);
 const AUTOSTART_HIDDEN_ARG: &str = "--hidden";
+/// The plugin default (40 KB, KeepOne) deletes the whole log on rotation, which
+/// held about a day of history. Rotate at 1 MB and keep the last few files.
+const LOG_MAX_FILE_SIZE: u128 = 1_000_000;
+const LOG_ROTATED_FILES_KEPT: usize = 4;
 
 /// Binaries run straight out of Cargo's `target/` (`tauri dev`, local release
 /// test builds) live next to a `Cargo.toml`; installed copies never do.
@@ -117,6 +121,10 @@ pub fn run() {
         .plugin(
             tauri_plugin_log::Builder::default()
                 .level(log::LevelFilter::Info)
+                .max_file_size(LOG_MAX_FILE_SIZE)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(
+                    LOG_ROTATED_FILES_KEPT,
+                ))
                 .build(),
         )
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
