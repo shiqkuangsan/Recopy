@@ -335,6 +335,96 @@ mod tests {
         );
     }
 
+    async fn query_plan<'q>(
+        pool: &SqlitePool,
+        query: sqlx::query::QueryAs<
+            'q,
+            sqlx::Sqlite,
+            (i64, i64, i64, String),
+            sqlx::sqlite::SqliteArguments,
+        >,
+    ) -> Vec<String> {
+        let rows = query.fetch_all(pool).await.unwrap();
+        rows.into_iter().map(|row| row.3).collect()
+    }
+
+    // The planner has no sqlite_stat1 on user databases, so these guard the
+    // stats-free plan that real installs get.
+    #[tokio::test]
+    async fn retention_image_path_lookup_uses_covering_index() {
+        let pool = test_pool().await;
+
+        let plan = query_plan(
+            &pool,
+            sqlx::query_as(
+                "EXPLAIN QUERY PLAN SELECT image_path FROM clipboard_items
+                 WHERE is_favorited = 0
+                   AND created_at < datetime('now', ? || ' days')
+                   AND image_path IS NOT NULL",
+            )
+            .bind("-60"),
+        )
+        .await;
+
+        let index = "COVERING INDEX idx_clipboard_items_favorited_created_at (is_favorited=? AND created_at<?)";
+        assert!(
+            plan.iter().any(|detail| detail.contains(index)),
+            "unexpected plan: {plan:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn retention_delete_searches_expired_rows_only() {
+        let pool = test_pool().await;
+
+        let plan = query_plan(
+            &pool,
+            sqlx::query_as(
+                "EXPLAIN QUERY PLAN DELETE FROM clipboard_items
+                 WHERE is_favorited = 0 AND created_at < datetime('now', ? || ' days')",
+            )
+            .bind("-60"),
+        )
+        .await;
+
+        let index = "idx_clipboard_items_favorited_created_at (is_favorited=? AND created_at<?)";
+        assert!(
+            plan.iter().any(|detail| detail.contains(index)),
+            "unexpected plan: {plan:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn legacy_dedup_lookup_uses_hash_index_without_sort() {
+        let pool = test_pool().await;
+
+        let plan = query_plan(
+            &pool,
+            sqlx::query_as(
+                "EXPLAIN QUERY PLAN UPDATE clipboard_items SET updated_at = datetime('now')
+                 WHERE id = (SELECT id FROM clipboard_items WHERE content_hash = ?
+                   AND content_type = ? AND rich_content IS ?
+                   AND (content_type != 'image' OR image_path IS NOT NULL)
+                   ORDER BY updated_at DESC, id DESC LIMIT 1) RETURNING id",
+            )
+            .bind("hash")
+            .bind("image")
+            .bind(None::<Vec<u8>>),
+        )
+        .await;
+
+        let index =
+            "idx_clipboard_items_hash_type_updated_at_id (content_hash=? AND content_type=?)";
+        assert!(
+            plan.iter().any(|detail| detail.contains(index)),
+            "unexpected plan: {plan:?}"
+        );
+        assert!(
+            !plan.iter().any(|detail| detail.contains("TEMP B-TREE")),
+            "legacy lookup sorts: {plan:?}"
+        );
+    }
+
     #[tokio::test]
     async fn test_default_settings() {
         let pool = test_pool().await;
