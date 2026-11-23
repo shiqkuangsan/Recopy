@@ -555,7 +555,8 @@ pub fn show_main_window(app: &tauri::AppHandle) {
         return;
     };
 
-    let theme = cached_setting(app, "theme", "dark");
+    // Same default as the settings store and the settings window.
+    let theme = cached_setting(app, "theme", "system");
     let language = cached_setting(app, "language", "system");
     let update_check_interval = cached_setting(app, "update_check_interval", "weekly");
     let panel_position = cached_setting(app, "panel_position", "bottom");
@@ -872,16 +873,29 @@ pub fn open_settings_window_impl(app: &tauri::AppHandle, window_theme: Option<ta
     }
 
     let url = tauri::WebviewUrl::App("index.html?page=settings".into());
-    let window = match tauri::WebviewWindowBuilder::new(app, "settings", url)
+    // Create the window in its final theme, filled with the page's
+    // --color-background, so neither the title bar nor the canvas shows the
+    // wrong palette before React applies data-theme. Unknown system appearance
+    // (non-macOS "system" theme) keeps the platform default.
+    let is_light = match window_theme {
+        Some(tauri::Theme::Light) => Some(true),
+        Some(_) => Some(false),
+        None => commands::clipboard::system_prefers_light(),
+    };
+    let builder = tauri::WebviewWindowBuilder::new(app, "settings", url)
         .title("Recopy Settings")
         .inner_size(720.0, 560.0)
         .min_inner_size(600.0, 440.0)
         .resizable(true)
         .center()
-        .build()
-    {
+        .theme(window_theme);
+    let builder = match is_light {
+        Some(true) => builder.background_color(tauri::window::Color(0xF4, 0xF4, 0xF5, 0xFF)), // light --color-background
+        Some(false) => builder.background_color(tauri::window::Color(0x09, 0x09, 0x0B, 0xFF)), // dark --color-background
+        None => builder,
+    };
+    let window = match builder.build() {
         Ok(w) => {
-            let _ = w.set_theme(window_theme);
             let _ = w.set_focus();
             w
         }
