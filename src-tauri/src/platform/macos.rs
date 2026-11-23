@@ -118,6 +118,31 @@ pub fn platform_is_visible(app: &tauri::AppHandle) -> bool {
     rx.recv().unwrap_or(false)
 }
 
+/// Background for Recopy's floating windows: Liquid Glass (`NSGlassEffectView`)
+/// on macOS 26+, and the classic `fallback` material on macOS 15 and below.
+/// Tauri tries the glass style first and falls back when AppKit lacks it.
+///
+/// Apply this only after `nspanel::convert_to_panel()`: `NSGlassEffectView`
+/// observes its window's `opaque` via KVO, and the panel conversion's isa-swizzle
+/// discards KVO's subclass. Clearing glass attached before the swizzle then
+/// throws "Cannot remove an observer ... because it is not registered".
+pub fn glass_effects(
+    fallback: tauri::window::Effect,
+    radius: f64,
+) -> tauri::utils::config::WindowEffectsConfig {
+    use tauri::window::{Effect, EffectState};
+
+    tauri::utils::config::WindowEffectsConfig {
+        effects: vec![Effect::LiquidGlassRegular, fallback],
+        // Only the fallback material reads `state`; glass ignores it.
+        state: Some(EffectState::Active),
+        radius: Some(radius),
+        color: None,
+        // Whole-window backgrounds, not controls: no glass press response (macOS 27+).
+        interactive: false,
+    }
+}
+
 /// Initialize the HUD window as NSPanel (non-activating).
 pub fn init_hud_panel(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let Some(window) = app.get_webview_window("hud") else {
@@ -125,22 +150,12 @@ pub fn init_hud_panel(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>
         return Ok(());
     };
 
-    #[allow(deprecated)]
-    {
-        use tauri::utils::config::WindowEffectsConfig;
-        use tauri::window::{Effect, EffectState};
-
-        let _ = window.set_effects(WindowEffectsConfig {
-            effects: vec![Effect::HudWindow],
-            state: Some(EffectState::Active),
-            radius: Some(20.0),
-            color: None,
-            // Liquid Glass only (macOS 27+); these classic materials are unaffected.
-            interactive: false,
-        });
-    }
-
     let panel = nspanel::convert_to_panel(app.handle(), &window, PanelType::Recopy, None)?;
+
+    // After the panel conversion (see glass_effects). Dark default;
+    // update_window_effects_for_theme() swaps the fallback material for the
+    // light theme once settings are loaded.
+    let _ = window.set_effects(glass_effects(tauri::window::Effect::HudWindow, 20.0));
 
     // Float above the main panel
     panel.set_level(PanelLevel::MainMenu.value() + 1);
@@ -204,6 +219,10 @@ pub fn init_preview_panel(app: &tauri::App) -> Result<(), Box<dyn std::error::Er
     };
 
     let panel = nspanel::convert_to_panel(app.handle(), &window, PanelType::Preview, None)?;
+
+    // After the panel conversion (see glass_effects); tauri.conf.json only
+    // gives the preview a classic material, which is safe to swizzle under.
+    let _ = window.set_effects(glass_effects(tauri::window::Effect::HudWindow, 16.0));
 
     // Float above the main panel
     panel.set_level(PanelLevel::MainMenu.value() + 1);

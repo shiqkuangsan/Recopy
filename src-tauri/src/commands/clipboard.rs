@@ -1281,6 +1281,23 @@ pub async fn process_clipboard_change(
     Ok(Some(id))
 }
 
+/// Whether the OS appearance is light, for the "system" theme. macOS reads the
+/// global AppleInterfaceStyle; `None` where Recopy has no cheap way to ask.
+pub fn system_prefers_light() -> Option<bool> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("defaults")
+            .args(["read", "-g", "AppleInterfaceStyle"])
+            .output()
+            .ok()
+            .map(|o| !String::from_utf8_lossy(&o.stdout).contains("Dark"))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
 /// Update main window visual effects to match the given theme.
 pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     let is_system = !matches!(theme, "light" | "dark");
@@ -1292,21 +1309,7 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     let is_light = match theme {
         "light" => true,
         "dark" => false,
-        // "system": read system preference via macOS defaults
-        _ => {
-            #[cfg(target_os = "macos")]
-            {
-                std::process::Command::new("defaults")
-                    .args(["read", "-g", "AppleInterfaceStyle"])
-                    .output()
-                    .map(|o| !String::from_utf8_lossy(&o.stdout).contains("Dark"))
-                    .unwrap_or(false)
-            }
-            #[cfg(not(target_os = "macos"))]
-            {
-                false
-            }
-        }
+        _ => system_prefers_light().unwrap_or(false),
     };
 
     // When theme is "system", use None so WebView's prefers-color-scheme
@@ -1326,22 +1329,14 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
         // uses the React-drawn bg-background fallback.
         #[cfg(target_os = "macos")]
         {
-            use tauri::utils::config::WindowEffectsConfig;
-            use tauri::window::{Effect, EffectState};
+            use tauri::window::Effect;
 
-            let effect = if is_light {
+            let fallback = if is_light {
                 Effect::Sidebar
             } else {
                 Effect::HudWindow
             };
-            let effects = WindowEffectsConfig {
-                effects: vec![effect],
-                state: Some(EffectState::Active),
-                radius: Some(12.0),
-                color: None,
-                // Liquid Glass only (macOS 27+); these classic materials are unaffected.
-                interactive: false,
-            };
+            let effects = crate::platform::glass_effects(fallback, 12.0);
             let _ = main_window.set_effects(vibrancy.then_some(effects));
         }
         let _ = main_window.set_theme(window_theme);
@@ -1355,28 +1350,23 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
         let _ = preview_window.set_theme(window_theme);
     }
 
-    // Preview and HUD are floating panels over native vibrancy. HudWindow is a
-    // dark-only material, so in light theme they use the light Popover material
-    // instead (it left the light preview sitting on a dark gray backdrop).
+    // Preview and HUD are floating panels over native glass/vibrancy. Liquid
+    // Glass follows the window appearance set above; for the pre-26 fallback,
+    // HudWindow is a dark-only material, so light theme uses Popover instead
+    // (it left the light preview sitting on a dark gray backdrop).
     #[cfg(target_os = "macos")]
     for (label, radius) in [("preview", 16.0), ("hud", 20.0)] {
-        use tauri::utils::config::WindowEffectsConfig;
-        use tauri::window::{Effect, EffectState};
+        use tauri::window::Effect;
 
         if let Some(window) = app.get_webview_window(label) {
             let _ = window.set_theme(window_theme);
-            let _ = window.set_effects(vibrancy.then(|| WindowEffectsConfig {
-                effects: vec![if is_light {
-                    Effect::Popover
-                } else {
-                    Effect::HudWindow
-                }],
-                state: Some(EffectState::Active),
-                radius: Some(radius),
-                color: None,
-                // Liquid Glass only (macOS 27+); these classic materials are unaffected.
-                interactive: false,
-            }));
+            let fallback = if is_light {
+                Effect::Popover
+            } else {
+                Effect::HudWindow
+            };
+            let _ = window
+                .set_effects(vibrancy.then(|| crate::platform::glass_effects(fallback, radius)));
         }
     }
 }
