@@ -875,8 +875,8 @@ pub fn open_settings_window_impl(app: &tauri::AppHandle, window_theme: Option<ta
     let url = tauri::WebviewUrl::App("index.html?page=settings".into());
     // Create the window in its final theme, filled with the page's
     // --color-background, so neither the title bar nor the canvas shows the
-    // wrong palette before React applies data-theme. Unknown system appearance
-    // (non-macOS "system" theme) keeps the platform default.
+    // wrong palette before React applies data-theme. Theme switches update it
+    // in update_window_effects_for_theme().
     let is_light = match window_theme {
         Some(tauri::Theme::Light) => Some(true),
         Some(_) => Some(false),
@@ -889,9 +889,8 @@ pub fn open_settings_window_impl(app: &tauri::AppHandle, window_theme: Option<ta
         .resizable(true)
         .center()
         .theme(window_theme);
-    let builder = match is_light {
-        Some(true) => builder.background_color(tauri::window::Color(0xF4, 0xF4, 0xF5, 0xFF)), // light --color-background
-        Some(false) => builder.background_color(tauri::window::Color(0x09, 0x09, 0x0B, 0xFF)), // dark --color-background
+    let builder = match commands::clipboard::settings_window_background(is_light) {
+        Some(color) => builder.background_color(color),
         None => builder,
     };
     let window = match builder.build() {

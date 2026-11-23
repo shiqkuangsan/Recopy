@@ -1298,6 +1298,20 @@ pub fn system_prefers_light() -> Option<bool> {
     }
 }
 
+/// The settings page's --color-background for a known appearance; `None`
+/// (unknown system appearance) leaves the platform's default window colour.
+/// macOS 26+ draws the title bar over the window background, so this must
+/// track every theme change, not just window creation.
+pub fn settings_window_background(is_light: Option<bool>) -> Option<tauri::window::Color> {
+    is_light.map(|light| {
+        if light {
+            tauri::window::Color(0xF4, 0xF4, 0xF5, 0xFF) // zinc-100
+        } else {
+            tauri::window::Color(0x09, 0x09, 0x0B, 0xFF) // zinc-950
+        }
+    })
+}
+
 /// Update main window visual effects to match the given theme.
 pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     let is_system = !matches!(theme, "light" | "dark");
@@ -1345,6 +1359,12 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     // Also update settings and preview window themes if open
     if let Some(settings_window) = app.get_webview_window("settings") {
         let _ = settings_window.set_theme(window_theme);
+        let known_light = if is_system {
+            system_prefers_light()
+        } else {
+            Some(is_light)
+        };
+        let _ = settings_window.set_background_color(settings_window_background(known_light));
     }
     if let Some(preview_window) = app.get_webview_window("preview") {
         let _ = preview_window.set_theme(window_theme);
