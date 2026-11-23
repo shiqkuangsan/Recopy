@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use objc2::rc::Retained;
 use objc2::runtime::{AnyClass, AnyObject, NSObjectProtocol, ProtocolObject};
-use objc2::{define_class, msg_send, ClassType, DefinedClass, MainThreadMarker, MainThreadOnly};
+use objc2::{ClassType, DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send};
 use objc2_app_kit::{NSPanel, NSResponder, NSView, NSWindow, NSWindowDelegate};
 use objc2_foundation::{NSNotification, NSObject};
 use tauri::Manager;
@@ -19,7 +19,7 @@ use tauri::Manager;
 // ObjC runtime: isa-swizzling
 // ─────────────────────────────────────────────────────────────────────────────
 
-extern "C" {
+unsafe extern "C" {
     fn object_setClass(obj: *mut AnyObject, cls: *const AnyClass) -> *const AnyClass;
 }
 

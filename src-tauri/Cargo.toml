@@ -5,7 +5,7 @@ description = "A free open-source cross-platform clipboard history manager"
 authors = ["Recopy Contributors"]
 license = "PolyForm-Noncommercial-1.0.0"
 repository = "https://github.com/shiqkuangsan/Recopy"
-edition = "2021"
+edition = "2024"
 rust-version = "1.94.0"
 
 [features]

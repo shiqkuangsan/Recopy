@@ -109,9 +109,9 @@ fn cached_setting_bool(app: &tauri::AppHandle, key: &str, default: bool) -> bool
     }
 }
 use tauri::{
+    Emitter, Listener, Manager,
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Listener, Manager,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -758,10 +758,9 @@ fn detect_language(app: &tauri::App) -> String {
     // Read language setting from DB
     if let Ok(Some(lang)) =
         tauri::async_runtime::block_on(db::queries::get_setting(&pool.0, "language"))
+        && (lang == "zh" || lang == "en")
     {
-        if lang == "zh" || lang == "en" {
-            return lang;
-        }
+        return lang;
     }
     // Fallback: detect system language
     let locale = sys_locale::get_locale().unwrap_or_else(|| "en".to_string());
@@ -1165,37 +1164,36 @@ fn read_clipboard_content(app: &tauri::AppHandle, max_size_mb: usize) -> Option<
     use tauri::async_runtime::block_on;
 
     // Try files first
-    if let Ok(true) = block_on(tauri_plugin_clipboard_x::has_files()) {
-        if let Ok(file_result) = block_on(tauri_plugin_clipboard_x::read_files()) {
-            if let Some(first) = file_result.paths.first() {
-                let path = std::path::Path::new(first);
+    if let Ok(true) = block_on(tauri_plugin_clipboard_x::has_files())
+        && let Ok(file_result) = block_on(tauri_plugin_clipboard_x::read_files())
+        && let Some(first) = file_result.paths.first()
+    {
+        let path = std::path::Path::new(first);
 
-                // Skip directories
-                if path.is_dir() {
-                    log::info!("Skipping directory: {}", first);
-                    return None;
-                }
-
-                // Skip files larger than size limit
-                if let Ok(meta) = std::fs::metadata(path) {
-                    if clipboard::exceeds_size_limit(meta.len() as usize, max_size_mb) {
-                        log::info!("Skipping large file: {} ({}B)", first, meta.len());
-                        return None;
-                    }
-                }
-
-                let file_name = path.file_name().map(|n| n.to_string_lossy().to_string());
-                let content = first.as_bytes().to_vec();
-                return Some((
-                    ContentType::File,
-                    content,
-                    Some(first.clone()),
-                    None,
-                    Some(first.clone()),
-                    file_name,
-                ));
-            }
+        // Skip directories
+        if path.is_dir() {
+            log::info!("Skipping directory: {}", first);
+            return None;
         }
+
+        // Skip files larger than size limit
+        if let Ok(meta) = std::fs::metadata(path)
+            && clipboard::exceeds_size_limit(meta.len() as usize, max_size_mb)
+        {
+            log::info!("Skipping large file: {} ({}B)", first, meta.len());
+            return None;
+        }
+
+        let file_name = path.file_name().map(|n| n.to_string_lossy().to_string());
+        let content = first.as_bytes().to_vec();
+        return Some((
+            ContentType::File,
+            content,
+            Some(first.clone()),
+            None,
+            Some(first.clone()),
+            file_name,
+        ));
     }
 
     // The plugin writes PNGs to disk. Own a per-capture directory and reclaim it
@@ -1229,54 +1227,54 @@ fn read_clipboard_content(app: &tauri::AppHandle, max_size_mb: usize) -> Option<
     }
 
     // Try HTML (rich text)
-    if let Ok(true) = block_on(tauri_plugin_clipboard_x::has_html()) {
-        if let Ok(html) = block_on(tauri_plugin_clipboard_x::read_html()) {
-            let plain = block_on(tauri_plugin_clipboard_x::read_text()).unwrap_or_default();
-            let html_bytes = html.as_bytes().to_vec();
-            let content_bytes = plain.as_bytes().to_vec();
-            return Some((
-                ContentType::RichText,
-                content_bytes,
-                Some(plain),
-                Some(html_bytes),
-                None,
-                None,
-            ));
-        }
+    if let Ok(true) = block_on(tauri_plugin_clipboard_x::has_html())
+        && let Ok(html) = block_on(tauri_plugin_clipboard_x::read_html())
+    {
+        let plain = block_on(tauri_plugin_clipboard_x::read_text()).unwrap_or_default();
+        let html_bytes = html.as_bytes().to_vec();
+        let content_bytes = plain.as_bytes().to_vec();
+        return Some((
+            ContentType::RichText,
+            content_bytes,
+            Some(plain),
+            Some(html_bytes),
+            None,
+            None,
+        ));
     }
 
     // Try text-based content: link (pure URL) or plain text
-    if let Ok(true) = block_on(tauri_plugin_clipboard_x::has_text()) {
-        if let Ok(text) = block_on(tauri_plugin_clipboard_x::read_text()) {
-            let trimmed = text.trim();
-            if !trimmed.is_empty() {
-                // Check if it's a pure URL
-                if let Ok(parsed) = url::Url::parse(trimmed) {
-                    if matches!(parsed.scheme(), "http" | "https") {
-                        let content = trimmed.as_bytes().to_vec();
-                        return Some((
-                            ContentType::Link,
-                            content,
-                            Some(trimmed.to_string()),
-                            None,
-                            None,
-                            None,
-                        ));
-                    }
-                }
-            }
-            // Fall through to plain text
-            if !text.is_empty() {
-                let content = text.as_bytes().to_vec();
+    if let Ok(true) = block_on(tauri_plugin_clipboard_x::has_text())
+        && let Ok(text) = block_on(tauri_plugin_clipboard_x::read_text())
+    {
+        let trimmed = text.trim();
+        if !trimmed.is_empty() {
+            // Check if it's a pure URL
+            if let Ok(parsed) = url::Url::parse(trimmed)
+                && matches!(parsed.scheme(), "http" | "https")
+            {
+                let content = trimmed.as_bytes().to_vec();
                 return Some((
-                    ContentType::PlainText,
+                    ContentType::Link,
                     content,
-                    Some(text),
+                    Some(trimmed.to_string()),
                     None,
                     None,
                     None,
                 ));
             }
+        }
+        // Fall through to plain text
+        if !text.is_empty() {
+            let content = text.as_bytes().to_vec();
+            return Some((
+                ContentType::PlainText,
+                content,
+                Some(text),
+                None,
+                None,
+                None,
+            ));
         }
     }
 

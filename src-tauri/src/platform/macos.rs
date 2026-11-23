@@ -338,7 +338,7 @@ pub fn platform_menu_bar_height() -> f64 {
     }
     use std::ffi::{c_char, c_void};
 
-    extern "C" {
+    unsafe extern "C" {
         fn objc_getClass(name: *const c_char) -> *mut c_void;
         fn sel_registerName(name: *const c_char) -> *mut c_void;
         fn objc_msgSend();

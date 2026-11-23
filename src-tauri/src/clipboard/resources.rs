@@ -80,11 +80,13 @@ mod tests {
         }
         let read = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let observed = read.clone();
-        assert!(try_spawn_thumbnail(&SLOTS, move || {
-            observed.store(true, std::sync::atomic::Ordering::SeqCst);
-            Ok(vec![])
-        })
-        .is_none());
+        assert!(
+            try_spawn_thumbnail(&SLOTS, move || {
+                observed.store(true, std::sync::atomic::Ordering::SeqCst);
+                Ok(vec![])
+            })
+            .is_none()
+        );
         assert!(!read.load(std::sync::atomic::Ordering::SeqCst));
         for release in releases {
             release.send(()).unwrap();

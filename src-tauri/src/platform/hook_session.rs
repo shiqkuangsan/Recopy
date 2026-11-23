@@ -1,6 +1,6 @@
 use std::sync::{
-    atomic::{AtomicBool, AtomicU64, Ordering},
     Arc, Condvar, Mutex,
+    atomic::{AtomicBool, AtomicU64, Ordering},
 };
 
 /// Atomic reservation prevents concurrent installers from creating duplicate sessions.
@@ -149,9 +149,11 @@ mod tests {
             .map(|thread| thread.join().unwrap())
             .collect();
         assert_eq!(sessions.iter().filter(|(_, created)| *created).count(), 1);
-        assert!(sessions
-            .iter()
-            .all(|(session, _)| Arc::ptr_eq(session, &sessions[0].0)));
+        assert!(
+            sessions
+                .iter()
+                .all(|(session, _)| Arc::ptr_eq(session, &sessions[0].0))
+        );
         sessions[0].0.publish(1).unwrap();
         assert!(registry.is_running());
         let old = sessions[0].0.clone();

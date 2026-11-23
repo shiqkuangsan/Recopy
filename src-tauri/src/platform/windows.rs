@@ -1,13 +1,14 @@
 use std::cell::RefCell;
 use std::sync::{
-    atomic::{AtomicBool, AtomicIsize, AtomicU32, Ordering},
     Arc, Mutex, OnceLock,
+    atomic::{AtomicBool, AtomicIsize, AtomicU32, Ordering},
 };
 use tauri::{Emitter, Manager};
 
 use super::{
+    FrameOffsets, RectI32,
     hook_session::{HookRegistry, HookSession},
-    outer_rect_for_visible_rect, FrameOffsets, RectI32,
+    outer_rect_for_visible_rect,
 };
 
 // ---------------------------------------------------------------------------
@@ -618,7 +619,7 @@ unsafe extern "system" fn nchittest_wndproc(
             | win32::HTBOTTOMLEFT
             | win32::HTBOTTOMRIGHT => return win32::HTCLIENT,
             r if (r == win32::HTTOP || r == win32::HTBOTTOM) && r != allowed => {
-                return win32::HTCLIENT
+                return win32::HTCLIENT;
             }
             _ => {}
         }
@@ -947,11 +948,7 @@ fn get_monitor_dpi_scale(hmonitor: isize) -> f64 {
         let hr = get_dpi(hmonitor, 0, &mut dpi_x, &mut dpi_y);
         win32::FreeLibrary(hmodule);
 
-        if hr == 0 {
-            dpi_x as f64 / 96.0
-        } else {
-            1.0
-        }
+        if hr == 0 { dpi_x as f64 / 96.0 } else { 1.0 }
     }
 }
 
