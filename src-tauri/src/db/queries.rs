@@ -1491,19 +1491,23 @@ mod tests {
                 .len(),
             3
         );
-        assert!(search_items(&pool, "VPN", Some("image"), 10, true)
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            search_items(&pool, "VPN", Some("image"), 10, true)
+                .await
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[tokio::test]
     async fn note_metadata_survives_dedup_and_unfavorite_without_changing_content_or_recency() {
         let pool = test_pool().await;
         sqlx::query("INSERT INTO clipboard_items (id, content_type, plain_text, rich_content, thumbnail, content_hash, is_favorited, updated_at) VALUES ('note-life', 'rich_text', '82719406', X'4142', X'0102', 'note-hash', 1, '2000-01-01')").execute(&pool).await.unwrap();
-        assert!(update_note_title(&pool, "note-life", "Company VPN")
-            .await
-            .unwrap());
+        assert!(
+            update_note_title(&pool, "note-life", "Company VPN")
+                .await
+                .unwrap()
+        );
         let row: (String, Vec<u8>, Vec<u8>, String, bool, String) = sqlx::query_as("SELECT plain_text, rich_content, thumbnail, content_hash, is_favorited, updated_at FROM clipboard_items WHERE id = 'note-life'").fetch_one(&pool).await.unwrap();
         assert_eq!(
             row,
@@ -1551,15 +1555,19 @@ mod tests {
                 .len(),
             1
         );
-        assert!(search_items(&pool, "Company VPN", None, 10, true)
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            search_items(&pool, "Company VPN", None, 10, true)
+                .await
+                .unwrap()
+                .is_empty()
+        );
         assert!(update_note_title(&pool, "note-life", "").await.unwrap());
-        assert!(search_items(&pool, "Company VPN", None, 10, false)
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            search_items(&pool, "Company VPN", None, 10, false)
+                .await
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(
             get_item_by_id(&pool, "note-life").await.unwrap().unwrap().1,
             "82719406"
@@ -1598,9 +1606,11 @@ mod tests {
                 .len(),
             1
         );
-        assert!(search_items(&pool, "100%_work", None, 10, false)
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            search_items(&pool, "100%_work", None, 10, false)
+                .await
+                .unwrap()
+                .is_empty()
+        );
     }
 }

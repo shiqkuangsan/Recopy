@@ -56,11 +56,7 @@ pub fn with_autorelease_pool<T>(f: impl FnOnce() -> T) -> T {
 
 pub(crate) fn preview_top_inset_for_target(menu_h: f64, reserve_safe_top: bool) -> f64 {
     if reserve_safe_top {
-        if menu_h > 0.0 {
-            menu_h
-        } else {
-            37.0
-        }
+        if menu_h > 0.0 { menu_h } else { 37.0 }
     } else {
         0.0
     }
@@ -146,8 +142,8 @@ pub(crate) fn outer_rect_for_visible_rect(
 #[cfg(test)]
 mod tests {
     use super::{
-        outer_rect_for_visible_rect, preview_top_inset_for_target,
-        should_hide_after_recopy_focus_check, FrameOffsets, RectI32,
+        FrameOffsets, RectI32, outer_rect_for_visible_rect, preview_top_inset_for_target,
+        should_hide_after_recopy_focus_check,
     };
 
     #[test]

@@ -1,6 +1,6 @@
 //! Migration tests use disposable databases only.
-use super::{queries, SqlitePool, SqlitePoolOptions, MIGRATOR};
-use sqlx::{migrate::Migrator, Row};
+use super::{MIGRATOR, SqlitePool, SqlitePoolOptions, queries};
+use sqlx::{Row, migrate::Migrator};
 use std::{borrow::Cow, collections::BTreeMap};
 
 pub(super) fn legacy_migrator() -> Migrator {

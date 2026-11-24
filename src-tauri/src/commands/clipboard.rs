@@ -1,10 +1,11 @@
 use crate::clipboard as clip_util;
 use crate::db::{
+    DbPool,
     models::{
         ClipboardItem, ContentType, FilePreviewData, ItemDetail, NewClipboardItem, PreviewClosing,
         PreviewResponse, PreviewState,
     },
-    queries, DbPool,
+    queries,
 };
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -344,7 +345,7 @@ fn simulate_paste_cgevent() {
     use std::ffi::c_void;
 
     #[link(name = "CoreGraphics", kind = "framework")]
-    extern "C" {
+    unsafe extern "C" {
         fn CGEventSourceCreate(state_id: u32) -> *mut c_void;
         fn CGEventSourceSetLocalEventsFilterDuringSuppressionState(
             source: *mut c_void,
@@ -362,15 +363,15 @@ fn simulate_paste_cgevent() {
         fn CGRequestPostEventAccess() -> bool;
     }
 
-    extern "C" {
+    unsafe extern "C" {
         fn CFRelease(cf: *const c_void);
     }
 
     const VK_ANSI_V: u16 = 0x09;
     const CG_SESSION_EVENT_TAP: u32 = 1; // cgAnnotatedSessionEventTap
     const CG_EVENT_FLAG_MASK_COMMAND: u64 = 1 << 20; // 0x00100000
-                                                     // Left-Command physical key flag — required by some apps (e.g. Emacs).
-                                                     // See: https://github.com/TermiT/Flycut/pull/18
+    // Left-Command physical key flag — required by some apps (e.g. Emacs).
+    // See: https://github.com/TermiT/Flycut/pull/18
     const NX_DEVICELCMDKEYMASK: u64 = 0x000008;
     const CMD_FLAGS: u64 = CG_EVENT_FLAG_MASK_COMMAND | NX_DEVICELCMDKEYMASK;
 
@@ -378,7 +379,7 @@ fn simulate_paste_cgevent() {
     const COMBINED_SESSION_STATE: u32 = 0;
     // Event filter: permit local mouse events + system-defined events
     const PERMIT_LOCAL_MOUSE_AND_SYSTEM: u32 = 0x01 | 0x04; // permitLocalMouseEvents | permitSystemDefinedEvents
-                                                            // Suppression state: eventSuppressionStateSuppressionInterval = 1
+    // Suppression state: eventSuppressionStateSuppressionInterval = 1
     const SUPPRESSION_INTERVAL: u32 = 1;
 
     unsafe {
@@ -717,7 +718,7 @@ pub async fn show_preview_window(
 
     // Calculate available space for preview based on panel position
     let gap = 24.0; // 8px gap + 16px margin
-                    // Menu bar / notch height: preview must not extend above the menu bar
+    // Menu bar / notch height: preview must not extend above the menu bar
     let top_safe = crate::platform::platform_preview_top_inset_async(&app).await?;
     let (available_w, available_h) = (|| -> Option<(f64, f64)> {
         let preview_win = app.get_webview_window("preview")?;
@@ -845,7 +846,7 @@ fn calculate_preview_size(detail: &ItemDetail, available_w: f64, available_h: f6
     // Image/file layout: title bar (py-1.5*2 + text ≈ 28) + bottom padding pb-2 (8)
     let img_chrome_y = 36.0; // title bar + bottom pad
     let img_chrome_x = 16.0; // px-2 left + right = 8*2
-                             // Padding for text types: outer p-3 (24) + ReadableCard p-4 (32) = 56
+    // Padding for text types: outer p-3 (24) + ReadableCard p-4 (32) = 56
     let text_pad = 56.0;
     let content_width = 600.0;
     let line_height = 22.0; // matches text-sm leading-relaxed
@@ -863,12 +864,11 @@ fn calculate_preview_size(detail: &ItemDetail, available_w: f64, available_h: f6
 
     match detail.content_type.as_str() {
         "image" => {
-            if let Some(ref path) = detail.image_path {
-                if let Ok((w, h)) = image::image_dimensions(path) {
-                    let (iw, ih) =
-                        fit_image(w, h, max_w - img_chrome_x, max_h - img_chrome_y, min_h);
-                    return (iw + img_chrome_x, ih + img_chrome_y);
-                }
+            if let Some(ref path) = detail.image_path
+                && let Ok((w, h)) = image::image_dimensions(path)
+            {
+                let (iw, ih) = fit_image(w, h, max_w - img_chrome_x, max_h - img_chrome_y, min_h);
+                return (iw + img_chrome_x, ih + img_chrome_y);
             }
             (600.0, 480.0)
         }
@@ -903,12 +903,12 @@ fn calculate_preview_size(detail: &ItemDetail, available_w: f64, available_h: f6
                         .clamp(min_h, max_h);
                     return (content_width, height);
                 }
-                if IMAGE_EXTENSIONS.contains(&ext.as_str()) {
-                    if let Ok((w, h)) = image::image_dimensions(path) {
-                        let (iw, ih) =
-                            fit_image(w, h, max_w - img_chrome_x, max_h - img_chrome_y, min_h);
-                        return (iw + img_chrome_x, ih + img_chrome_y);
-                    }
+                if IMAGE_EXTENSIONS.contains(&ext.as_str())
+                    && let Ok((w, h)) = image::image_dimensions(path)
+                {
+                    let (iw, ih) =
+                        fit_image(w, h, max_w - img_chrome_x, max_h - img_chrome_y, min_h);
+                    return (iw + img_chrome_x, ih + img_chrome_y);
                 }
             }
             (400.0, 300.0 + img_chrome_y)
@@ -1063,19 +1063,19 @@ pub fn show_copy_hud(app: AppHandle) {
     crate::hide_main_window(&app);
 
     // Position HUD at screen center
-    if let Some(hud) = app.get_webview_window("hud") {
-        if let Ok(Some(monitor)) = hud.current_monitor() {
-            let size = monitor.size();
-            let pos = monitor.position();
-            let scale = monitor.scale_factor();
-            let screen_w = size.width as f64 / scale;
-            let screen_h = size.height as f64 / scale;
-            let hud_w = 140.0;
-            let hud_h = 140.0;
-            let x = pos.x as f64 / scale + (screen_w - hud_w) / 2.0;
-            let y = pos.y as f64 / scale + (screen_h - hud_h) / 2.0;
-            let _ = hud.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)));
-        }
+    if let Some(hud) = app.get_webview_window("hud")
+        && let Ok(Some(monitor)) = hud.current_monitor()
+    {
+        let size = monitor.size();
+        let pos = monitor.position();
+        let scale = monitor.scale_factor();
+        let screen_w = size.width as f64 / scale;
+        let screen_h = size.height as f64 / scale;
+        let hud_w = 140.0;
+        let hud_h = 140.0;
+        let x = pos.x as f64 / scale + (screen_w - hud_w) / 2.0;
+        let y = pos.y as f64 / scale + (screen_h - hud_h) / 2.0;
+        let _ = hud.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)));
     }
 
     // Show HUD panel (non-activating on macOS) and replay its CSS entrance.
@@ -1085,17 +1085,17 @@ pub fn show_copy_hud(app: AppHandle) {
     }
 
     // Hold, fade out, then hide (generation counter prevents stale timers).
-    let gen = HUD_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    let generation = HUD_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
     let app_clone = app.clone();
     std::thread::spawn(move || {
         use crate::platform::motion::{HUD_FADE_OUT_MS, HUD_HOLD_MS};
         std::thread::sleep(std::time::Duration::from_millis(HUD_HOLD_MS));
-        if HUD_GENERATION.load(Ordering::SeqCst) != gen {
+        if HUD_GENERATION.load(Ordering::SeqCst) != generation {
             return;
         }
         crate::platform::platform_fade_out_hud(&app_clone);
         std::thread::sleep(std::time::Duration::from_millis(HUD_FADE_OUT_MS));
-        if HUD_GENERATION.load(Ordering::SeqCst) == gen {
+        if HUD_GENERATION.load(Ordering::SeqCst) == generation {
             crate::platform::platform_hide_hud(&app_clone);
         }
     });
@@ -1245,43 +1245,71 @@ pub async fn process_clipboard_change(
     );
 
     // Background: generate thumbnail for image files (non-blocking)
-    if new_item.content_type == ContentType::File {
-        if let Some(ref fp) = new_item.file_path {
-            if is_image_file(fp) {
-                let pool = db.0.clone();
-                let id_clone = id.clone();
-                let fp_clone = fp.clone();
-                let app_clone = app.clone();
-                let max_bytes = max_size_mb.min(100).saturating_mul(1024 * 1024) as u64;
-                // Admission happens before task creation and file reading.
-                let Some(task) =
-                    clip_util::resources::try_file_thumbnail(fp_clone.into(), max_bytes)
-                else {
-                    log::debug!("Skipping file thumbnail: image workers busy");
-                    return Ok(Some(id));
-                };
-                tauri::async_runtime::spawn(async move {
-                    let thumb = match task.await {
-                        Ok(Ok(t)) => t,
-                        error => {
-                            log::warn!("File thumbnail unavailable: {:?}", error);
-                            return;
-                        }
-                    };
-                    if let Err(e) = queries::update_thumbnail(&pool, &id_clone, &thumb).await {
-                        log::warn!("Failed to update thumbnail: {}", e);
-                        return;
-                    }
-                    // Notify frontend to refresh with the new thumbnail
-                    let _ =
-                        app_clone.emit("clipboard-changed", serde_json::json!({ "id": id_clone }));
-                    log::info!("Thumbnail generated for file item: {}", id_clone);
-                });
+    if new_item.content_type == ContentType::File
+        && let Some(ref fp) = new_item.file_path
+        && is_image_file(fp)
+    {
+        let pool = db.0.clone();
+        let id_clone = id.clone();
+        let fp_clone = fp.clone();
+        let app_clone = app.clone();
+        let max_bytes = max_size_mb.min(100).saturating_mul(1024 * 1024) as u64;
+        // Admission happens before task creation and file reading.
+        let Some(task) = clip_util::resources::try_file_thumbnail(fp_clone.into(), max_bytes)
+        else {
+            log::debug!("Skipping file thumbnail: image workers busy");
+            return Ok(Some(id));
+        };
+        tauri::async_runtime::spawn(async move {
+            let thumb = match task.await {
+                Ok(Ok(t)) => t,
+                error => {
+                    log::warn!("File thumbnail unavailable: {:?}", error);
+                    return;
+                }
+            };
+            if let Err(e) = queries::update_thumbnail(&pool, &id_clone, &thumb).await {
+                log::warn!("Failed to update thumbnail: {}", e);
+                return;
             }
-        }
+            // Notify frontend to refresh with the new thumbnail
+            let _ = app_clone.emit("clipboard-changed", serde_json::json!({ "id": id_clone }));
+            log::info!("Thumbnail generated for file item: {}", id_clone);
+        });
     }
 
     Ok(Some(id))
+}
+
+/// Whether the OS appearance is light, for the "system" theme. macOS reads the
+/// global AppleInterfaceStyle; `None` where Recopy has no cheap way to ask.
+pub fn system_prefers_light() -> Option<bool> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("defaults")
+            .args(["read", "-g", "AppleInterfaceStyle"])
+            .output()
+            .ok()
+            .map(|o| !String::from_utf8_lossy(&o.stdout).contains("Dark"))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
+/// The settings page's --color-background for a known appearance; `None`
+/// (unknown system appearance) leaves the platform's default window colour.
+/// macOS 26+ draws the title bar over the window background, so this must
+/// track every theme change, not just window creation.
+pub fn settings_window_background(is_light: Option<bool>) -> Option<tauri::window::Color> {
+    is_light.map(|light| {
+        if light {
+            tauri::window::Color(0xF4, 0xF4, 0xF5, 0xFF) // zinc-100
+        } else {
+            tauri::window::Color(0x09, 0x09, 0x0B, 0xFF) // zinc-950
+        }
+    })
 }
 
 /// Update main window visual effects to match the given theme.
@@ -1295,21 +1323,7 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     let is_light = match theme {
         "light" => true,
         "dark" => false,
-        // "system": read system preference via macOS defaults
-        _ => {
-            #[cfg(target_os = "macos")]
-            {
-                std::process::Command::new("defaults")
-                    .args(["read", "-g", "AppleInterfaceStyle"])
-                    .output()
-                    .map(|o| !String::from_utf8_lossy(&o.stdout).contains("Dark"))
-                    .unwrap_or(false)
-            }
-            #[cfg(not(target_os = "macos"))]
-            {
-                false
-            }
-        }
+        _ => system_prefers_light().unwrap_or(false),
     };
 
     // When theme is "system", use None so WebView's prefers-color-scheme
@@ -1329,22 +1343,14 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
         // uses the React-drawn bg-background fallback.
         #[cfg(target_os = "macos")]
         {
-            use tauri::utils::config::WindowEffectsConfig;
-            use tauri::window::{Effect, EffectState};
+            use tauri::window::Effect;
 
-            let effect = if is_light {
+            let fallback = if is_light {
                 Effect::Sidebar
             } else {
                 Effect::HudWindow
             };
-            let effects = WindowEffectsConfig {
-                effects: vec![effect],
-                state: Some(EffectState::Active),
-                radius: Some(12.0),
-                color: None,
-                // Liquid Glass only (macOS 27+); these classic materials are unaffected.
-                interactive: false,
-            };
+            let effects = crate::platform::glass_effects(fallback, 12.0);
             let _ = main_window.set_effects(vibrancy.then_some(effects));
         }
         let _ = main_window.set_theme(window_theme);
@@ -1353,33 +1359,34 @@ pub fn update_window_effects_for_theme(app: &AppHandle, theme: &str) {
     // Also update settings and preview window themes if open
     if let Some(settings_window) = app.get_webview_window("settings") {
         let _ = settings_window.set_theme(window_theme);
+        let known_light = if is_system {
+            system_prefers_light()
+        } else {
+            Some(is_light)
+        };
+        let _ = settings_window.set_background_color(settings_window_background(known_light));
     }
     if let Some(preview_window) = app.get_webview_window("preview") {
         let _ = preview_window.set_theme(window_theme);
     }
 
-    // Preview and HUD are floating panels over native vibrancy. HudWindow is a
-    // dark-only material, so in light theme they use the light Popover material
-    // instead (it left the light preview sitting on a dark gray backdrop).
+    // Preview and HUD are floating panels over native glass/vibrancy. Liquid
+    // Glass follows the window appearance set above; for the pre-26 fallback,
+    // HudWindow is a dark-only material, so light theme uses Popover instead
+    // (it left the light preview sitting on a dark gray backdrop).
     #[cfg(target_os = "macos")]
     for (label, radius) in [("preview", 16.0), ("hud", 20.0)] {
-        use tauri::utils::config::WindowEffectsConfig;
-        use tauri::window::{Effect, EffectState};
+        use tauri::window::Effect;
 
         if let Some(window) = app.get_webview_window(label) {
             let _ = window.set_theme(window_theme);
-            let _ = window.set_effects(vibrancy.then(|| WindowEffectsConfig {
-                effects: vec![if is_light {
-                    Effect::Popover
-                } else {
-                    Effect::HudWindow
-                }],
-                state: Some(EffectState::Active),
-                radius: Some(radius),
-                color: None,
-                // Liquid Glass only (macOS 27+); these classic materials are unaffected.
-                interactive: false,
-            }));
+            let fallback = if is_light {
+                Effect::Popover
+            } else {
+                Effect::HudWindow
+            };
+            let _ = window
+                .set_effects(vibrancy.then(|| crate::platform::glass_effects(fallback, radius)));
         }
     }
 }

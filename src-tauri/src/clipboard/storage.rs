@@ -92,10 +92,10 @@ pub async fn insert_captured_item(
                 .bind(path)
                 .fetch_one(pool)
                 .await;
-                if matches!(referenced, Ok((false,))) {
-                    if let Err(cleanup) = tokio::fs::remove_file(path).await {
-                        log::warn!("Failed to clean original after insert failure: {}", cleanup);
-                    }
+                if matches!(referenced, Ok((false,)))
+                    && let Err(cleanup) = tokio::fs::remove_file(path).await
+                {
+                    log::warn!("Failed to clean original after insert failure: {}", cleanup);
                 }
             }
             Err(error.to_string())
@@ -199,12 +199,14 @@ mod tests {
         let outside = TestDirectory::new();
         let target = outside.0.join("keep.png");
         std::fs::write(&target, b"keep").unwrap();
-        assert!(read_staged_image(&root.0, 10, |dir| {
-            let link = dir.join("image.png");
-            std::os::unix::fs::symlink(&target, &link).unwrap();
-            Ok(link)
-        })
-        .is_err());
+        assert!(
+            read_staged_image(&root.0, 10, |dir| {
+                let link = dir.join("image.png");
+                std::os::unix::fs::symlink(&target, &link).unwrap();
+                Ok(link)
+            })
+            .is_err()
+        );
         let directory_link = root.0.join(uuid::Uuid::new_v4().to_string());
         std::os::unix::fs::symlink(&outside.0, &directory_link).unwrap();
         assert_eq!(cleanup_staging(&root.0).unwrap(), 0);
@@ -292,10 +294,12 @@ mod tests {
                 b"same",
                 item.rich_content.as_deref(),
             );
-            assert!(queries::find_and_bump_by_hash(&pool, &item.content_hash)
-                .await
-                .unwrap()
-                .is_none());
+            assert!(
+                queries::find_and_bump_by_hash(&pool, &item.content_hash)
+                    .await
+                    .unwrap()
+                    .is_none()
+            );
             let id = queries::insert_item(&pool, &item).await.unwrap();
             assert_eq!(
                 queries::find_and_bump_by_hash(&pool, &item.content_hash)
